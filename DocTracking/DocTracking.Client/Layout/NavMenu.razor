@@ -1,0 +1,25 @@
+﻿<MudNavMenu>
+
+    <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard" Style="font-size: 16px !important;">Dashboard</MudNavLink>
+
+    <MudDivider Class="my-2" />
+
+    <MudNavGroup Title="Encoder" Icon="@Icons.Material.Filled.Create" Expanded="true">
+        <MudNavLink Href="create-log" Icon="@Icons.Material.Filled.AddBox">New Document</MudNavLink>
+        <MudNavLink Href="my-tracking" Icon="@Icons.Material.Filled.History">My Submissions</MudNavLink>
+    </MudNavGroup>
+
+    <MudDivider Class="my-1" />
+
+    <MudNavGroup Title="Office Staff" Icon="@Icons.Material.Filled.Business" Expanded="false">
+        <MudNavLink Href="office-inbox" Icon="@Icons.Material.Filled.MoveToInbox">Incoming Inbox</MudNavLink>
+        <MudNavLink Href="office-history" Icon="@Icons.Material.Filled.Assessment">Office Records</MudNavLink>
+    </MudNavGroup>
+
+    <MudDivider Class="my-1" />
+
+    <MudNavGroup Title="System Admin" Icon="@Icons.Material.Filled.AdminPanelSettings" Expanded="false">
+        <MudNavLink Href="admin-master" Icon="@Icons.Material.Filled.Dns">Master List</MudNavLink>
+        <MudNavLink Href="manage-offices" Icon="@Icons.Material.Filled.Settings">Office Settings</MudNavLink>
+    </MudNavGroup>
+</MudNavMenu>
