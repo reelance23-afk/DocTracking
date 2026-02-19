@@ -30,7 +30,7 @@ namespace DocTracking.Client.Models
 
         public DateTime? LastActionDate { get; set; }
 
-        public string OriginalUserEmail { get; set; }
+        public string? OriginalUserEmail { get; set; }
 
     }
 }

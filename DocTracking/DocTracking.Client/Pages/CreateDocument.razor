@@ -1,0 +1,104 @@
+﻿@page "/create-document"
+@attribute [Authorize]
+@using DocTracking.Client.Models
+@using DocTracking.Client.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@inject DocumentService DocService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@rendermode InteractiveAuto
+
+<MudContainer MaxWidth="MaxWidth.Medium" Class="mt-4">
+    <MudText Typo="Typo.h4" Class="mb-4">Create New Document</MudText>
+
+    <MudPaper>
+@if (isLoadingOffices)
+		{
+			<MudProgressCircular Color="Color.Primary" Indeterminate="true"/>
+		}
+		else
+		{
+		<MudForm @bind-IsValid="success">
+
+            <MudTextField @bind-Value="newDocument.Name"
+                          Label="Document Name"
+                          Variant="Variant.Outlined"
+                          Required="true"
+                          RequiredError="Document Name is Required"
+                          Class="m-4" />
+
+            <MudTextField @bind-Value="newDocument.Type"
+                          Label="Document type (e.g., Memo, Report, Notice"
+                          Variant="Variant.Outlined"
+                          Required="true"
+                          RequiredError="Document is Required"
+                          Class="m-4" />
+
+			<MudSelect @bind-Value="newDocument.NextOfficeId" Label="Route to.." Variant="Variant.Outlined" Required="true" RequiredError="Destination Required" Class="m-4">
+					@foreach(var office in offices)
+					{
+						<MudSelectItem T="int?" Value="@((int?)office.Id)">@office.Name</MudSelectItem>
+					}
+			</MudSelect>
+
+			<MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="(!success|| isSaving)" OnClick="SubmitDocument">
+					@(isSaving ? "Routing..." : "Submit & Route Document")
+			</MudButton>
+        </MudForm>
+			
+		}
+    </MudPaper>
+
+</MudContainer>
+
+
+@code {
+	private Document newDocument = new();
+	private List<Office> offices = new();
+	private bool success;
+	private bool isSaving = false;
+	private bool isLoadingOffices = true;
+
+	protected override async Task OnInitializedAsync()
+	{
+		offices = await DocService.GetOfficesAsync();
+		isLoadingOffices = false;
+	}
+
+	public async Task SubmitDocument()
+	{
+		isSaving = true;
+		try
+		{
+			var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+			var user = authState.User;
+
+
+			if (user.Identity is not null && user.Identity.IsAuthenticated)
+			{
+				newDocument.OriginalUserEmail = user.Identity.Name ?? "Unknown";
+
+				await DocService.CreateDocumentAsync(newDocument);
+
+				Snackbar.Add("Document Created Successfully!", Severity.Success);
+				Navigation.NavigateTo("/");
+			}
+			else
+			{
+				Snackbar.Add("Error", Severity.Error);
+			}
+		}
+		catch (Exception)
+		{
+			Snackbar.Add("Error Saving Document", Severity.Warning);
+		}
+		finally
+		{
+			isSaving = false;
+		}
+
+
+	}
+
+}

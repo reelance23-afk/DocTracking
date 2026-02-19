@@ -2,6 +2,8 @@
 @attribute [Authorize]
 @using DocTracking.Client.Models
 @using DocTracking.Client.Services
+@using Microsoft.AspNetCore.Components.Authorization;
+@inject AuthenticationStateProvider AuthStateProvider;
 @inject DocumentService DocService
 @rendermode InteractiveAuto
 
@@ -32,7 +34,7 @@
 
         <MudItem xs="12" sm="6" md="3">
             <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
-                       Href="create-log" StartIcon="@Icons.Material.Filled.Add" Class="py-8">
+                       Href="create-document" StartIcon="@Icons.Material.Filled.Add" Class="py-8">
                 New Tracking
             </MudButton>
         </MudItem>
@@ -48,6 +50,9 @@
                     <MudTh>Document</MudTh>
                     <MudTh>Type</MudTh>
                     <MudTh>Current Status</MudTh>
+                    <MudTh>Created At</MudTh>
+                    <MudTh>Current Office</MudTh>
+                    <MudTh>Next Office</MudTh>
                 </HeaderContent>
                 <RowTemplate>
                     <MudTd DataLabel="Document">@context.Name</MudTd>
@@ -59,6 +64,9 @@
                             @context.Status
                         </MudChip>
                     </MudTd>
+                    <MudTd DataLabel="CreatedAt">@context.CreatedAt</MudTd>
+                    <MudTd DataLabel="CurrentOffice">@context.CurrentOffice</MudTd>
+                    <MudTd DataLabel="NextOffice">@context.NextOffice?.Name</MudTd>
                 </RowTemplate>
             </MudTable>
         </MudItem>
@@ -71,13 +79,17 @@
     private int receivedCount = 0;
     private List<Document> recentDocs = new();
 
-    private string mockEmail = "student.test@tsu.edu.ph";
-
     protected override async Task OnInitializedAsync()
     {
         try
         {
-            var allDocs = await DocService.GetUserDocumentsAsync(mockEmail);
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+
+            string email = user.Identity?.Name ?? "";
+
+            var allDocs = await DocService.GetUserDocumentsAsync(email);
+
             if (allDocs != null)
             {
                 myDocsCount = allDocs.Count;
