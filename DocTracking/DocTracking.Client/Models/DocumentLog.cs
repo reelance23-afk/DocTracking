@@ -20,7 +20,7 @@ namespace DocTracking.Client.Models
         [ForeignKey("OfficeId")]
         public Office? Office { get; set; }
 
-        public string Action { get; set; }
+        public string? Action { get; set; }
 
     }
 }

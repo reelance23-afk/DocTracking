@@ -1,0 +1,20 @@
+﻿@inject NavigationManager Navigation
+
+<AuthorizeView>
+    <Authorized>
+        <div class="d-flex align-center gap-4">
+            <MudText Typo="Typo.body2">Hello, @context.User.Identity?.Name</MudText>
+
+            <MudButton OnClick="PerformLogout" Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small">
+                Log Out
+            </MudButton>
+        </div>
+    </Authorized>
+</AuthorizeView>
+
+@code {
+    private void PerformLogout()
+    {
+        Navigation.NavigateTo("Account/Logout", forceLoad: true);
+    }
+}
