@@ -1,4 +1,4 @@
-﻿@page "/admin-master"
+﻿
 @attribute [Authorize]
 @using DocTracking.Client.Models
 @using DocTracking.Client.Services
@@ -35,7 +35,7 @@
 					@(context.CurrentOffice?.Name ?? context.NextOffice?.Name ?? "Unassigned")
 				</MudTd>
 				<MudTd DataLabel="Status">@context.Status</MudTd>
-				<MudTd DataLabel="Date">@context.CreatedAt.ToShortTimeString()</MudTd>
+				<MudTd DataLabel="Date">@context.CreatedAt</MudTd>
 			</RowTemplate>
 			<PagerContent>
 				<MudTablePager PageSizeOptions="new int[] { 10, 25, 50 }" />

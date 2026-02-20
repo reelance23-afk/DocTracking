@@ -1,10 +1,25 @@
 ﻿<MudNavMenu>
+    <MudNavLink Href="/" Match="NavLinkMatch.All" ForceLoad="true" Icon="@Icons.Material.Filled.Home">Dashboard</MudNavLink>
 
-    <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard" Style="font-size: 16px !important;">Dashboard</MudNavLink>
+    <AuthorizeView>
+        <Authorized>
+            @if (!context.User.IsInRole("Admin") && !context.User.IsInRole("Office"))
+            {
+                <MudNavLink Href="/create-document" Icon="@Icons.Material.Filled.NoteAdd">Create Document</MudNavLink>
+                <MudNavLink Href="/my-tracking" Icon="@Icons.Material.Filled.History">My Tracking</MudNavLink>
+            }
+        </Authorized>
+    </AuthorizeView>
 
-    <MudDivider Class="my-2" />
+    <AuthorizeView Roles="Office">
+        <Authorized>
+        </Authorized>
+    </AuthorizeView>
 
-    <MudNavGroup Title="Encoder" Icon="@Icons.Material.Filled.Create" Expanded="false">
-        <MudNavLink Href="create-document" Icon="@Icons.Material.Filled.AddBox">New Document</MudNavLink>
-    </MudNavGroup>
+    <AuthorizeView Roles="Admin">
+        <Authorized>
+            <MudNavLink Href="/manage-office" Icon="@Icons.Material.Filled.Business">Manage Offices</MudNavLink>
+        </Authorized>
+    </AuthorizeView>
+
 </MudNavMenu>

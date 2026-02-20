@@ -1,0 +1,79 @@
+﻿@page "/track-document/{DocumentId:int}"
+@attribute [Authorize]
+@using DocTracking.Client.Models
+@using DocTracking.Client.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@inject DocumentService DocService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Navigation
+@rendermode InteractiveAuto
+
+
+<MudContainer>
+	<MudText Typo="Typo.h4">History</MudText>
+
+@if (isLoading)
+{
+	<MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+}
+else
+{
+	<MudGrid>
+		<MudItem>
+				<MudTable Items="@documentLogs">
+				<ToolBarContent>
+						<MudText Typo="Typo.h6">Recent Activity</MudText>
+						<MudSpacer />
+						<MudButton Href="my-tracking" Variant="Variant.Text" Color="Color.Primary">View All</MudButton>
+				</ToolBarContent>
+					<HeaderContent>
+						<MudTh>Action Taken</MudTh>
+						<MudTh>Office Name</MudTh>
+						<MudTh>Date & Time</MudTh>
+					</HeaderContent>
+				<RowTemplate>
+						<MudTd DataLabel="Action taken">
+							<MudChip T="string"
+									 Color="@(context.Action == "Received" ? Color.Success : Color.Warning)"
+									 Size="Size.Small">
+								@context.Action
+							</MudChip>
+						</MudTd>
+						<MudTd DataLabel="Office Name">@context.Office?.Name</MudTd>
+						<MudTd DataLabel="Date & Time">@context.TimeStamp</MudTd>
+				</RowTemplate>
+			</MudTable>
+		</MudItem>
+	</MudGrid>
+}
+
+</MudContainer>
+@code {
+	[Parameter]
+	public int DocumentId { get; set; }
+
+	private List<DocumentLog> documentLogs = new();
+	private bool isLoading = true; 
+
+	protected override async Task OnInitializedAsync()
+	{
+		try
+		{
+			documentLogs = await DocService.GetDocumentLogsAsync(DocumentId);	
+		}
+		catch(Exception)
+		{
+			Console.WriteLine("Error");
+		}
+		finally
+		{
+			isLoading = false;
+		}
+	}
+
+	private void Back()
+	{
+		Navigation.NavigateTo("/");
+	}
+
+}

@@ -30,7 +30,7 @@ namespace DocTracking.Controllers
                 DocumentId = doc.Id,
                 Action = "Created",
                 TimeStamp = DateTime.UtcNow,
-                OfficeId = doc.NextOfficeId ?? 0
+                OfficeId = doc.NextOfficeId.GetValueOrDefault()
             };
 
             _context.DocumentLogs.Add(log);
@@ -87,6 +87,7 @@ namespace DocTracking.Controllers
                 OfficeId = doc.CurrentOfficeId ?? 0,
                 TimeStamp = DateTime.UtcNow
             });
+
             await _context.SaveChangesAsync();
             return Ok();
         }
@@ -101,6 +102,7 @@ namespace DocTracking.Controllers
             doc.LastActionDate = DateTime.UtcNow;
 
             doc.NextOfficeId = nextOfficeId;
+            doc.CurrentOfficeId = null;
 
             _context.DocumentLogs.Add(new DocumentLog
             {
@@ -109,6 +111,7 @@ namespace DocTracking.Controllers
                 OfficeId = nextOfficeId,
                 TimeStamp = DateTime.UtcNow
             });
+
             await _context.SaveChangesAsync();
             return Ok();
         }

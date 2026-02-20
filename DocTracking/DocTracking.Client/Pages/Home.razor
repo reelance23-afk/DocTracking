@@ -1,106 +1,30 @@
 ﻿@page "/"
 @attribute [Authorize]
-@using DocTracking.Client.Models
-@using DocTracking.Client.Services
-@using Microsoft.AspNetCore.Components.Authorization;
-@inject AuthenticationStateProvider AuthStateProvider;
-@inject DocumentService DocService
+@using DocTracking.Client.Pages.Admin
+@using DocTracking.Client.Pages.Offices
+@using DocTracking.Client.Pages.Users
 @rendermode InteractiveAuto
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
-    <MudText Typo="Typo.h4" Class="mb-6">System Dashboard</MudText>
 
-    <MudGrid>
-        <MudItem xs="12" sm="6" md="3">
-            <MudPaper Class="pa-4 border-l-4 border-solid mud-border-primary" Elevation="2">
-                <MudText Typo="Typo.subtitle2" Color="Color.Primary">Total My Documents</MudText>
-                <MudText Typo="Typo.h3">@myDocsCount</MudText>
-            </MudPaper>
-        </MudItem>
+    <AuthorizeView>
+        <Authorized>
 
-        <MudItem xs="12" sm="6" md="3">
-            <MudPaper Class="pa-4 border-l-4 border-solid mud-border-warning" Elevation="2">
-                <MudText Typo="Typo.subtitle2" Color="Color.Warning">In Transit</MudText>
-                <MudText Typo="Typo.h3">@pendingCount</MudText>
-            </MudPaper>
-        </MudItem>
-
-        <MudItem xs="12" sm="6" md="3">
-            <MudPaper Class="pa-4 border-l-4 border-solid mud-border-success" Elevation="2">
-                <MudText Typo="Typo.subtitle2" Color="Color.Success">Total Received</MudText>
-                <MudText Typo="Typo.h3">@receivedCount</MudText>
-            </MudPaper>
-        </MudItem>
-
-        <MudItem xs="12" sm="6" md="3">
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
-                       Href="create-document" StartIcon="@Icons.Material.Filled.Add" Class="py-8">
-                New Tracking
-            </MudButton>
-        </MudItem>
-
-        <MudItem xs="12">
-            <MudTable Items="@recentDocs" Hover="true" Elevation="2">
-                <ToolBarContent>
-                    <MudText Typo="Typo.h6">Recent Activity</MudText>
-                    <MudSpacer />
-                    <MudButton Href="my-tracking" Variant="Variant.Text" Color="Color.Primary">View All</MudButton>
-                </ToolBarContent>
-                <HeaderContent>
-                    <MudTh>Document</MudTh>
-                    <MudTh>Type</MudTh>
-                    <MudTh>Current Status</MudTh>
-                    <MudTh>Created At</MudTh>
-                    <MudTh>Current Office</MudTh>
-                    <MudTh>Next Office</MudTh>
-                </HeaderContent>
-                <RowTemplate>
-                    <MudTd DataLabel="Document">@context.Name</MudTd>
-                    <MudTd DataLabel="Type">@context.Type</MudTd>
-                    <MudTd DataLabel="Status">
-                        <MudChip T="string"
-                                 Color="@(context.Status == "Received" ? Color.Success : Color.Warning)"
-                                 Size="Size.Small">
-                            @context.Status
-                        </MudChip>
-                    </MudTd>
-                    <MudTd DataLabel="CreatedAt">@context.CreatedAt</MudTd>
-                    <MudTd DataLabel="CurrentOffice">@context.CurrentOffice</MudTd>
-                    <MudTd DataLabel="NextOffice">@context.NextOffice?.Name</MudTd>
-                </RowTemplate>
-            </MudTable>
-        </MudItem>
-    </MudGrid>
-</MudContainer>
-
-@code {
-    private int myDocsCount = 0;
-    private int pendingCount = 0;
-    private int receivedCount = 0;
-    private List<Document> recentDocs = new();
-
-    protected override async Task OnInitializedAsync()
-    {
-        try
-        {
-            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-            var user = authState.User;
-
-            string email = user.Identity?.Name ?? "";
-
-            var allDocs = await DocService.GetUserDocumentsAsync(email);
-
-            if (allDocs != null)
+            @if (context.User.IsInRole("Admin"))
             {
-                myDocsCount = allDocs.Count;
-                pendingCount = allDocs.Count(d => d.Status != "Received");
-                receivedCount = allDocs.Count(d => d.Status == "Received");
-                recentDocs = allDocs.OrderByDescending(d => d.CreatedAt).Take(5).ToList();
+                <AdminMaster />
             }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error loading dashboard: {ex.Message}");
-        }
-    }
-}
+
+            else if (context.User.IsInRole("Office"))
+            {
+                <OfficeHome />
+            }
+
+            else
+            {
+                <UserHome />
+            }
+        </Authorized>
+    </AuthorizeView>
+
+</MudContainer>
