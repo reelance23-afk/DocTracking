@@ -4,6 +4,7 @@ using DocTracking.Client.Services;
 using DocTracking.Components;
 using DocTracking.Data;
 using DocTracking.Services;
+using DocTracking.Security;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Builder;
@@ -13,6 +14,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Identity.Web;
 using MudBlazor.Services;   
 using Swashbuckle.AspNetCore.SwaggerUI;
+using Microsoft.AspNetCore.Authentication;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -40,13 +42,42 @@ builder.Services.AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
         options.ResponseType = "code";
         options.SaveTokens = true;
     });
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.Events.OnRedirectToLogin = context =>
+    {
+
+        options.ExpireTimeSpan = TimeSpan.FromDays(30); 
+        options.SlidingExpiration = true;
+
+        if (context.Request.Path.StartsWithSegments("/api"))
+        {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            return Task.CompletedTask;
+        }
+        context.Response.Redirect(context.RedirectUri);
+        return Task.CompletedTask;
+    };
+
+    options.Events.OnRedirectToAccessDenied = context =>
+    {
+        if (context.Request.Path.StartsWithSegments("/api"))
+        {
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            return Task.CompletedTask;
+        }
+        context.Response.Redirect(context.RedirectUri);
+        return Task.CompletedTask;
+    };
+});
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddScoped<AuthenticationStateProvider, DocTracking.Services.PersistingServerAuthenticationStateProvider>();
 builder.Services.AddScoped<DocumentService>();
+builder.Services.AddTransient<IClaimsTransformation, UserClaimsTransformation>();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-builder.Services.AddRazorComponents()
+builder.Services.AddRazorComponents()           
     .AddInteractiveServerComponents()
     .AddInteractiveWebAssemblyComponents();
 

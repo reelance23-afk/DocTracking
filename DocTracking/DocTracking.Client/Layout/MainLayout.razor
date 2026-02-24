@@ -5,18 +5,37 @@
 <MudDialogProvider />
 <MudSnackbarProvider />
 
-<MudLayout>  
-    <MudAppBar Elevation="4">
-        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@((e) => DrawerToggle())" />
-        <MudSpacer />
-        <LoginDisplay />
+<MudLayout>
+    <MudAppBar Elevation="4"
+               Dense="false"
+               Fixed="true"
+               Color="Color.Warning">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu"
+                       Color="Color.Inherit"
+                       Edge="Edge.Start"
+                       Size="Size.Medium"
+                       OnClick="@((e) => DrawerToggle())" />
+        <MudSpacer/>
     </MudAppBar>
-    <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2">
+
+    <MudDrawer @bind-Open="_drawerOpen"
+               ClipMode="DrawerClipMode.Always"
+               Elevation="2"
+               >
         <MudDrawerHeader>
-            <MudText Typo="Typo.h5">Main Menu</MudText>
+            <AuthorizeView>
+                <Authorized>
+                <MudPaper Outlined="true" Class="pa-4 rounded-lg d-flex flex-column align-center" Style="width: 100%; background: rgba(0,0,0,0.03);">
+                    <MudIcon Icon="@Icons.Material.Filled.AccountCircle" Size="Size.Large" Color="Color.Default" Class="mb-2" />
+                    <MudText Typo="Typo.subtitle1">@context.User.Identity?.Name</MudText>
+                    <MudText Typo="Typo.caption">@context.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value</MudText>
+                </MudPaper>
+                </Authorized>
+            </AuthorizeView>
         </MudDrawerHeader>
         <NavMenu />
     </MudDrawer>
+
     <MudMainContent>
         <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-10">
             @Body

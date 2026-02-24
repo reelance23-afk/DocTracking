@@ -1,0 +1,105 @@
+﻿@page "/manage-users"
+@attribute [Authorize(Roles = "Admin")]
+@using DocTracking.Client.Models
+@using DocTracking.Client.Services
+@inject DocumentService DocService
+@inject ISnackbar Snackbar
+@rendermode InteractiveAuto
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <MudText Typo="Typo.h4" Class="mb-4">User Management</MudText>
+
+    @if (isLoading)
+    {
+        <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+        <p>isLoading: @isLoading</p>
+    }
+    else
+    {
+        <MudTable T="AppUser" Items="@appUsers" Hover="true" Elevation="3">
+            <ToolBarContent>
+                <MudText Typo="Typo.h6">System Users</MudText>
+                <MudSpacer />
+            </ToolBarContent>
+            <HeaderContent>
+                <MudTh>Email</MudTh>
+                <MudTh>System Role</MudTh>
+                <MudTh>Assigned Office</MudTh>
+                <MudTh>Actions</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Email">
+                    <strong>@context.Email</strong>
+                </MudTd>
+
+                <MudTd DataLabel="System Role">
+                    <MudSelect @bind-Value="context.Role" Margin="Margin.Dense" Variant="Variant.Outlined">
+                        <MudSelectItem Value="@("User")">Standard User</MudSelectItem>
+                        <MudSelectItem Value="@("Office")">Office Worker</MudSelectItem>
+                        <MudSelectItem Value="@("Admin")">Administrator</MudSelectItem>
+                    </MudSelect>
+                </MudTd>
+
+                <MudTd DataLabel="Assigned Office">
+                    <MudSelect @bind-Value="context.OfficeId" Margin="Margin.Dense" Variant="Variant.Outlined"
+                               Disabled="@(context.Role != "Office")" Clearable="true">
+                        @foreach (var off in allOffices)
+                        {
+                            <MudSelectItem T="int?" Value="@((int?)off.Id)">@off.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudTd>
+
+                <MudTd DataLabel="Actions">
+                    <MudButton Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small"
+                               OnClick="@(() => SaveUser(context))">
+                        Save Changes
+                    </MudButton>
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    }
+</MudContainer>
+
+@code {
+	private List<AppUser> appUsers = new();
+	private List<Office> allOffices = new();
+	private bool isLoading = true;
+
+	protected override async Task OnInitializedAsync()
+	{
+        try
+        {
+            isLoading = true;
+
+            appUsers = await DocService.GetAppUserAsync();
+            allOffices = await DocService.GetOfficesAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+	}
+
+	private async Task SaveUser(AppUser user)
+	{
+		try
+		{
+			if(user.Role != "Office")
+			{
+				user.OfficeId = null;
+			}
+
+			await DocService.UpdateAppUserAsync(user);
+			Snackbar.Add("Successfully updated user");
+		}
+		catch (Exception)
+		{
+			Snackbar.Add("Error");
+		}
+	}
+}

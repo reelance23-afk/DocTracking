@@ -35,18 +35,26 @@ namespace DocTracking.Services
 
             if (user.Identity?.IsAuthenticated == true)
             {
-                var email = user.Identity.Name ?? "";
+                var email = user.Identity?.Name ?? "";
 
-                var office = await _db.Offices.FirstOrDefaultAsync(o => o.WorkerEmail == email);
 
+                var appUser = await _db.AppUsers
+                    .Include(u => u.Office)
+                    .FirstOrDefaultAsync(u => u.Email == email);
+
+
+                var realName = user.FindFirst("name")?.Value ??
+                    user.FindFirst(ClaimTypes.GivenName)?.Value ??
+                    appUser?.Email;
                 _state.PersistAsJson(nameof(UserInfo), new UserInfo
                 {
                     UserId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? email,
                     Email = email,
-                    Role = user.FindFirst("roles")?.Value ?? user.FindFirst(ClaimTypes.Role)?.Value,
+                    Role = appUser.Role ?? "User",
 
-                    OfficeId = office?.Id,
-                    OfficeName = office?.Name
+                    OfficeId = appUser?.OfficeId,
+                    OfficeName = appUser?.Office?.Name,
+                    RealName = realName
                 });
             }
         }

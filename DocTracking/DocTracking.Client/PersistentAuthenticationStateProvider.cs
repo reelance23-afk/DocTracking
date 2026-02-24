@@ -22,13 +22,18 @@ namespace DocTracking.Client
                 var claims = new List<Claim>
                 {
                     new Claim(ClaimTypes.NameIdentifier, userInfo.UserId ?? ""),
-                    new Claim(ClaimTypes.Name, userInfo.Email ?? ""),
+                    new Claim(ClaimTypes.Name, userInfo.RealName ?? ""),
                     new Claim(ClaimTypes.Email, userInfo.Email ?? "")
                 };
 
                 if (!string.IsNullOrEmpty(userInfo.Role))
                 {
-                    claims.Add(new Claim(ClaimTypes.Role, userInfo.Role));
+                    claims.Add(new Claim(ClaimTypes.Role, userInfo.Role ?? "User"));
+                }
+
+                if (userInfo.OfficeId.HasValue)
+                {
+                    claims.Add(new Claim("OfficeId", userInfo.OfficeId.ToString()));
                 }
 
                 _authenticationStateTask = Task.FromResult(

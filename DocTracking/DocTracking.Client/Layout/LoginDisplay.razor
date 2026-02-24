@@ -2,10 +2,8 @@
 
 <AuthorizeView>
     <Authorized>
-        <div class="d-flex align-center gap-4">
-            <MudText Typo="Typo.body2">Hello, @context.User.Identity?.Name</MudText>
-
-            <MudButton OnClick="PerformLogout" Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small">
+        <div class="d-flex justify-center w-100">
+            <MudButton OnClick="PerformLogout" Variant="Variant.Outlined" Color="Color.Error" Size="Size.Medium" StartIcon="@Icons.Material.Filled.Logout">
                 Log Out
             </MudButton>
         </div>

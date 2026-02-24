@@ -1,4 +1,5 @@
-﻿using System.Net.Http.Json;
+﻿using System.Formats.Asn1;
+using System.Net.Http.Json;
 using DocTracking.Client.Models;
 
 namespace DocTracking.Client.Services
@@ -55,6 +56,21 @@ namespace DocTracking.Client.Services
         public async Task<List<DocumentLog>> GetDocumentLogsAsync(int id)
         {
            return await _http.GetFromJsonAsync<List<DocumentLog>>($"api/documentlogs/{id}") ?? new();
+        }
+
+            public async Task<List<AppUser>> GetAppUserAsync()
+            {
+            var response = await _http.GetAsync("api/appusers");
+
+            if (!response.IsSuccessStatusCode)
+                return new();
+
+            return await response.Content.ReadFromJsonAsync<List<AppUser>>() ?? new();
+        }
+
+        public async Task UpdateAppUserAsync(AppUser user)
+        {
+            await _http.PutAsJsonAsync($"api/appusers/{user.Id}", user);
         }
 
     }

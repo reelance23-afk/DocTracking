@@ -15,7 +15,7 @@ namespace DocTracking.Client.Models
 
         public DateTime TimeStamp { get; set; } = DateTime.UtcNow;
 
-        public int OfficeId { get; set; }
+        public int? OfficeId { get; set; }
 
         [ForeignKey("OfficeId")]
         public Office? Office { get; set; }

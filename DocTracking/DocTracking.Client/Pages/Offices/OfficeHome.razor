@@ -110,14 +110,18 @@
             var authState = await AuthStateProvider.GetAuthenticationStateAsync();
             var user = authState.User;
 
-            var userRoles = user.Claims.Where(c => c.Type == "roles" || c.Type == System.Security.Claims.ClaimTypes.Role)
-                                       .Select(c => c.Value)
-                                       .ToList();
+            userEmail = user.Identity?.Name ?? "Unknown";
 
             allOffices = await DocService.GetOfficesAsync();
-            myOffice = allOffices.FirstOrDefault(o => userRoles.Contains(o.Name));
 
-            if(myOffice != null)
+            var officeIdClaim = user.Claims.FirstOrDefault(c => c.Type == "OfficeId");
+
+            if (officeIdClaim != null && int.TryParse(officeIdClaim.Value, out int assignedOfficeId))
+            {
+                myOffice = allOffices.FirstOrDefault(o => o.Id == assignedOfficeId);
+            }
+
+            if (myOffice != null)
             {
                 await RefreshQueues();
             }
