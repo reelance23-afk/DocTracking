@@ -3,15 +3,16 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace DocTracking.Client.Models
 {
-    public class Office
+    public class Unit
     {
-        [Key]
         public int Id { get; set; }
 
         [Required]
         public string Name { get; set; }
+        public int OfficeId { get; set; }
 
-        public ICollection<Unit>? Units { get; set; }
-
+        [ForeignKey("OfficeId")]
+        public Office? Office { get; set; }
+        public ICollection<AppUser>? Users { get; set; }
     }
 }

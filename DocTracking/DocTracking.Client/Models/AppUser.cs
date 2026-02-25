@@ -10,10 +10,10 @@ namespace DocTracking.Client.Models
 
         public string? Role { get; set; }
 
-        public int? OfficeId { get; set; }
+        public int? UnitId { get; set; }
 
-        [ForeignKey("OfficeId")]
-        public Office? Office { get; set; }
+        [ForeignKey("UnitId")]
+        public Unit? Unit { get; set; }
 
     }
 }

@@ -7,16 +7,9 @@
 @rendermode InteractiveAuto
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
-    <MudText Typo="Typo.h4" Class="mb-4">User Management</MudText>
+    <MudText Typo="Typo.h4" Class="mb-4 font-weight-bold">User Management</MudText>
 
-    @if (isLoading)
-    {
-        <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
-        <p>isLoading: @isLoading</p>
-    }
-    else
-    {
-        <MudTable T="AppUser" Items="@appUsers" Hover="true" Elevation="3">
+        <MudTable T="AppUser" Items="@appUsers" Hover="true" Elevation="3" Loading="@Loading" Filter="new Func<AppUser, bool>(FilterFunc)">
             <ToolBarContent>
                 <MudText Typo="Typo.h6">System Users</MudText>
                 <MudSpacer />
@@ -29,11 +22,11 @@
             </HeaderContent>
             <RowTemplate>
                 <MudTd DataLabel="Email">
-                    <strong>@context.Email</strong>
+                    <MudText Typo="Typo.body2" Class="font-weight-bold">@context.Email</MudText>
                 </MudTd>
 
                 <MudTd DataLabel="System Role">
-                    <MudSelect @bind-Value="context.Role" Margin="Margin.Dense" Variant="Variant.Outlined">
+                    <MudSelect @bind-Value="context.Role" Margin="Margin.Dense" Variant="Variant.Outlined" Dense="true">
                         <MudSelectItem Value="@("User")">Standard User</MudSelectItem>
                         <MudSelectItem Value="@("Office")">Office Worker</MudSelectItem>
                         <MudSelectItem Value="@("Admin")">Administrator</MudSelectItem>
@@ -41,8 +34,8 @@
                 </MudTd>
 
                 <MudTd DataLabel="Assigned Office">
-                    <MudSelect @bind-Value="context.OfficeId" Margin="Margin.Dense" Variant="Variant.Outlined"
-                               Disabled="@(context.Role != "Office")" Clearable="true">
+                    <MudSelect @bind-Value="context.UnitId" Margin="Margin.Dense" Variant="Variant.Outlined"
+                               Disabled="@(context.Role != "Office")" Clearable="true" Dense="true">
                         @foreach (var off in allOffices)
                         {
                             <MudSelectItem T="int?" Value="@((int?)off.Id)">@off.Name</MudSelectItem>
@@ -52,54 +45,72 @@
 
                 <MudTd DataLabel="Actions">
                     <MudButton Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small"
-                               OnClick="@(() => SaveUser(context))">
+                               OnClick="@(() => SaveUser(context))" StartIcon="@Icons.Material.Filled.Save">
                         Save Changes
                     </MudButton>
                 </MudTd>
             </RowTemplate>
+
+            <PagerContent>
+                <MudTablePager/>
+            </PagerContent>
         </MudTable>
-    }
 </MudContainer>
 
 @code {
-	private List<AppUser> appUsers = new();
-	private List<Office> allOffices = new();
-	private bool isLoading = true;
+    private List<AppUser> appUsers = new();
+    private List<Office> allOffices = new();
+    private bool Loading = true;
 
-	protected override async Task OnInitializedAsync()
-	{
+    private string searchString = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData(); 
+    }
+
+
+    private async Task LoadData()
+    {
+        Loading = true;
         try
         {
-            isLoading = true;
-
             appUsers = await DocService.GetAppUserAsync();
             allOffices = await DocService.GetOfficesAsync();
         }
-        catch (Exception ex)
+        catch (Exception )
         {
-            Console.WriteLine(ex);
+            Snackbar.Add("error");
         }
         finally
         {
-            isLoading = false;
+            Loading = false;
         }
-	}
+    }
 
-	private async Task SaveUser(AppUser user)
-	{
-		try
-		{
-			if(user.Role != "Office")
-			{
-				user.OfficeId = null;
-			}
+    private async Task SaveUser(AppUser user)
+    {
+        try
+        {
+            if(user.Role != "Office")
+            {
+                user.UnitId = null;
+            }
 
-			await DocService.UpdateAppUserAsync(user);
-			Snackbar.Add("Successfully updated user");
-		}
-		catch (Exception)
-		{
-			Snackbar.Add("Error");
-		}
-	}
+            await DocService.UpdateAppUserAsync(user);
+            Snackbar.Add("Successfully updated user");
+        }
+        catch (Exception)
+        {
+            Snackbar.Add("Error");
+        }
+    }
+
+    private bool FilterFunc(AppUser user)
+    {
+        if (String.IsNullOrWhiteSpace(searchString)) return true;
+        if (user.Email?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+
+        return false;
+    }
 }

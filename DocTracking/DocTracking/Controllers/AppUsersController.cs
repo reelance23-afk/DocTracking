@@ -24,7 +24,8 @@ namespace DocTracking.Controllers
         public async Task<ActionResult<IEnumerable<AppUser>>> GetUsers()
         {
             return await _context.AppUsers
-                .Include(u => u.Office)
+                .Include(u => u.Unit)
+                .ThenInclude(unit => unit.Office)
                 .OrderBy(u => u.Email)
                 .ToListAsync();
         }
@@ -36,7 +37,7 @@ namespace DocTracking.Controllers
             if (user == null) return NotFound();
 
             user.Role = updatedUser.Role;
-            user.OfficeId = updatedUser.OfficeId;
+            user.UnitId = updatedUser.UnitId;
 
             await _context.SaveChangesAsync();
             return Ok();

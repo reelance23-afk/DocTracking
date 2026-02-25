@@ -1,12 +1,11 @@
-﻿
-@attribute [Authorize]
+﻿@attribute [Authorize(Roles = "Admin")]
 @using DocTracking.Client.Models
 @using DocTracking.Client.Services
 @inject DocumentService DocumentService
 @rendermode InteractiveAuto
 
-<MudContainer>
-	<MudText Typo="Typo.h4" Class="mb-4">Tracking List</MudText>
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+	<MudText Typo="Typo.h4" Class="mb-4">Dashboard</MudText>
 
 	@if (loading)
 	{
@@ -14,31 +13,82 @@
 	}
 	else
 	{
-		<MudTable Items="@allDocuments" Hover="true" Striped="true" Elevation="2">
-			<ToolBarContent>
-				<MudText Typo="Typo.h6">All Document</MudText>
-				<MudSpacer />
-			</ToolBarContent>
-			<HeaderContent>
-				<MudTh>Name</MudTh>
-				<MudTh>Sender</MudTh>
-				<MudTh>Location</MudTh>
-				<MudTh>Status</MudTh>
-				<MudTh>Date</MudTh>
-			</HeaderContent>
-			<RowTemplate>
-				<MudTd DataLabel="Name">@context.Name</MudTd>
-				<MudTd DataLabel="Sender">@context.OriginalUserEmail</MudTd>
-				<MudTd DataLabel="Location">
-					@(context.CurrentOffice?.Name ?? context.NextOffice?.Name ?? "Unassigned")
-				</MudTd>
-				<MudTd DataLabel="Status">@context.Status</MudTd>
-				<MudTd DataLabel="Date">@context.CreatedAt</MudTd>
-			</RowTemplate>
-			<PagerContent>
-				<MudTablePager PageSizeOptions="new int[] { 10, 25, 50 }" />
-			</PagerContent>
-		</MudTable>
+        <MudGrid>
+            <MudItem xs="12" sm="6" md="4">
+				<MudPaper Elevation="2" Class="pa-4 d-flex flex-column justify-center align-center" Style="height: 140px; border-top: 4px solid #2196f3;">
+					<MudIcon Icon="@Icons.Material.Filled.Description" Color="Color.Info" Size="Size.Large" Class="mb-2"></MudIcon>
+					<MudText Typo="Typo.h4" Class="font-weight-bold">@totalDocuments</MudText>
+					<MudText Typo="Typo.subtitle2" Style="color: gray">Total Documents</MudText>
+				</MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="4">
+				<MudPaper Elevation="2" Class="pa-4 d-flex flex-column justify-center align-center" Style="height: 140px; border-top: 4px solid #ff9800;">
+					<MudIcon Icon="@Icons.Material.Filled.Business" Color="Color.Warning" Size="Size.Large" Class="mb-2"></MudIcon>
+					<MudText Typo="Typo.h4" Class="font-weight-bold">@totalOffices</MudText>
+					<MudText Typo="Typo.subtitle2" Style="color: gray">Total Offices</MudText>
+				</MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="12" md="4">
+				<MudPaper Elevation="2" Class="pa-4 d-flex flex-column justify-center align-center" Style="height: 140px; border-top: 4px solid #4caf50;">
+					<MudIcon Icon="@Icons.Material.Filled.People" Color="Color.Success" Size="Size.Large" Class="mb-2"></MudIcon>
+					<MudText Typo="Typo.h4" Class="font-weight-bold">@totalUsers</MudText>
+					<MudText Typo="Typo.subtitle2" Style="color: gray">Total Users</MudText>
+				</MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" sm="6">
+                <MudGrid>
+                    <MudItem xs="12">
+                        <MudPaper Elevation="2" Class="pa-4" Style="height: 300px;">
+							<MudText Class="mb-2" Typo="Typo.h6">Document Status Breakdown</MudText>
+							<MudChart ChartType="ChartType.Pie" InputData="@pieChartData" InputLabels="@pieChartLabel" Width="100%" Height="200px"></MudChart>
+						</MudPaper>
+                    </MudItem>
+                    <MudItem xs="12">
+						<MudPaper Elevation="2" Class="pa-4" Style="height: 200px; overflow: hidden">
+							<MudText Typo="Typo.h6" Class="mb-4">Office Workload</MudText>
+							<MudCarousel TData="object" Class="mud-width-full" Style="height: 120px;" ShowArrows="true" ShowBullets="true" AutoCycle="false">
+								@if (officeWorkLoads.Any())
+								{
+									@foreach(var workload in officeWorkLoads)
+									{
+										<MudCarouselItem Transition="Transition.Slide">
+											<div class="d-flex flex-column justify-center px-10" Style="height:50px">
+												<div class="d-flex justify-space-between mb-1">
+													  <MudText Typo="Typo.body1" class="font-weight-bold">@workload.OfficeName</MudText>
+													  <MudText Typo="Typo.body2">@workload.DocumentCount</MudText>
+												</div>
+												<MudProgressLinear Color="Color.Warning" Value="@workload.Percentage" Class="rounded-lg" Size="Size.Large"/>
+											</div>
+										</MudCarouselItem>
+									}
+								}
+							</MudCarousel>
+						</MudPaper>
+                    </MudItem>
+                </MudGrid>
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudPaper Elevation="2" Class="pa-4" Style="height: 100%; min-height: 524px;" >
+					<MudText Typo="Typo.h6" Class="mb-4">Recent Documents</MudText>
+					<MudList T="string" Dense="true">
+						@if (recentDocuments.Any())
+						{
+							@foreach(var document in recentDocuments)
+							{
+								<MudListItem>
+									<div>
+										<MudText Typo="Typo.subtitle2" Class="font-weight-bold">@document.Name</MudText>
+										<MudText Typo="Typo.caption" Style="color: gray">@document.CurrentOffice?.Name</MudText>
+									</div>
+								</MudListItem>
+								<MudDivider/>
+							}
+						}
+					</MudList>
+				</MudPaper>
+            </MudItem>
+        </MudGrid>
 
 		
 	}
@@ -46,13 +96,70 @@
 
 @code {
 	private List<Document> allDocuments = new();
+	private List<Document> recentDocuments = new();
 	private bool loading = true;
+
+	private int totalDocuments = 0;
+	private int totalOffices = 0;
+	private int totalUsers = 0;
+
+	private double[] pieChartData = { 0, 0, };
+	private string[] pieChartLabel = { "On Going", "Received" };
+
+	private List<OfficeWorkLoad> officeWorkLoads = new();
+
+	public class OfficeWorkLoad
+	{
+		public string? OfficeName { get; set; }
+		public int DocumentCount { get; set; }
+		public int Percentage{ get; set;}
+	}
 
 	protected override async Task OnInitializedAsync()
 	{
 		try
 		{
 			allDocuments = await DocumentService.GetAllDocumentsAsync();
+			var allAppUsers = await DocumentService.GetAppUserAsync();
+			var allOffices = await DocumentService.GetOfficesAsync();
+
+			totalDocuments = allDocuments.Count;
+			totalOffices = allOffices.Count;
+			totalUsers = allAppUsers.Count;
+
+			int inProgress = allDocuments.Count( u => u.Status == "On Going");
+			int received = allDocuments.Count(u => u.Status == "Received");
+
+			if (totalDocuments == 0) {
+				pieChartData = new double[] { 1, 0, 0 }; pieChartLabel = new[] { "No data","",""}; 
+			}
+			else
+			{
+				pieChartData = new double[] { inProgress, received };
+			}
+
+			recentDocuments = allDocuments
+			.OrderByDescending(u => u.CreatedAt)
+			.Take(5)
+			.ToList();
+
+			int maxDoc = Math.Max(totalDocuments, 1);
+
+			officeWorkLoads = allOffices.Select(office =>
+			{
+				int count = allDocuments.Count(d => d.CurrentOffice?.Name == office.Name);
+				return new OfficeWorkLoad
+					{
+						OfficeName = office.Name,
+						DocumentCount = count,
+						Percentage = (int)Math.Round((double)count / maxDoc * 100)
+					};
+
+			})
+			.Where(w => w.DocumentCount > 0)
+			.OrderByDescending(w => w.DocumentCount)
+			.ToList();
+
 		}
 		catch (Exception ex)
 		{

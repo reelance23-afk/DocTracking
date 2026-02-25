@@ -21,6 +21,8 @@ namespace DocTracking.Controllers
         {
             return await _context.DocumentLogs
                 .Include(m => m.Office)
+                .Include(m => m.Unit)
+                .Include(m => m.AppUser)
                 .Where(m => m.DocumentId == documentId )
                 .OrderByDescending(m => m.TimeStamp)
                 .ToListAsync();

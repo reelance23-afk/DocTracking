@@ -1,0 +1,133 @@
+﻿@page "/manage-offices"
+@using DocTracking.Client.Models
+@using DocTracking.Client.Services
+@inject DocumentService DocService
+@inject ISnackbar Snackbar
+@rendermode InteractiveAuto
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <MudText Typo="Typo.h4" Class="mb-4">Office Management</MudText>
+
+    <MudGrid>
+        <MudItem xs="12" md="4">
+            <MudPaper Class="pa-4" Elevation="3">
+                <div class="d-flex align-center mb-4">
+                    <MudIcon Icon="@Icons.Material.Filled.AddBusiness" Color="Color.Primary" Class="mr-2"/>
+                    <MudText Typo="Typo.h6">Add New Office</MudText>
+                </div>
+
+                <MudForm @bind-IsValid="@success" @ref="form">
+                    <MudTextField @bind-Value="newOfficeName"
+                                  Label="Office Name"
+                                  Variant="Variant.Outlined"
+                                  Required="true"
+                                  RequiredError="Office name is required!" 
+                                  Margin="Margin.Dense"
+                                  Clearable="true" />
+
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               Class="mt-4"
+                               FullWidth="true"
+                               Disabled="@(!success)"
+                               OnClick="SubmitOffice">
+                        @if (isSubmitting)
+                        {
+                            <MudProgressCircular Class="ms-n1" Size="Size.Large" Indeterminate="true" />
+                        }
+                        else
+                        {
+                            <MudText>Add Office</MudText>
+                        }
+                    </MudButton>
+                </MudForm>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" md="8">
+            <MudTable Items="@offices" Hover="true" Elevation="3" Loading="@loading" Filter="new Func<Office, bool>(FilterFunc)">
+                <ToolBarContent>
+                    <MudText Typo="Typo.h6">Current Offices</MudText>
+                </ToolBarContent>
+                <HeaderContent>
+                    <MudTh>Office Name</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Name">
+                        <MudText Typo="Typo.body1" Style="font-weight:bold">@context.Name</MudText>
+                    </MudTd>
+                </RowTemplate>
+
+                <PagerContent>
+                    <MudTablePager/>
+                </PagerContent>
+            </MudTable>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+@code {
+    private List<Office> offices = new();
+    private string newOfficeName = "";
+    private bool success;
+
+    private bool isSubmitting = false;
+    private bool loading = true;
+    private string searchString = "";
+    private MudForm? form;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadOffices();
+    }
+
+    private async Task LoadOffices()
+    {
+        loading = true;
+        try
+        {
+            offices = await DocService.GetOfficesAsync();
+        }
+        finally 
+        {
+            loading = false;
+        }
+    }
+
+    private async Task SubmitOffice()
+    {
+        if (string.IsNullOrWhiteSpace(newOfficeName)) return;
+
+        isSubmitting = true;
+        try
+        {
+            var newOffice = new Office { Name = newOfficeName };
+
+            await DocService.AddOfficeAsync(newOffice);
+
+            Snackbar.Add($"Office '{newOfficeName}' added successfully!", Severity.Success);
+
+            newOfficeName = "";
+            form?.ResetAsync();
+
+            await LoadOffices();
+        }
+        catch (Exception)
+        {
+            Snackbar.Add("error");
+        } 
+        finally
+        {
+            isSubmitting = false;  
+        }
+
+    }
+
+    private bool FilterFunc(Office element)
+    {
+        if (string.IsNullOrWhiteSpace(searchString)) return true;
+        if (element.Name?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+
+        return false;
+    }
+}

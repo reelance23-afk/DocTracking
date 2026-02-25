@@ -1,0 +1,89 @@
+﻿@page "/document-tracking"
+@attribute [Authorize(Roles = "Admin")]
+@using DocTracking.Client.Models
+@using DocTracking.Client.Services
+@inject DocumentService DocumentService
+@rendermode InteractiveAuto
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+	<MudText Typo="Typo.h4" Class="mb-4 font-weight-bold">Tracking List</MudText>
+
+		<MudTable Items="@allDocuments" Hover="true" Striped="true" Elevation="3" Loading="@loading" Filter="new Func<Document, bool>(FilterFunc)">
+			<ToolBarContent>
+				<MudText Typo="Typo.h6">All Document</MudText>
+				<MudSpacer />
+			</ToolBarContent>
+			<HeaderContent>
+				<MudTh>Name</MudTh>
+				<MudTh>Sender</MudTh>
+				<MudTh>Location</MudTh>
+				<MudTh>Status</MudTh>
+				<MudTh>Date</MudTh>
+			</HeaderContent>
+			<RowTemplate>
+				<MudTd DataLabel="Name">
+				<MudText Typo="Typo.body1" Class="font-weight-bold">@context.Name</MudText>
+				</MudTd>
+				<MudTd DataLabel="Sender">@context.Creator?.Email</MudTd>
+				<MudTd DataLabel="Location">
+					@(context.CurrentOffice?.Name ?? context.NextOffice?.Name ?? "Unassigned")
+				</MudTd>
+				<MudTd DataLabel="Status">
+					<MudChip T="string"  Color="@GetStatusColor(context.Status)" Size="Size.Small" Variant="Variant.Filled">
+						@context.Status
+					</MudChip>
+				</MudTd>
+				<MudTd DataLabel="Date">@context.CreatedAt</MudTd>
+			</RowTemplate>
+			<PagerContent>
+				<MudTablePager />
+			</PagerContent>
+		</MudTable>
+
+</MudContainer>
+
+@code {
+	private List<Document> allDocuments = new();
+	private bool loading = true;
+
+	private string searchString = "";
+
+	protected override async Task OnInitializedAsync()
+	{
+		try
+		{
+			allDocuments = await DocumentService.GetAllDocumentsAsync();
+		}
+		catch (Exception ex)
+		{
+			Console.WriteLine(ex.Message);
+		}
+		finally
+		{
+			loading = false;
+		}
+	}
+
+	private bool FilterFunc(Document element)
+	{
+		if (string.IsNullOrWhiteSpace(searchString)) return true;
+		if (element.Name?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+		if (element.Creator?.Email?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+		if (element.Status?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+
+			return false;
+	}
+
+	private Color GetStatusColor(string? status)
+	{
+		return status switch
+		{
+			"Completed" => Color.Success,
+			"Received" => Color.Info,
+			"On Going" => Color.Warning,
+			"Pending" => Color.Warning,
+			"Archived" => Color.Dark,
+			_ => Color.Default
+		};
+	}
+}

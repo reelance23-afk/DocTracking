@@ -26,11 +26,23 @@ namespace DocTracking.Client.Models
         [ForeignKey("NextOfficeId")]
         public Office? NextOffice { get; set; }
 
+        public int? CurrentUnitId { get; set; }
+
+        [ForeignKey("CurrentUnitId")]
+        public Unit? CurrentUnit { get; set; }
+
+        public int? NextUnitId { get; set; }
+
+        [ForeignKey("NextUnitId")]
+        public Unit? NextUnit { get; set; }
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         public DateTime? LastActionDate { get; set; }
 
-        public string? OriginalUserEmail { get; set; }
+        public int? CreatorId { get; set; }
 
+        [ForeignKey("CreatorId")]
+        public AppUser? Creator { get; set; }
     }
 }

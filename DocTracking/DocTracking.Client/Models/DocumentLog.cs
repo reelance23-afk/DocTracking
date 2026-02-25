@@ -13,14 +13,23 @@ namespace DocTracking.Client.Models
         [ForeignKey("DocumentId")]
         public Document? Document { get; set; }
 
-        public DateTime TimeStamp { get; set; } = DateTime.UtcNow;
+        public int? AppUserId { get; set; }
+
+        [ForeignKey("AppUserId")]
+        public AppUser? AppUser { get; set; }
 
         public int? OfficeId { get; set; }
 
         [ForeignKey("OfficeId")]
         public Office? Office { get; set; }
 
+        public int? UnitId { get; set; }
+
+        [ForeignKey("UnitId")]
+        public Unit? Unit { get; set; }
+
         public string? Action { get; set; }
+        public DateTime TimeStamp { get; set; } = DateTime.UtcNow;
 
     }
 }

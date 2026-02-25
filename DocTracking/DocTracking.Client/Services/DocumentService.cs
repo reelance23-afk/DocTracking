@@ -48,9 +48,10 @@ namespace DocTracking.Client.Services
             await _http.PutAsync($"api/documents/{id}/receive", null);
         }
                                                                                                        
-        public async Task ForwardDocumentAsync(int id, int nextOfficeId)
+        public async Task ForwardDocumentAsync(int id, int nextOfficeId, int? nextUnitId = null)
         {
-            await _http.PutAsJsonAsync($"api/documents/{id}/forward", nextOfficeId);
+            var request = new { NextOfficeId = nextOfficeId, NextUnitId = nextUnitId };
+            await _http.PutAsJsonAsync($"api/documents/{id}/forward", request);
         }
 
         public async Task<List<DocumentLog>> GetDocumentLogsAsync(int id)

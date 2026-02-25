@@ -27,7 +27,10 @@ namespace DocTracking.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Office>>> GetOffices()
         {
-            return await _context.Offices.OrderBy(o => o.Name).ToListAsync();
+            return await _context.Offices
+                .Include(o => o.Units)
+                .OrderBy(o => o.Name)
+                .ToListAsync();
         }
     }
 }
