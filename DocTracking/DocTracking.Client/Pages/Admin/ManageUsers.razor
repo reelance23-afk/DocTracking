@@ -7,110 +7,169 @@
 @rendermode InteractiveAuto
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
-    <MudText Typo="Typo.h4" Class="mb-4 font-weight-bold">User Management</MudText>
+    <MudText Typo="Typo.h4" Class="mb-4">Manage Users</MudText>
 
-        <MudTable T="AppUser" Items="@appUsers" Hover="true" Elevation="3" Loading="@Loading" Filter="new Func<AppUser, bool>(FilterFunc)">
-            <ToolBarContent>
-                <MudText Typo="Typo.h6">System Users</MudText>
-                <MudSpacer />
-            </ToolBarContent>
-            <HeaderContent>
-                <MudTh>Email</MudTh>
-                <MudTh>System Role</MudTh>
-                <MudTh>Assigned Office</MudTh>
-                <MudTh>Actions</MudTh>
-            </HeaderContent>
-            <RowTemplate>
-                <MudTd DataLabel="Email">
-                    <MudText Typo="Typo.body2" Class="font-weight-bold">@context.Email</MudText>
-                </MudTd>
+    <MudTable Items="@users" Dense="true" Hover="true" CanCancelEdit="true"
+              CommitEditTooltip="Save Changes" OnCommitEditClick="@SaveUser"
+              Loading="@isLoading" Elevation="3">
+        <ToolBarContent>
+            <MudText Typo="Typo.h6">User Directory</MudText>
+            <MudSpacer />
+            <MudTextField @bind-Value="searchString" Placeholder="Search users..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+        </ToolBarContent>
 
-                <MudTd DataLabel="System Role">
-                    <MudSelect @bind-Value="context.Role" Margin="Margin.Dense" Variant="Variant.Outlined" Dense="true">
-                        <MudSelectItem Value="@("User")">Standard User</MudSelectItem>
-                        <MudSelectItem Value="@("Office")">Office Worker</MudSelectItem>
-                        <MudSelectItem Value="@("Admin")">Administrator</MudSelectItem>
-                    </MudSelect>
-                </MudTd>
+        <HeaderContent>
+            <MudTh>Email</MudTh>
+            <MudTh>Role</MudTh>
+            <MudTh>Assigned Location</MudTh>
+        </HeaderContent>
 
-                <MudTd DataLabel="Assigned Office">
-                    <MudSelect @bind-Value="context.UnitId" Margin="Margin.Dense" Variant="Variant.Outlined"
-                               Disabled="@(context.Role != "Office")" Clearable="true" Dense="true">
-                        @foreach (var off in allOffices)
-                        {
-                            <MudSelectItem T="int?" Value="@((int?)off.Id)">@off.Name</MudSelectItem>
-                        }
-                    </MudSelect>
-                </MudTd>
+        <RowTemplate>
+            <MudTd DataLabel="Email">@context.Email</MudTd>
+            <MudTd DataLabel="Role">
+                <MudChip T="string" Color="@GetRoleColor(context.Role)" Size="Size.Small">@context.Role</MudChip>
+            </MudTd>
+            <MudTd DataLabel="Location">
+                @if (context.Unit != null)
+                {
+                    <MudText Typo="Typo.body2">
+                        <strong>@context.Unit.Office?.Name</strong> <br />
+                        <span style="color: gray; font-size: 0.85em;">↳ @context.Unit.Name</span>
+                    </MudText>
+                }
+                else
+                {
+                    <MudText Typo="Typo.body2" Color="Color.Default">N/A</MudText>
+                }
+            </MudTd>
+        </RowTemplate>
 
-                <MudTd DataLabel="Actions">
-                    <MudButton Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small"
-                               OnClick="@(() => SaveUser(context))" StartIcon="@Icons.Material.Filled.Save">
-                        Save Changes
-                    </MudButton>
-                </MudTd>
-            </RowTemplate>
+        <RowEditingTemplate>
+            <MudTd DataLabel="Email">
+                <MudTextField @bind-Value="context.Email" ReadOnly="true" Margin="Margin.Dense" />
+            </MudTd>
 
-            <PagerContent>
-                <MudTablePager/>
-            </PagerContent>
-        </MudTable>
+            <MudTd DataLabel="Role">
+                <MudSelect @bind-Value="context.Role" Margin="Margin.Dense" Variant="Variant.Outlined">
+                    <MudSelectItem Value="@("Admin")">Admin</MudSelectItem>
+                    <MudSelectItem Value="@("Office")">Office Worker</MudSelectItem>
+                    <MudSelectItem Value="@("User")">User</MudSelectItem>
+                </MudSelect>
+            </MudTd>
+
+            <MudTd DataLabel="Location">
+                @if (context.Role == "Office")
+                {
+                    <div class="d-flex gap-2">
+                        <MudSelect T="int?" Value="GetActiveOfficeId(context)" ValueChanged="@((int? id) => OnOfficeChanged(context, id))"
+                                   Label="Select Office" Margin="Margin.Dense" Variant="Variant.Outlined">
+                            @foreach (var office in offices)
+                            {
+                                <MudSelectItem T="int?" Value="@((int?)office.Id)">@office.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+
+                        <MudSelect @bind-Value="context.UnitId" Label="Select Unit" Margin="Margin.Dense" Variant="Variant.Outlined" Required="true">
+                            @foreach (var unit in GetUnitsForActiveOffice(context))
+                            {
+                                <MudSelectItem T="int?" Value="@((int?)unit.Id)">@unit.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </div>
+                }
+                else
+                {
+                    <MudText Typo="Typo.caption" Color="Color.Warning">Units are only for Office Workers</MudText>
+                }
+            </MudTd>
+        </RowEditingTemplate>
+
+        <PagerContent>
+            <MudTablePager />
+        </PagerContent>
+    </MudTable>
 </MudContainer>
 
 @code {
-    private List<AppUser> appUsers = new();
-    private List<Office> allOffices = new();
-    private bool Loading = true;
-
+    private List<AppUser> users = new();
+    private List<Office> offices = new();
+    private bool isLoading = true;
     private string searchString = "";
+
+
+    private Dictionary<int, int?> activeOfficeEdits = new();
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadData(); 
+        await LoadData();
     }
-
 
     private async Task LoadData()
     {
-        Loading = true;
-        try
-        {
-            appUsers = await DocService.GetAppUserAsync();
-            allOffices = await DocService.GetOfficesAsync();
-        }
-        catch (Exception )
-        {
-            Snackbar.Add("error");
-        }
-        finally
-        {
-            Loading = false;
-        }
+        isLoading = true;
+        users = await DocService.GetAppUserAsync();
+        offices = await DocService.GetOfficesAsync();
+        isLoading = false;
     }
 
-    private async Task SaveUser(AppUser user)
+
+    private int? GetActiveOfficeId(AppUser user)
     {
+        if (activeOfficeEdits.ContainsKey(user.Id))
+        {
+            return activeOfficeEdits[user.Id];
+        }
+        return user.Unit?.OfficeId;
+    }
+
+    private void OnOfficeChanged(AppUser user, int? newOfficeId)
+    {
+        activeOfficeEdits[user.Id] = newOfficeId;
+
+        user.UnitId = null;
+    }
+
+    private IEnumerable<Unit> GetUnitsForActiveOffice(AppUser user)
+    {
+        var currentOfficeId = GetActiveOfficeId(user);
+        if (currentOfficeId == null) return new List<Unit>();
+
+        return offices.FirstOrDefault(o => o.Id == currentOfficeId)?.Units ?? new List<Unit>();
+    }
+
+
+    private async void SaveUser(object element)
+    {
+        var userToUpdate = (AppUser)element;
+
+        if (userToUpdate.Role != "Office")
+        {
+            userToUpdate.UnitId = null;
+        }
+
         try
         {
-            if(user.Role != "Office")
+            await DocService.UpdateAppUserAsync(userToUpdate);
+            Snackbar.Add($"Updated {userToUpdate.Email} successfully!", Severity.Success);
+
+            if (activeOfficeEdits.ContainsKey(userToUpdate.Id))
             {
-                user.UnitId = null;
+                activeOfficeEdits.Remove(userToUpdate.Id);
             }
 
-            await DocService.UpdateAppUserAsync(user);
-            Snackbar.Add("Successfully updated user");
+            await LoadData();
+            StateHasChanged();
         }
         catch (Exception)
         {
-            Snackbar.Add("Error");
+            Snackbar.Add("Failed to update user.", Severity.Error);
         }
     }
 
-    private bool FilterFunc(AppUser user)
+    private Color GetRoleColor(string? role) => role switch
     {
-        if (String.IsNullOrWhiteSpace(searchString)) return true;
-        if (user.Email?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
-
-        return false;
-    }
+        "Admin" => Color.Error,
+        "Office" => Color.Info,
+        _ => Color.Default
+    };
 }

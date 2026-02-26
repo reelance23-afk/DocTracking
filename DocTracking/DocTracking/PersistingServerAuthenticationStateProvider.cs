@@ -39,7 +39,8 @@ namespace DocTracking.Services
 
 
                 var appUser = await _db.AppUsers
-                    .Include(u => u.Office)
+                    .Include(u => u.Unit)
+                    .ThenInclude(u => u.Office)
                     .FirstOrDefaultAsync(u => u.Email == email);
 
 
@@ -52,8 +53,10 @@ namespace DocTracking.Services
                     Email = email,
                     Role = appUser.Role ?? "User",
 
-                    OfficeId = appUser?.OfficeId,
-                    OfficeName = appUser?.Office?.Name,
+                    UnitId = appUser?.UnitId,
+                    UnitName = appUser?.Unit?.Name,
+                    OfficeId = appUser?.Unit?.OfficeId,
+                    OfficeName = appUser?.Unit?.Office?.Name,
                     RealName = realName
                 });
             }

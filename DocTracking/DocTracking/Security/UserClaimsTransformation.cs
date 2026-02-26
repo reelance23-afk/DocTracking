@@ -25,7 +25,9 @@ namespace DocTracking.Security
             using var scope = _scopeFactory.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-            var dbUser = await db.AppUsers.FirstOrDefaultAsync(u => u.Email == email);
+            var dbUser = await db.AppUsers
+                .Include(u => u.Unit)
+                .FirstOrDefaultAsync(u => u.Email == email);
 
             if (dbUser == null)
             {
@@ -35,13 +37,17 @@ namespace DocTracking.Security
             }
 
             var newIdentity = new ClaimsIdentity();
-            newIdentity.AddClaim(new Claim(ClaimTypes.Role, dbUser.Role));
+            newIdentity.AddClaim(new Claim(ClaimTypes.Role, dbUser.Role ?? "User"));
+            newIdentity.AddClaim(new Claim("roles", dbUser.Role ?? "User"));
 
-            newIdentity.AddClaim(new Claim("roles", dbUser.Role));
-
-            if (dbUser.OfficeId.HasValue)
+            if (dbUser.UnitId.HasValue)
             {
-                newIdentity.AddClaim(new Claim("OfficeId", dbUser.OfficeId.Value.ToString()));
+                newIdentity.AddClaim(new Claim("OfficeId", dbUser.UnitId.Value.ToString()));
+            }
+
+            if (dbUser.Unit != null)
+            {
+                newIdentity.AddClaim(new Claim("OfficeId", dbUser.Unit.OfficeId.ToString()));
             }
 
             principal.AddIdentity(newIdentity);

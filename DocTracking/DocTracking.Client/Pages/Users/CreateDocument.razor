@@ -3,6 +3,7 @@
 @using DocTracking.Client.Models
 @using DocTracking.Client.Services
 @using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims;
 @inject DocumentService DocService
 @inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager Navigation
@@ -35,12 +36,23 @@
                           RequiredError="Document is Required"
                           Class="m-4" />
 
-			<MudSelect @bind-Value="newDocument.NextOfficeId" Label="Route to.." Variant="Variant.Outlined" Required="true" RequiredError="Destination Required" Class="m-4">
-					@foreach(var office in offices)
+				<MudSelect T="int?" Value="newDocument.NextOfficeId" ValueChanged="OnOfficeChanged"
+						   Label="Route to Office..." Variant="Variant.Outlined" Required="true" RequiredError="Destination Required" Class="m-4">
+					@foreach (var office in offices)
 					{
 						<MudSelectItem T="int?" Value="@((int?)office.Id)">@office.Name</MudSelectItem>
 					}
-			</MudSelect>
+				</MudSelect>
+
+				@if (newDocument.NextOfficeId.HasValue)
+				{
+					<MudSelect @bind-Value="newDocument.NextUnitId" Label="Route to Unit..." Variant="Variant.Outlined" Required="true" RequiredError="Unit Destination Required" Class="m-4">
+						@foreach (var unit in GetUnitsForOffice(newDocument.NextOfficeId.Value))
+						{
+							<MudSelectItem T="int?" Value="@((int?)unit.Id)">@unit.Name</MudSelectItem>
+						}
+					</MudSelect>
+				}
 
 			<MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="(!success|| isSaving)" OnClick="SubmitDocument">
 					@(isSaving ? "Routing..." : "Submit & Route Document")
@@ -66,6 +78,18 @@
 		isLoadingOffices = false;
 	}
 
+	private void OnOfficeChanged(int? officeId)
+	{
+		newDocument.NextOfficeId = officeId;
+		newDocument.NextUnitId = null;
+	}
+
+	private IEnumerable<Unit> GetUnitsForOffice(int officeId)
+	{
+		return offices.FirstOrDefault(d => d.Id == officeId)?.Units ?? new List<Unit>();
+
+	}
+
 	public async Task SubmitDocument()
 	{
 		isSaving = true;
@@ -77,7 +101,11 @@
 
 			if (user.Identity is not null && user.Identity.IsAuthenticated)
 			{
-				newDocument.OriginalUserEmail = user.Identity.Name ?? "Unknown";
+				var userIdClaim = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+				if (int.TryParse(userIdClaim, out int creatorId))
+				{
+					newDocument.CreatorId = creatorId;
+				}
 
 				await DocService.CreateDocumentAsync(newDocument);
 

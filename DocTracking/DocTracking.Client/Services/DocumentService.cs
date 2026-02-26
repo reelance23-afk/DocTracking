@@ -74,5 +74,15 @@ namespace DocTracking.Client.Services
             await _http.PutAsJsonAsync($"api/appusers/{user.Id}", user);
         }
 
+        public async Task<List<Unit>> GetUnitsAsync()
+        {
+            return await _http.GetFromJsonAsync<List<Unit>>("api/units") ?? new();
+        }
+
+        public async Task AddUnitAsync(Unit unit)
+        {
+            await _http.PostAsJsonAsync("api/units", unit);
+        }
+
     }
 }

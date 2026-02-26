@@ -5,6 +5,7 @@ using DocTracking.Components;
 using DocTracking.Data;
 using DocTracking.Services;
 using DocTracking.Security;
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Builder;
@@ -74,7 +75,11 @@ builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddScoped<AuthenticationStateProvider, DocTracking.Services.PersistingServerAuthenticationStateProvider>();
 builder.Services.AddScoped<DocumentService>();
 builder.Services.AddTransient<IClaimsTransformation, UserClaimsTransformation>();
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions( options =>
+    {
+        options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+    });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddRazorComponents()           

@@ -14,6 +14,8 @@ namespace DocTracking.Data
 
         public DbSet<AppUser> AppUsers { get; set; }
 
+        public DbSet<Unit> Units { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

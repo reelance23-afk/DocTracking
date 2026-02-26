@@ -12,22 +12,43 @@
 			<ToolBarContent>
 				<MudText Typo="Typo.h6">All Document</MudText>
 				<MudSpacer />
+			<MudTextField @bind-Value="searchString" Placeholder="Search documents, senders, or locations..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
 			</ToolBarContent>
 			<HeaderContent>
-				<MudTh>Name</MudTh>
-				<MudTh>Sender</MudTh>
-				<MudTh>Location</MudTh>
-				<MudTh>Status</MudTh>
-				<MudTh>Date</MudTh>
+			<MudTh>Name</MudTh>
+			<MudTh>Sender</MudTh>
+			<MudTh>Location</MudTh>
+			<MudTh>Status</MudTh>
+			<MudTh>Date</MudTh>
 			</HeaderContent>
 			<RowTemplate>
 				<MudTd DataLabel="Name">
 				<MudText Typo="Typo.body1" Class="font-weight-bold">@context.Name</MudText>
 				</MudTd>
 				<MudTd DataLabel="Sender">@context.Creator?.Email</MudTd>
-				<MudTd DataLabel="Location">
-					@(context.CurrentOffice?.Name ?? context.NextOffice?.Name ?? "Unassigned")
-				</MudTd>
+
+			<MudTd DataLabel="Location">
+				@if (context.CurrentOffice != null)
+				{
+					<MudText Typo="Typo.body2">
+						<strong>@context.CurrentOffice.Name</strong> <br />
+						<span style="color: gray; font-size: 0.85em;">↳ @(context.CurrentUnit?.Name ?? "General")</span>
+					</MudText>
+				}
+				else if (context.NextOffice != null)
+				{
+					<MudText Typo="Typo.body2">
+						<span style="color: #ff9800; font-size: 0.85em; font-style: italic;">Routing to:</span><br />
+						<strong>@context.NextOffice.Name</strong> <br />
+						<span style="color: gray; font-size: 0.85em;">↳ @(context.NextUnit?.Name ?? "General")</span>
+					</MudText>
+				}
+				else
+				{
+					<MudText Typo="Typo.body2" Color="Color.Default">Unassigned</MudText>
+				}
+			</MudTd>
+
 				<MudTd DataLabel="Status">
 					<MudChip T="string"  Color="@GetStatusColor(context.Status)" Size="Size.Small" Variant="Variant.Filled">
 						@context.Status
@@ -71,7 +92,12 @@
 		if (element.Creator?.Email?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
 		if (element.Status?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
 
-			return false;
+		if (element.CurrentOffice?.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+		if (element.NextOffice?.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+		if (element.CurrentUnit?.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+		if (element.NextUnit?.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+
+		return false;
 	}
 
 	private Color GetStatusColor(string? status)

@@ -12,7 +12,7 @@
         <MudItem xs="12" md="4">
             <MudPaper Class="pa-4" Elevation="3">
                 <div class="d-flex align-center mb-4">
-                    <MudIcon Icon="@Icons.Material.Filled.AddBusiness" Color="Color.Primary" Class="mr-2"/>
+                    <MudIcon Icon="@Icons.Material.Filled.AddBusiness" Color="Color.Primary" Class="mr-2" />
                     <MudText Typo="Typo.h6">Add New Office</MudText>
                 </div>
 
@@ -21,19 +21,14 @@
                                   Label="Office Name"
                                   Variant="Variant.Outlined"
                                   Required="true"
-                                  RequiredError="Office name is required!" 
+                                  RequiredError="Office name is required!"
                                   Margin="Margin.Dense"
                                   Clearable="true" />
 
-                    <MudButton Variant="Variant.Filled"
-                               Color="Color.Primary"
-                               Class="mt-4"
-                               FullWidth="true"
-                               Disabled="@(!success)"
-                               OnClick="SubmitOffice">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-4" FullWidth="true" Disabled="@(!success)" OnClick="SubmitOffice">
                         @if (isSubmitting)
                         {
-                            <MudProgressCircular Class="ms-n1" Size="Size.Large" Indeterminate="true" />
+                            <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
                         }
                         else
                         {
@@ -48,33 +43,84 @@
             <MudTable Items="@offices" Hover="true" Elevation="3" Loading="@loading" Filter="new Func<Office, bool>(FilterFunc)">
                 <ToolBarContent>
                     <MudText Typo="Typo.h6">Current Offices</MudText>
+                    <MudSpacer />
+                    <MudTextField @bind-Value="searchString" Placeholder="Search Offices..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
                 </ToolBarContent>
                 <HeaderContent>
                     <MudTh>Office Name</MudTh>
+                    <MudTh>Units</MudTh>
+                    <MudTh Style="text-align:right">Actions</MudTh>
                 </HeaderContent>
                 <RowTemplate>
                     <MudTd DataLabel="Name">
                         <MudText Typo="Typo.body1" Style="font-weight:bold">@context.Name</MudText>
                     </MudTd>
+                    <MudTd DataLabel="Units">
+                        <MudChip T="string" Color="Color.Secondary" Size="Size.Small">@(context.Units?.Count ?? 0)</MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="Actions" Style="text-align:right">
+                        <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small" OnClick="@(() => SelectOffice(context))">
+                            Manage Units
+                        </MudButton>
+                    </MudTd>
                 </RowTemplate>
-
                 <PagerContent>
-                    <MudTablePager/>
+                    <MudTablePager />
                 </PagerContent>
             </MudTable>
         </MudItem>
     </MudGrid>
+
+    @if (selectedOffice != null)
+    {
+        <MudPaper Class="pa-4 mt-8 mb-8" Elevation="4" Style="border-left: 5px solid #0078d4;">
+            <div class="d-flex justify-space-between align-center mb-4">
+                <MudText Typo="Typo.h5">Units for: <strong>@selectedOffice.Name</strong></MudText>
+                <MudIconButton Icon="@Icons.Material.Filled.Close" Color="Color.Error" OnClick="() => selectedOffice = null" />
+            </div>
+
+            <MudGrid>
+                <MudItem xs="12" md="4">
+                    <MudForm @bind-IsValid="@unitSuccess" @ref="unitForm">
+                        <MudTextField @bind-Value="newUnitName" Label="New Unit Name" Variant="Variant.Outlined" Required="true" RequiredError="Unit name required!" Margin="Margin.Dense" />
+                        <MudButton Variant="Variant.Filled" Color="Color.Secondary" Class="mt-4" FullWidth="true" Disabled="@(!unitSuccess || isSubmittingUnit)" OnClick="SubmitUnit">
+                            @(isSubmittingUnit ? "Adding..." : "Add Unit")
+                        </MudButton>
+                    </MudForm>
+                </MudItem>
+
+                <MudItem xs="12" md="8">
+                    <MudTable Items="@selectedOffice.Units" Hover="true" Elevation="1" Dense="true">
+                        <HeaderContent>
+                            <MudTh>Unit Name</MudTh>
+                        </HeaderContent>
+                        <RowTemplate Context="unitContext">
+                            <MudTd DataLabel="Name">@unitContext.Name</MudTd>
+                        </RowTemplate>
+                        <NoRecordsContent>
+                            <MudText>No units found for this office.</MudText>
+                        </NoRecordsContent>
+                    </MudTable>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+    }
 </MudContainer>
 
 @code {
     private List<Office> offices = new();
     private string newOfficeName = "";
     private bool success;
-
     private bool isSubmitting = false;
     private bool loading = true;
     private string searchString = "";
     private MudForm? form;
+
+    private Office? selectedOffice;
+    private string newUnitName = "";
+    private bool unitSuccess;
+    private bool isSubmittingUnit = false;
+    private MudForm? unitForm;
 
     protected override async Task OnInitializedAsync()
     {
@@ -88,7 +134,7 @@
         {
             offices = await DocService.GetOfficesAsync();
         }
-        finally 
+        finally
         {
             loading = false;
         }
@@ -102,32 +148,66 @@
         try
         {
             var newOffice = new Office { Name = newOfficeName };
-
             await DocService.AddOfficeAsync(newOffice);
-
             Snackbar.Add($"Office '{newOfficeName}' added successfully!", Severity.Success);
 
             newOfficeName = "";
             form?.ResetAsync();
-
             await LoadOffices();
         }
         catch (Exception)
         {
-            Snackbar.Add("error");
-        } 
+            Snackbar.Add("Error adding office.", Severity.Error);
+        }
         finally
         {
-            isSubmitting = false;  
+            isSubmitting = false;
         }
-
     }
 
     private bool FilterFunc(Office element)
     {
         if (string.IsNullOrWhiteSpace(searchString)) return true;
         if (element.Name?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
-
         return false;
+    }
+
+    private void SelectOffice(Office office)
+    {
+        selectedOffice = office;
+        newUnitName = "";
+    }
+
+    private async Task SubmitUnit()
+    {
+        if (string.IsNullOrWhiteSpace(newUnitName) || selectedOffice == null) return;
+
+        isSubmittingUnit = true;
+        try
+        {
+            var newUnit = new Unit
+            {
+                Name = newUnitName,
+                OfficeId = selectedOffice.Id
+            };
+
+            await DocService.AddUnitAsync(newUnit);
+            Snackbar.Add($"Unit '{newUnitName}' added to {selectedOffice.Name}!", Severity.Success);
+
+            newUnitName = "";
+            unitForm?.ResetAsync();
+
+            await LoadOffices();
+
+            selectedOffice = offices.FirstOrDefault(o => o.Id == selectedOffice.Id);
+        }
+        catch (Exception)
+        {
+            Snackbar.Add("Error adding unit.", Severity.Error);
+        }
+        finally
+        {
+            isSubmittingUnit = false;
+        }
     }
 }
