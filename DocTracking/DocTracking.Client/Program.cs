@@ -20,6 +20,7 @@ builder.Services.AddScoped(sp =>
     });
 
 builder.Services.AddScoped<DocumentService>();
+builder.Services.AddScoped<LoadingService>();
 builder.Services.AddMudServices();
 
 await builder.Build().RunAsync();

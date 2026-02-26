@@ -10,7 +10,7 @@
     <MudText Typo="Typo.h4" Class="mb-4">Manage Users</MudText>
 
     <MudTable Items="@users" Dense="true" Hover="true" CanCancelEdit="true"
-              CommitEditTooltip="Save Changes" OnCommitEditClick="@SaveUser"
+              CommitEditTooltip="Save Changes" RowEditCommit="@SaveUser"
               Loading="@isLoading" Elevation="3">
         <ToolBarContent>
             <MudText Typo="Typo.h6">User Directory</MudText>
@@ -62,7 +62,7 @@
                 {
                     <div class="d-flex gap-2">
                         <MudSelect T="int?" Value="GetActiveOfficeId(context)" ValueChanged="@((int? id) => OnOfficeChanged(context, id))"
-                                   Label="Select Office" Margin="Margin.Dense" Variant="Variant.Outlined">
+                                   Label="Select Office" Margin="Margin.Dense" Variant="Variant.Outlined" Required="true">
                             @foreach (var office in offices)
                             {
                                 <MudSelectItem T="int?" Value="@((int?)office.Id)">@office.Name</MudSelectItem>

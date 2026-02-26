@@ -2,17 +2,20 @@
 @using DocTracking.Client.Models
 @using DocTracking.Client.Services
 @inject DocumentService DocumentService
+@inject DocTracking.Client.Services.LoadingService Loader
 @rendermode InteractiveAuto
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
 	<MudText Typo="Typo.h4" Class="mb-4">Dashboard</MudText>
 
-	@if (loading)
-	{
-		<MudProgressCircular Color="Color.Primary" Indeterminate="true" />
-	}
-	else
-	{
+@if (isLoading)
+{
+        <div class="d-flex justify-center align-center" style="height: 50vh;">
+            <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
+        </div>
+}
+else
+{
         <MudGrid>
             <MudItem xs="12" sm="6" md="4">
 				<MudPaper Elevation="2" Class="pa-4 d-flex flex-column justify-center align-center" Style="height: 140px; border-top: 4px solid #2196f3;">
@@ -89,85 +92,86 @@
 				</MudPaper>
             </MudItem>
         </MudGrid>
-
-		
-	}
+                }
 </MudContainer>
 
 @code {
-	private List<Document> allDocuments = new();
-	private List<Document> recentDocuments = new();
-	private bool loading = true;
+    private List<Document> allDocuments = new();
+    private List<Document> recentDocuments = new();
+    private int totalDocuments = 0;
+    private int totalOffices = 0;
+    private int totalUsers = 0;
+    private double[] pieChartData = { 0, 0, };
+    private string[] pieChartLabel = { "On Going", "Received" };
+    private List<OfficeWorkLoad> officeWorkLoads = new();
+    private bool isLoading = true;
 
-	private int totalDocuments = 0;
-	private int totalOffices = 0;
-	private int totalUsers = 0;
+    public class OfficeWorkLoad
+    {
+        public string? OfficeName { get; set; }
+        public int DocumentCount { get; set; }
+        public int Percentage { get; set; }
+    }
 
-	private double[] pieChartData = { 0, 0, };
-	private string[] pieChartLabel = { "On Going", "Received" };
 
-	private List<OfficeWorkLoad> officeWorkLoads = new();
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                allDocuments = await DocumentService.GetAllDocumentsAsync();
+                var allAppUsers = await DocumentService.GetAppUserAsync();
+                var allOffices = await DocumentService.GetOfficesAsync();
 
-	public class OfficeWorkLoad
-	{
-		public string? OfficeName { get; set; }
-		public int DocumentCount { get; set; }
-		public int Percentage{ get; set;}
-	}
+                totalDocuments = allDocuments.Count;
+                totalOffices = allOffices.Count;
+                totalUsers = allAppUsers.Count;
 
-	protected override async Task OnInitializedAsync()
-	{
-		try
-		{
-			allDocuments = await DocumentService.GetAllDocumentsAsync();
-			var allAppUsers = await DocumentService.GetAppUserAsync();
-			var allOffices = await DocumentService.GetOfficesAsync();
+                int inProgress = allDocuments.Count(u => u.Status == "On Going");
+                int received = allDocuments.Count(u => u.Status == "Received");
 
-			totalDocuments = allDocuments.Count;
-			totalOffices = allOffices.Count;
-			totalUsers = allAppUsers.Count;
+                if (totalDocuments == 0)
+                {
+                    pieChartData = new double[] { 1, 0, 0 };
+                    pieChartLabel = new[] { "No data", "", "" };
+                }
+                else
+                {
+                    pieChartData = new double[] { inProgress, received };
+                }
 
-			int inProgress = allDocuments.Count( u => u.Status == "On Going");
-			int received = allDocuments.Count(u => u.Status == "Received");
+                recentDocuments = allDocuments
+                    .OrderByDescending(u => u.CreatedAt)
+                    .Take(5)
+                    .ToList();
 
-			if (totalDocuments == 0) {
-				pieChartData = new double[] { 1, 0, 0 }; pieChartLabel = new[] { "No data","",""}; 
-			}
-			else
-			{
-				pieChartData = new double[] { inProgress, received };
-			}
+                int maxDoc = Math.Max(totalDocuments, 1);
 
-			recentDocuments = allDocuments
-			.OrderByDescending(u => u.CreatedAt)
-			.Take(5)
-			.ToList();
+                officeWorkLoads = allOffices.Select(office =>
+                {
+                    int count = allDocuments.Count(d => d.CurrentOffice?.Name == office.Name);
+                    return new OfficeWorkLoad
+                    {
+                        OfficeName = office.Name,
+                        DocumentCount = count,
+                        Percentage = (int)Math.Round((double)count / maxDoc * 100)
+                    };
 
-			int maxDoc = Math.Max(totalDocuments, 1);
-
-			officeWorkLoads = allOffices.Select(office =>
-			{
-				int count = allDocuments.Count(d => d.CurrentOffice?.Name == office.Name);
-				return new OfficeWorkLoad
-					{
-						OfficeName = office.Name,
-						DocumentCount = count,
-						Percentage = (int)Math.Round((double)count / maxDoc * 100)
-					};
-
-			})
-			.Where(w => w.DocumentCount > 0)
-			.OrderByDescending(w => w.DocumentCount)
-			.ToList();
-
-		}
-		catch (Exception ex)
-		{
-			Console.WriteLine(ex.Message);
-		}
-		finally
-		{
-			loading = false;
-		}
-	}	
+                })
+                .Where(w => w.DocumentCount > 0)
+                .OrderByDescending(w => w.DocumentCount)
+                .ToList();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+            }
+            finally
+            {
+                isLoading = false;
+                StateHasChanged();
+            }
+        }
+    }
 }

@@ -51,7 +51,7 @@ namespace DocTracking.Services
                 {
                     UserId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? email,
                     Email = email,
-                    Role = appUser.Role ?? "User",
+                    Role = appUser?.Role ?? "User",
 
                     UnitId = appUser?.UnitId,
                     UnitName = appUser?.Unit?.Name,

@@ -1,0 +1,173 @@
+﻿@page "/office-desk"
+@attribute [Authorize(Roles = "Office")]
+@using DocTracking.Client.Models
+@using DocTracking.Client.Services
+@inject DocumentService DocService
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthStateProvider
+@rendermode InteractiveAuto
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+
+        <MudText Typo="Typo.h4" Class="mb-6">@myOffice.Name</MudText>
+
+        <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-6">
+
+            <MudTabPanel Text="Incoming Queue" BadgeData="@incomingDocs.Count" BadgeColor="Color.Error">
+                <MudTable Items="@incomingDocs" Hover="true" Loading="@isLoading">
+                    <HeaderContent>
+                        <MudTh>Document</MudTh>
+                        <MudTh>Type</MudTh>
+                        <MudTh>Sender</MudTh>
+                        <MudTh>Date Sent</MudTh>
+                        <MudTh>Actions</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd><strong>@context.Name</strong></MudTd>
+                        <MudTd>@context.Type</MudTd>
+                        <MudTd>@context.Creator</MudTd>
+                        <MudTd>@context.CreatedAt.ToLocalTime().ToString("g")</MudTd>
+                        <MudTd>
+                            <MudButton Color="Color.Success" Variant="Variant.Filled" Size="Size.Small"
+                                       OnClick="@(() => ReceiveDoc(context.Id))">
+                                Receive Document
+                            </MudButton>
+                        </MudTd>
+                    </RowTemplate>
+                    <NoRecordsContent>
+                        <MudText Class="pa-4">No incoming documents at this time.</MudText>
+                    </NoRecordsContent>
+                </MudTable>
+            </MudTabPanel>
+
+            <MudTabPanel Text="On My Desk" BadgeData="@deskDocs.Count" BadgeColor="Color.Info">
+                <MudTable Items="@deskDocs" Hover="true" Loading="@isLoading">
+                    <HeaderContent>
+                        <MudTh>Document</MudTh>
+                        <MudTh>Type</MudTh>
+                        <MudTh>Route To...</MudTh>
+                        <MudTh>Actions</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd><strong>@context.Name</strong></MudTd>
+                        <MudTd>@context.Type</MudTd>
+
+                        <MudTd>
+                            <MudSelect T="int?" @bind-Value="forwardSelections[context.Id]" Margin="Margin.Dense" Variant="Variant.Outlined">
+                                @foreach (var off in allOffices.Where(o => o.Id != myOffice.Id))
+                                {
+                                    <MudSelectItem T="int?" Value="@((int?)off.Id)">@off.Name</MudSelectItem>
+                                }
+                            </MudSelect>
+                        </MudTd>
+
+                        <MudTd>
+                            <MudButton Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small"
+                                       Disabled="@(forwardSelections[context.Id] == null)"
+                                       OnClick="@(() => ForwardDoc(context.Id))">
+                                Forward
+                            </MudButton>
+                        </MudTd>
+                    </RowTemplate>
+                    <NoRecordsContent>
+                        <MudText Class="pa-4">Your desk is clear.</MudText>
+                    </NoRecordsContent>
+                </MudTable>
+            </MudTabPanel>
+        </MudTabs>
+</MudContainer>
+
+@code {
+    private Office? myOffice;
+    private List<Office> allOffices = new();
+    private List<Document> incomingDocs = new();
+    private List<Document> deskDocs = new();
+    private string userEmail = "";
+
+    private bool isLoadingInitial = true;
+    private bool isLoading = false;
+    private Dictionary<int, int?> forwardSelections = new();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+                var user = authState.User;
+
+                userEmail = user.Identity?.Name ?? "Unknown";
+
+                allOffices = await DocService.GetOfficesAsync();
+
+                var officeIdClaim = user.Claims.FirstOrDefault(c => c.Type == "OfficeId");
+
+                if (officeIdClaim != null && int.TryParse(officeIdClaim.Value, out int assignedOfficeId))
+                {
+                    myOffice = allOffices.FirstOrDefault(o => o.Id == assignedOfficeId);
+                }
+
+                if (myOffice != null)
+                {
+                    await RefreshQueues();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                Snackbar.Add("Error loading office data");
+            }
+            finally
+            {
+                isLoadingInitial = false;
+                StateHasChanged();
+            }
+        }
+    }
+
+    private async Task RefreshQueues()
+    {
+        if (myOffice == null) return;
+
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            incomingDocs = await DocService.GetIncomingAsync(myOffice.Id);
+
+            var allDocs = await DocService.GetAllDocumentsAsync();
+            deskDocs = allDocs.Where(d => d.CurrentOfficeId == myOffice.Id && d.Status == "Received").ToList();
+
+            foreach (var doc in deskDocs)
+            {
+                if (!forwardSelections.ContainsKey(doc.Id))
+                {
+                    forwardSelections[doc.Id] = null;
+                }
+            }
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ReceiveDoc(int docId)
+    {
+        await DocService.ReceivedDocumentAsync(docId);
+        await RefreshQueues();
+    }
+
+    private async Task ForwardDoc(int docId)
+    {
+        var nextOfficeId = forwardSelections[docId];
+        if (nextOfficeId.HasValue)
+        {
+            await DocService.ForwardDocumentAsync(docId, nextOfficeId.Value);
+            await RefreshQueues();
+        }
+    }
+}

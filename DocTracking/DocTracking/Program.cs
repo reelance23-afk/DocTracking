@@ -32,10 +32,7 @@ builder.Services.AddScoped<AuthenticationStateProvider, PersistingServerAuthenti
 builder.Services.AddMudServices();
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(connectionString));
-builder.Services.AddScoped(sp => new HttpClient
-{
-    BaseAddress = new Uri(sp.GetRequiredService<NavigationManager>().BaseUri)
-});
+builder.Services.AddHttpClient();
 builder.Services.AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
     .AddMicrosoftIdentityWebApp(options =>
     {
@@ -74,6 +71,7 @@ builder.Services.ConfigureApplicationCookie(options =>
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddScoped<AuthenticationStateProvider, DocTracking.Services.PersistingServerAuthenticationStateProvider>();
 builder.Services.AddScoped<DocumentService>();
+builder.Services.AddScoped<LoadingService>();
 builder.Services.AddTransient<IClaimsTransformation, UserClaimsTransformation>();
 builder.Services.AddControllers()
     .AddJsonOptions( options =>

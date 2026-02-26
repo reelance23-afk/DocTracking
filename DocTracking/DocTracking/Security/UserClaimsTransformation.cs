@@ -3,6 +3,9 @@ using DocTracking.Data;
 using DocTracking.Client.Models;
 using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
+using MudBlazor.Extensions;
+using System.Security.Cryptography.Pkcs;
+using Microsoft.Graph;
 
 namespace DocTracking.Security
 {
@@ -17,10 +20,11 @@ namespace DocTracking.Security
 
         public async Task<ClaimsPrincipal> TransformAsync(ClaimsPrincipal principal)
         {
-            if (principal.Identity is not { IsAuthenticated: true }) return principal;
+            if (principal.Identity is not ClaimsIdentity originalIdentity || !originalIdentity.IsAuthenticated) return principal;
 
-            var email = principal.Identity.Name;
-            if (string.IsNullOrEmpty(email)) return principal;
+            var email = originalIdentity.Name
+                ?? principal.FindFirst(ClaimTypes.Email)?.Value
+                ?? principal.FindFirst("preferred_username")?.Value;
 
             using var scope = _scopeFactory.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -36,22 +40,33 @@ namespace DocTracking.Security
                 await db.SaveChangesAsync();
             }
 
-            var newIdentity = new ClaimsIdentity();
-            newIdentity.AddClaim(new Claim(ClaimTypes.Role, dbUser.Role ?? "User"));
-            newIdentity.AddClaim(new Claim("roles", dbUser.Role ?? "User"));
+            var clone = principal.Clone();
+            var identity = clone.Identity as ClaimsIdentity;
 
-            if (dbUser.UnitId.HasValue)
+            if(identity != null)
             {
-                newIdentity.AddClaim(new Claim("OfficeId", dbUser.UnitId.Value.ToString()));
+                var oldRoles = identity.Claims.Where(c =>
+                c.Type.Contains("role", StringComparison.OrdinalIgnoreCase) ||
+                c.Type == "UnitId" ||
+                c.Type == "OfficeId")
+                    .ToList();
+                foreach(var oldRole in oldRoles)
+                {
+                    identity.RemoveClaim(oldRole);
+                }
+
+                identity.AddClaim(new Claim(ClaimTypes.Role, dbUser.Role ?? "User"));
+                identity.AddClaim(new Claim("roles", dbUser.Role ?? "User"));
+
+                if (dbUser.UnitId.HasValue)
+                {
+                    identity.AddClaim(new Claim("UnitId", dbUser.UnitId.Value.ToString()));
+                    identity.AddClaim(new Claim("OfficeId", dbUser.Unit!.OfficeId.ToString()));
+                }
             }
 
-            if (dbUser.Unit != null)
-            {
-                newIdentity.AddClaim(new Claim("OfficeId", dbUser.Unit.OfficeId.ToString()));
-            }
 
-            principal.AddIdentity(newIdentity);
-            return principal;
+            return clone;
         }
     }
 }
