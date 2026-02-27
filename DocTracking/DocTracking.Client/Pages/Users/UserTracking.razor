@@ -30,7 +30,8 @@
                 <HeaderContent>
                     <MudTh>Action</MudTh>
                     <MudTh>Performed By</MudTh>
-                    <MudTh>Location</MudTh>
+                    <MudTh>Current Location</MudTh>
+                    <MudTh>Next Destination</MudTh>
                     <MudTh>Date & Time</MudTh>
                 </HeaderContent>
                 <RowTemplate>
@@ -48,15 +49,51 @@
                         </MudText>
                     </MudTd>
 
-                    <MudTd DataLabel="Location">
-                        <MudText Typo="Typo.body2">
-                            <strong>@(context.Office?.Name ?? "N/A")</strong>
-                            @if (context.Unit != null)
+                    <MudTd DataLabel="Current Location">
+                        @if (context.Action == "Received")
+                        {
+                            <MudText Typo="Typo.body2">
+                                <strong>@(context.Office?.Name ?? "N/A")</strong>
+                                @if (context.Unit != null)
+                                {
+                                    <br />
+                                    <span style="color: gray; font-size: 0.85em;">↳ @context.Unit.Name</span>
+                                }
+                            </MudText>
+                        }
+                        else
+                        {
+                            @if (context.AppUser?.Unit?.Office != null)
                             {
-                                <br />
-                                <span style="color: gray; font-size: 0.85em;">↳ @context.Unit.Name</span>
+                                <MudText Typo="Typo.body2">
+                                    <strong>@context.AppUser.Unit.Office.Name</strong>
+                                    <br />
+                                    <span style="color: gray; font-size: 0.85em;">↳ @context.AppUser.Unit.Name</span>
+                                </MudText>
                             }
-                        </MudText>
+                            else
+                            {
+                                <MudText Typo="Typo.body2" Color="Color.Default"><em>None</em></MudText>
+                            }
+                        }
+                    </MudTd>
+
+                    <MudTd DataLabel="Next Destination">
+                        @if (context.Action == "Received")
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Default"><em>None</em></MudText>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2">
+                                <strong>@(context.Office?.Name ?? "N/A")</strong>
+                                @if (context.Unit != null)
+                                {
+                                    <br />
+                                    <span style="color: gray; font-size: 0.85em;">↳ @context.Unit.Name</span>
+                                }
+                            </MudText>
+                        }
                     </MudTd>
 
                     <MudTd DataLabel="Date & Time">
@@ -90,7 +127,6 @@
     private bool isLoading = true;
     private string? errorMessage;
 
-
     protected override async Task OnParametersSetAsync()
     {
         isLoading = true;
@@ -114,7 +150,6 @@
 
     private void Back()
     {
-
         Navigation.NavigateTo("/my-tracking");
     }
 }

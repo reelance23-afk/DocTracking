@@ -23,6 +23,8 @@ namespace DocTracking.Controllers
                 .Include(m => m.Office)
                 .Include(m => m.Unit)
                 .Include(m => m.AppUser)
+                .ThenInclude(m => m.Unit)
+                .ThenInclude(m => m.Office)
                 .Where(m => m.DocumentId == documentId )
                 .OrderByDescending(m => m.TimeStamp)
                 .ToListAsync();

@@ -55,6 +55,10 @@
                             <span style="color: gray; font-size: 0.85em;">↳ @(context.CurrentUnit?.Name ?? "General")</span>
                         </MudText>
                     }
+                    else if (context.Status == "On Going")
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Text">In Transit</MudChip>
+                    }
                     else
                     {
                         <MudText Typo="Typo.body2" Color="Color.Default"><em>None</em></MudText>
