@@ -84,5 +84,10 @@ namespace DocTracking.Client.Services
             await _http.PostAsJsonAsync("api/units", unit);
         }
 
+        public async Task<List<Document>> GetOutgoingAsync(string email)
+        {
+            return await _http.GetFromJsonAsync<List<Document>>($"api/documents/outgoing/user/{email}") ?? new();
+        }
+
     }
 }

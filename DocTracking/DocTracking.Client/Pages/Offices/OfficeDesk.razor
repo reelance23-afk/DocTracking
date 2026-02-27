@@ -2,6 +2,7 @@
 @attribute [Authorize(Roles = "Office")]
 @using DocTracking.Client.Models
 @using DocTracking.Client.Services
+@using System.Security.Claims;
 @inject DocumentService DocService
 @inject ISnackbar Snackbar
 @inject AuthenticationStateProvider AuthStateProvider
@@ -9,7 +10,16 @@
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
 
-        <MudText Typo="Typo.h4" Class="mb-6">@myOffice.Name</MudText>
+    @if (isLoadingInitial)
+    {
+        <div class="d-flex flex-column align-center mt-10">
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" Class="mb-4" />
+            <MudText>Loading your desk...</MudText>
+        </div>
+    }
+    else if (myOffice != null)
+    {
+        <MudText Typo="Typo.h4" Class="mb-6">Workspace: @myOffice.Name</MudText>
 
         <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-6">
 
@@ -25,11 +35,10 @@
                     <RowTemplate>
                         <MudTd><strong>@context.Name</strong></MudTd>
                         <MudTd>@context.Type</MudTd>
-                        <MudTd>@context.Creator</MudTd>
+                        <MudTd>@context.Creator?.Email</MudTd>
                         <MudTd>@context.CreatedAt.ToLocalTime().ToString("g")</MudTd>
                         <MudTd>
-                            <MudButton Color="Color.Success" Variant="Variant.Filled" Size="Size.Small"
-                                       OnClick="@(() => ReceiveDoc(context.Id))">
+                            <MudButton Color="Color.Success" Variant="Variant.Filled" Size="Size.Small" OnClick="@(() => ReceiveDoc(context.Id))">
                                 Receive Document
                             </MudButton>
                         </MudTd>
@@ -53,17 +62,32 @@
                         <MudTd>@context.Type</MudTd>
 
                         <MudTd>
-                            <MudSelect T="int?" @bind-Value="forwardSelections[context.Id]" Margin="Margin.Dense" Variant="Variant.Outlined">
-                                @foreach (var off in allOffices.Where(o => o.Id != myOffice.Id))
+                            <div class="d-flex flex-column gap-2" style="min-width: 200px;">
+                                <MudSelect T="int?" Value="routingSelections[context.Id].OfficeId"
+                                           ValueChanged="@((int? val) => OnOfficeSelected(context.Id, val))"
+                                           Margin="Margin.Dense" Variant="Variant.Outlined" Label="Select Office">
+                                    @foreach (var off in allOffices.Where(o => o.Id != myOffice.Id))
+                                    {
+                                        <MudSelectItem T="int?" Value="@((int?)off.Id)">@off.Name</MudSelectItem>
+                                    }
+                                </MudSelect>
+
+                                @if (routingSelections[context.Id].OfficeId.HasValue)
                                 {
-                                    <MudSelectItem T="int?" Value="@((int?)off.Id)">@off.Name</MudSelectItem>
+                                    <MudSelect @bind-Value="routingSelections[context.Id].UnitId"
+                                               Margin="Margin.Dense" Variant="Variant.Outlined" Label="Select Unit">
+                                        @foreach (var unit in GetUnitsForOffice(routingSelections[context.Id].OfficeId.Value))
+                                        {
+                                            <MudSelectItem T="int?" Value="@((int?)unit.Id)">@unit.Name</MudSelectItem>
+                                        }
+                                    </MudSelect>
                                 }
-                            </MudSelect>
+                            </div>
                         </MudTd>
 
                         <MudTd>
                             <MudButton Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small"
-                                       Disabled="@(forwardSelections[context.Id] == null)"
+                                       Disabled="@(routingSelections[context.Id].OfficeId == null)"
                                        OnClick="@(() => ForwardDoc(context.Id))">
                                 Forward
                             </MudButton>
@@ -74,19 +98,58 @@
                     </NoRecordsContent>
                 </MudTable>
             </MudTabPanel>
+
+            <MudTabPanel Text="Outgoing / Forwarded" BadgeData="@outgoingDocs.Count" BadgeColor="Color.Warning">
+                <MudTable Items="@outgoingDocs" Hover="true" Loading="@isLoading">
+                    <HeaderContent>
+                        <MudTh>Document</MudTh>
+                        <MudTh>Type</MudTh>
+                        <MudTh>Routing To</MudTh>
+                        <MudTh>Date Forwarded</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd><strong>@context.Name</strong></MudTd>
+                        <MudTd>@context.Type</MudTd>
+                        <MudTd>
+                            <strong>@context.NextOffice?.Name</strong>
+                            @if (context.NextUnit != null)
+                            {
+                                <br />
+                        
+                                <span style="color: gray; font-size: 0.85em;">↳ @context.NextUnit.Name</span>
+                            }
+                        </MudTd>
+                        <MudTd>@(context.LastActionDate?.ToLocalTime().ToString("MMM dd, yyyy hh:mm tt") ?? context.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy hh:mm tt"))</MudTd>
+                    </RowTemplate>
+                    <NoRecordsContent>
+                        <MudText Class="pa-4">No outgoing documents in transit.</MudText>
+                    </NoRecordsContent>
+                </MudTable>
+            </MudTabPanel>
+
         </MudTabs>
+    }
 </MudContainer>
 
 @code {
     private Office? myOffice;
     private List<Office> allOffices = new();
+
     private List<Document> incomingDocs = new();
     private List<Document> deskDocs = new();
-    private string userEmail = "";
+    private List<Document> outgoingDocs = new(); 
 
+    private string userEmail = "";
     private bool isLoadingInitial = true;
     private bool isLoading = false;
-    private Dictionary<int, int?> forwardSelections = new();
+
+    private class RoutingSelection
+    {
+        public int? OfficeId { get; set; }
+        public int? UnitId { get; set; }
+    }
+
+    private Dictionary<int, RoutingSelection> routingSelections = new();
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -96,11 +159,9 @@
             {
                 var authState = await AuthStateProvider.GetAuthenticationStateAsync();
                 var user = authState.User;
-
-                userEmail = user.Identity?.Name ?? "Unknown";
+                userEmail = user.FindFirst(ClaimTypes.Email)?.Value ?? user.Identity?.Name ?? "Uknown";
 
                 allOffices = await DocService.GetOfficesAsync();
-
                 var officeIdClaim = user.Claims.FirstOrDefault(c => c.Type == "OfficeId");
 
                 if (officeIdClaim != null && int.TryParse(officeIdClaim.Value, out int assignedOfficeId))
@@ -116,7 +177,7 @@
             catch (Exception ex)
             {
                 Console.WriteLine($"Error: {ex.Message}");
-                Snackbar.Add("Error loading office data");
+                Snackbar.Add("Error loading office data", Severity.Error);
             }
             finally
             {
@@ -129,22 +190,23 @@
     private async Task RefreshQueues()
     {
         if (myOffice == null) return;
-
         isLoading = true;
         StateHasChanged();
 
         try
         {
             incomingDocs = await DocService.GetIncomingAsync(myOffice.Id);
-
             var allDocs = await DocService.GetAllDocumentsAsync();
+
             deskDocs = allDocs.Where(d => d.CurrentOfficeId == myOffice.Id && d.Status == "Received").ToList();
+
+            outgoingDocs = await DocService.GetOutgoingAsync(userEmail);
 
             foreach (var doc in deskDocs)
             {
-                if (!forwardSelections.ContainsKey(doc.Id))
+                if (!routingSelections.ContainsKey(doc.Id))
                 {
-                    forwardSelections[doc.Id] = null;
+                    routingSelections[doc.Id] = new RoutingSelection();
                 }
             }
         }
@@ -155,19 +217,33 @@
         }
     }
 
+    private void OnOfficeSelected(int docId, int? officeId)
+    {
+        routingSelections[docId].OfficeId = officeId;
+        routingSelections[docId].UnitId = null;
+    }
+
+    private IEnumerable<Unit> GetUnitsForOffice(int officeId)
+    {
+        return allOffices.FirstOrDefault(o => o.Id == officeId)?.Units ?? new List<Unit>();
+    }
+
     private async Task ReceiveDoc(int docId)
     {
         await DocService.ReceivedDocumentAsync(docId);
         await RefreshQueues();
+        Snackbar.Add("Document received!", Severity.Success);
     }
 
     private async Task ForwardDoc(int docId)
     {
-        var nextOfficeId = forwardSelections[docId];
-        if (nextOfficeId.HasValue)
+        var selection = routingSelections[docId];
+
+        if (selection.OfficeId.HasValue)
         {
-            await DocService.ForwardDocumentAsync(docId, nextOfficeId.Value);
+            await DocService.ForwardDocumentAsync(docId, selection.OfficeId.Value, selection.UnitId);
             await RefreshQueues();
+            Snackbar.Add("Document forwarded successfully!", Severity.Success);
         }
     }
 }

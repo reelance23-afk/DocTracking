@@ -4,76 +4,117 @@
 @using DocTracking.Client.Services
 @using Microsoft.AspNetCore.Components.Authorization
 @inject DocumentService DocService
-@inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager Navigation
 @rendermode InteractiveAuto
 
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <div class="d-flex align-center mb-4">
+        <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" Color="Color.Default" OnClick="Back" Class="mr-2" />
+        <MudText Typo="Typo.h4" Class="font-weight-bold">Document History</MudText>
+    </div>
 
-<MudContainer>
-	<MudText Typo="Typo.h4">History</MudText>
+    @if (isLoading)
+    {
+        <div class="d-flex justify-center mt-8">
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
+        </div>
+    }
+    else
+    {
+        <MudPaper Elevation="3" Class="pa-4">
+            <MudTable Items="@documentLogs" Dense="false" Hover="true">
+                <ToolBarContent>
+                    <MudText Typo="Typo.h6">Tracking Logs</MudText>
+                    <MudSpacer />
+                </ToolBarContent>
+                <HeaderContent>
+                    <MudTh>Action</MudTh>
+                    <MudTh>Performed By</MudTh>
+                    <MudTh>Location</MudTh>
+                    <MudTh>Date & Time</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Action">
+                        <MudChip T="string"
+                                 Color="@(context.Action == "Received" ? Color.Success : (context.Action == "Created" ? Color.Info : Color.Warning))"
+                                 Size="Size.Small" Variant="Variant.Filled">
+                            @context.Action
+                        </MudChip>
+                    </MudTd>
 
-@if (isLoading)
-{
-	<MudProgressCircular Color="Color.Primary" Indeterminate="true" />
-}
-else
-{
-	<MudGrid>
-		<MudItem>
-				<MudTable Items="@documentLogs">
-				<ToolBarContent>
-						<MudText Typo="Typo.h6">Recent Activity</MudText>
-						<MudSpacer />
-						<MudButton Href="my-tracking" Variant="Variant.Text" Color="Color.Primary">View All</MudButton>
-				</ToolBarContent>
-					<HeaderContent>
-						<MudTh>Action Taken</MudTh>
-						<MudTh>Office Name</MudTh>
-						<MudTh>Date & Time</MudTh>
-					</HeaderContent>
-				<RowTemplate>
-						<MudTd DataLabel="Action taken">
-							<MudChip T="string"
-									 Color="@(context.Action == "Received" ? Color.Success : Color.Warning)"
-									 Size="Size.Small">
-								@context.Action
-							</MudChip>
-						</MudTd>
-						<MudTd DataLabel="Office Name">@context.Office?.Name</MudTd>
-						<MudTd DataLabel="Date & Time">@context.TimeStamp</MudTd>
-				</RowTemplate>
-			</MudTable>
-		</MudItem>
-	</MudGrid>
-}
+                    <MudTd DataLabel="Performed By">
+                        <MudText Typo="Typo.body2" Class="font-weight-medium">
+                            @(context.AppUser?.Email ?? "System")
+                        </MudText>
+                    </MudTd>
 
+                    <MudTd DataLabel="Location">
+                        <MudText Typo="Typo.body2">
+                            <strong>@(context.Office?.Name ?? "N/A")</strong>
+                            @if (context.Unit != null)
+                            {
+                                <br />
+                                <span style="color: gray; font-size: 0.85em;">↳ @context.Unit.Name</span>
+                            }
+                        </MudText>
+                    </MudTd>
+
+                    <MudTd DataLabel="Date & Time">
+                        <MudText Typo="Typo.body2">
+                            @context.TimeStamp.ToLocalTime().ToString("MMM dd, yyyy") <br />
+                            <span style="color: gray; font-size: 0.85em;">@context.TimeStamp.ToLocalTime().ToString("hh:mm tt")</span>
+                        </MudText>
+                    </MudTd>
+                </RowTemplate>
+
+                <NoRecordsContent>
+                    <MudText Class="pa-4">No tracking history found for this document.</MudText>
+                </NoRecordsContent>
+            </MudTable>
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <MudAlert Severity="Severity.Error" Class="mt-4">
+                    Error loading data: @errorMessage
+                </MudAlert>
+            }
+        </MudPaper>
+    }
 </MudContainer>
+
 @code {
-	[Parameter]
-	public int DocumentId { get; set; }
+    [Parameter]
+    public int DocumentId { get; set; }
 
-	private List<DocumentLog> documentLogs = new();
-	private bool isLoading = true; 
+    private List<DocumentLog> documentLogs = new();
+    private bool isLoading = true;
+    private string? errorMessage;
 
-	protected override async Task OnInitializedAsync()
-	{
-		try
-		{
-			documentLogs = await DocService.GetDocumentLogsAsync(DocumentId);	
-		}
-		catch(Exception)
-		{
-			Console.WriteLine("Error");
-		}
-		finally
-		{
-			isLoading = false;
-		}
-	}
 
-	private void Back()
-	{
-		Navigation.NavigateTo("/");
-	}
+    protected override async Task OnParametersSetAsync()
+    {
+        isLoading = true;
+        errorMessage = null;
 
+        try
+        {
+            documentLogs = await DocService.GetDocumentLogsAsync(DocumentId);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+            Console.WriteLine($"Error loading logs: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void Back()
+    {
+
+        Navigation.NavigateTo("/my-tracking");
+    }
 }

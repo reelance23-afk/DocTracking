@@ -17,7 +17,7 @@ namespace DocTracking.Controllers
         }
 
         [HttpPost]
-        public async Task<ActionResult<List<Office>>> AddOffice(Office office)
+        public async Task<ActionResult<List<Office>>> AddOffice([FromBody] Office office)
         {
             _context.Offices.Add(office);
             await _context.SaveChangesAsync();

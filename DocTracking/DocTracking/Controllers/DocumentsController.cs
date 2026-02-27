@@ -2,11 +2,14 @@
 using DocTracking.Client.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 
 namespace DocTracking.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class DocumentsController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
@@ -17,10 +20,15 @@ namespace DocTracking.Controllers
         }
 
         [HttpPost]
-        public async Task<ActionResult<Document>> CreateDocument(Document doc)
+        public async Task<ActionResult<Document>> CreateDocument([FromBody] Document doc)
         {
+
+            var email = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email);
+            var appuser = await _context.AppUsers.FirstOrDefaultAsync(u => u.Email == email);
+
             doc.CreatedAt = DateTime.UtcNow;
             doc.Status = "On Going";
+            doc.CreatorId = appuser?.Id;
 
             _context.Documents.Add(doc);
             await _context.SaveChangesAsync();
@@ -32,7 +40,7 @@ namespace DocTracking.Controllers
                 TimeStamp = DateTime.UtcNow,
                 OfficeId = doc.NextOfficeId,
                 UnitId = doc.NextUnitId,
-                AppUserId = doc.CreatorId
+                AppUserId = appuser?.Id
             };
 
             _context.DocumentLogs.Add(log);
@@ -61,6 +69,8 @@ namespace DocTracking.Controllers
                 .Include(d => d.Creator)
                 .Include(d => d.NextOffice)
                 .Include(d => d.NextUnit)
+                .Include(d => d.CurrentOffice)
+                .Include(d => d.CurrentUnit)
                 .Where(d => d.Creator != null && d.Creator.Email == email)
                 .OrderByDescending(d => d.CreatedAt)
                 .ToListAsync();
@@ -83,13 +93,13 @@ namespace DocTracking.Controllers
             var doc = await _context.Documents.FindAsync(id);
             if (doc == null) return NotFound();
 
+            var email = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email);
+            var appUser = await _context.AppUsers.FirstOrDefaultAsync(u => u.Email == email);
+
             doc.Status = "Received";
             doc.LastActionDate = DateTime.UtcNow;
-
             doc.CurrentOfficeId = doc.NextOfficeId;
             doc.CurrentUnitId = doc.NextUnitId;
-
-
             doc.NextOfficeId = null;
             doc.NextUnitId = null;
 
@@ -99,6 +109,7 @@ namespace DocTracking.Controllers
                 Action = "Received",
                 OfficeId = doc.CurrentOfficeId,
                 UnitId = doc.CurrentUnitId,
+                AppUserId = appUser?.Id,
                 TimeStamp = DateTime.UtcNow
             });
 
@@ -109,8 +120,12 @@ namespace DocTracking.Controllers
         [HttpPut("{id}/forward")]
         public async Task<IActionResult> ForwardDocument(int id, [FromBody] ForwardRequest request)
         {
+
             var doc = await _context.Documents.FindAsync(id);
             if (doc == null) return NotFound();
+
+            var email = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email);
+            var appUser = await _context.AppUsers.FirstOrDefaultAsync(u => u.Email == email);
 
             doc.Status = "On Going";
             doc.LastActionDate = DateTime.UtcNow;
@@ -127,11 +142,52 @@ namespace DocTracking.Controllers
                 Action = "Forwarded",
                 OfficeId = request.NextOfficeId,
                 UnitId = request.NextUnitId,
+                AppUserId = appUser?.Id,
                 TimeStamp = DateTime.UtcNow
             });
 
             await _context.SaveChangesAsync();
             return Ok();
+        }
+
+        [HttpGet("outgoing/user/{email}")]
+        public async Task<ActionResult<IEnumerable<Document>>> GetOutGoing(string email)
+        {
+            var appUser = await _context.AppUsers.Include(u => u.Unit).FirstOrDefaultAsync(u => u.Email == email);
+            if (appUser == null) return NotFound();
+
+            int? myOfficeId = appUser.Unit?.OfficeId;
+            int? myUnitId = appUser.UnitId;
+
+            var query = _context.Documents
+                .Include(d => d.Creator)
+                .Include(d => d.NextOffice)
+                .Include(d => d.NextUnit)
+                .Where(d => d.Status == "On Going");
+
+            if (myUnitId.HasValue)
+            {
+                query = query.Where(d => _context.DocumentLogs.Any(log =>
+                log.DocumentId == d.Id &&
+                log.Action == "Forwarded" &&
+                log.AppUser != null &&
+                log.AppUser.UnitId == myUnitId));
+            }
+            else if (myOfficeId.HasValue)
+            {
+                query = query.Where(d => _context.DocumentLogs.Any(log =>
+                log.DocumentId == d.Id &&
+                log.Action == "Forwarded" &&
+                log.AppUser != null &&
+                log.AppUser.Unit != null &&
+                log.AppUser.Unit.OfficeId == myOfficeId));
+            }
+            else
+            {
+                return new List<Document>();
+            }
+            return await query.OrderByDescending(d => d.LastActionDate ?? d.CreatedAt).ToListAsync();
+
         }
 
         public class ForwardRequest

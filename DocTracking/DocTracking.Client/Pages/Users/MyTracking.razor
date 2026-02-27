@@ -1,0 +1,136 @@
+﻿@page "/my-tracking"
+@attribute [Authorize]
+@using DocTracking.Client.Models
+@using DocTracking.Client.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+@inject DocumentService DocService
+@inject AuthenticationStateProvider AuthStateProvider
+@rendermode InteractiveAuto
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <MudText Typo="Typo.h4" Class="mb-6 font-weight-bold">My Document Tracking</MudText>
+
+    @if (isLoading)
+    {
+        <div class="d-flex justify-center mt-8">
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
+        </div>
+    }
+    else
+    {
+        <MudTable Items="@myDocuments" Hover="true" Elevation="3">
+            <ToolBarContent>
+                <MudText Typo="Typo.h6">All My Documents</MudText>
+                <MudSpacer />
+            </ToolBarContent>
+
+            <HeaderContent>
+                <MudTh>Document Title</MudTh>
+                <MudTh>Type</MudTh>
+                <MudTh>Current Status</MudTh>
+                <MudTh>Created On</MudTh>
+                <MudTh>Current Location</MudTh>
+                <MudTh>Next Destination</MudTh>
+                <MudTh>Action</MudTh>
+            </HeaderContent>
+
+            <RowTemplate>
+                <MudTd DataLabel="Document Title"><strong>@context.Name</strong></MudTd>
+                <MudTd DataLabel="Type">@context.Type</MudTd>
+
+                <MudTd DataLabel="Status">
+                    <MudChip T="string" Color="@(context.Status == "Received" ? Color.Success : Color.Warning)" Size="Size.Small" Variant="Variant.Filled">
+                        @context.Status
+                    </MudChip>
+                </MudTd>
+
+                <MudTd DataLabel="Created On">@context.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")</MudTd>
+
+                <MudTd DataLabel="Current Location">
+                    @if (context.CurrentOffice != null)
+                    {
+                        <MudText Typo="Typo.body2">
+                            <strong>@context.CurrentOffice.Name</strong> <br />
+                            <span style="color: gray; font-size: 0.85em;">↳ @(context.CurrentUnit?.Name ?? "General")</span>
+                        </MudText>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.body2" Color="Color.Default"><em>None</em></MudText>
+                    }
+                </MudTd>
+
+                <MudTd DataLabel="Next Destination">
+                    @if (context.NextOffice != null)
+                    {
+                        <MudText Typo="Typo.body2">
+                            <strong>@context.NextOffice.Name</strong> <br />
+                            <span style="color: gray; font-size: 0.85em;">↳ @(context.NextUnit?.Name ?? "General")</span>
+                        </MudText>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.body2" Color="Color.Default"><em>None</em></MudText>
+                    }
+                </MudTd>
+
+                <MudTd DataLabel="Action">
+                    <MudButton Href="@($"/track-document/{context.Id}")" Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.History">
+                        History
+                    </MudButton>
+                </MudTd>
+            </RowTemplate>
+
+            <NoRecordsContent>
+                <MudText Class="pa-4">You haven't created any documents yet.</MudText>
+            </NoRecordsContent>
+            <PagerContent>
+                <MudTablePager />
+            </PagerContent>
+        </MudTable>
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <MudAlert Severity="Severity.Error" Class="mt-4">
+                Error loading data: @errorMessage
+            </MudAlert>
+        }
+    }
+</MudContainer>
+
+@code {
+    private List<Document> myDocuments = new();
+    private bool isLoading = true;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+
+            string email = user.FindFirst(ClaimTypes.Email)?.Value ?? user.Identity?.Name ?? "";
+
+            if (!string.IsNullOrEmpty(email))
+            {
+                myDocuments = await DocService.GetUserDocumentsAsync(email);
+            }
+            else
+            {
+                errorMessage = "Could not find your user email to load documents.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+            Console.WriteLine($"Error loading documents: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+}

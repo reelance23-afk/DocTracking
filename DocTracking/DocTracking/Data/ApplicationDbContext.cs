@@ -31,6 +31,18 @@ namespace DocTracking.Data
                 .WithMany()
                 .HasForeignKey(m => m.NextOfficeId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Document>()
+                .HasOne(d => d.Creator)
+                .WithMany()
+                .HasForeignKey(d => d.CreatorId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<DocumentLog>()
+                .HasOne(d => d.AppUser)
+                .WithMany()
+                .HasForeignKey(d => d.AppUserId)
+                .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }

@@ -10,123 +10,135 @@
 @inject ISnackbar Snackbar
 @rendermode InteractiveAuto
 
-<MudContainer MaxWidth="MaxWidth.Medium" Class="mt-4">
-    <MudText Typo="Typo.h4" Class="mb-4">Create New Document</MudText>
+<MudContainer MaxWidth="MaxWidth.Small" Class="mt-8">
 
-    <MudPaper>
-@if (isLoadingOffices)
-		{
-			<MudProgressCircular Color="Color.Primary" Indeterminate="true"/>
-		}
-		else
-		{
-		<MudForm @bind-IsValid="success">
+    <MudPaper Elevation="4" Class="pa-8 rounded-lg border-t-4 border-solid mud-border-primary">
+        <MudText Typo="Typo.h5" Class="mb-6 font-weight-bold">Create New Document</MudText>
 
-            <MudTextField @bind-Value="newDocument.Name"
-                          Label="Document Name"
-                          Variant="Variant.Outlined"
-                          Required="true"
-                          RequiredError="Document Name is Required"
-                          Class="m-4" />
+        @if (isLoadingOffices)
+        {
+            <div class="d-flex flex-column align-center my-4">
+                <MudProgressCircular Color="Color.Primary" Indeterminate="true" Class="mb-2" />
+                <MudText Typo="Typo.body2" Class="mud-text-secondary">Loading routing options...</MudText>
+            </div>
+        }
+        else
+        {
+            <MudForm @bind-IsValid="success">
+                <MudGrid>
 
-            <MudTextField @bind-Value="newDocument.Type"
-                          Label="Document type (e.g., Memo, Report, Notice"
-                          Variant="Variant.Outlined"
-                          Required="true"
-                          RequiredError="Document is Required"
-                          Class="m-4" />
+                    <MudItem xs="12">
+                        <MudTextField @bind-Value="newDocument.Name"
+                                      Label="Document Title / Subject"
+                                      Variant="Variant.Outlined"
+                                      Required="true"
+                                      RequiredError="Document title is required" />
+                    </MudItem>
 
-				<MudSelect T="int?" Value="newDocument.NextOfficeId" ValueChanged="OnOfficeChanged"
-						   Label="Route to Office..." Variant="Variant.Outlined" Required="true" RequiredError="Destination Required" Class="m-4">
-					@foreach (var office in offices)
-					{
-						<MudSelectItem T="int?" Value="@((int?)office.Id)">@office.Name</MudSelectItem>
-					}
-				</MudSelect>
+                    <MudItem xs="12">
+                        <MudSelect T="string" @bind-Value="newDocument.Type" Label="Document Type" Variant="Variant.Outlined" Required="true" RequiredError="Please select a document type">
+                            <MudSelectItem Value="@("Memo")">Memo</MudSelectItem>
+                            <MudSelectItem Value="@("Letter")">Letter</MudSelectItem>
+                            <MudSelectItem Value="@("Voucher")">Voucher</MudSelectItem>
+                            <MudSelectItem Value="@("Report")">Report</MudSelectItem>
+                            <MudSelectItem Value="@("Notice")">Notice</MudSelectItem>
+                            <MudSelectItem Value="@("Other")">Other</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
 
-				@if (newDocument.NextOfficeId.HasValue)
-				{
-					<MudSelect @bind-Value="newDocument.NextUnitId" Label="Route to Unit..." Variant="Variant.Outlined" Required="true" RequiredError="Unit Destination Required" Class="m-4">
-						@foreach (var unit in GetUnitsForOffice(newDocument.NextOfficeId.Value))
-						{
-							<MudSelectItem T="int?" Value="@((int?)unit.Id)">@unit.Name</MudSelectItem>
-						}
-					</MudSelect>
-				}
+                    <MudItem xs="12">
+                        <MudSelect T="int?" Value="newDocument.NextOfficeId" ValueChanged="OnOfficeChanged"
+                                   Label="Route to Office..." Variant="Variant.Outlined" Required="true" RequiredError="Destination Office Required">
+                            @foreach (var office in offices)
+                            {
+                                <MudSelectItem T="int?" Value="@((int?)office.Id)">@office.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
 
-			<MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="(!success|| isSaving)" OnClick="SubmitDocument">
-					@(isSaving ? "Routing..." : "Submit & Route Document")
-			</MudButton>
-        </MudForm>
-			
-		}
+                    @if (newDocument.NextOfficeId.HasValue)
+                    {
+                        <MudItem xs="12">
+                            <MudSelect @bind-Value="newDocument.NextUnitId" Label="Route to Specific Unit (Optional)" Variant="Variant.Outlined">
+                                @foreach (var unit in GetUnitsForOffice(newDocument.NextOfficeId.Value))
+                                {
+                                    <MudSelectItem T="int?" Value="@((int?)unit.Id)">@unit.Name</MudSelectItem>
+                                }
+                            </MudSelect>
+                        </MudItem>
+                    }
+
+                    <MudItem xs="12" Class="d-flex justify-end mt-4">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" Disabled="@(!success || isSaving)" OnClick="SubmitDocument">
+                            @(isSaving ? "Routing..." : "Submit & Route Document")
+                        </MudButton>
+                    </MudItem>
+
+                </MudGrid>
+            </MudForm>
+        }
     </MudPaper>
 
 </MudContainer>
 
-
 @code {
-	private Document newDocument = new();
-	private List<Office> offices = new();
-	private bool success;
-	private bool isSaving = false;
-	private bool isLoadingOffices = true;
+    private Document newDocument = new();
+    private List<Office> offices = new();
+    private bool success;
+    private bool isSaving = false;
+    private bool isLoadingOffices = true;
 
-	protected override async Task OnInitializedAsync()
-	{
-		offices = await DocService.GetOfficesAsync();
-		isLoadingOffices = false;
-	}
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                offices = await DocService.GetOfficesAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error loading offices: {ex.Message}");
+                Snackbar.Add("Failed to load routing options.", Severity.Error);
+            }
+            finally
+            {
+                isLoadingOffices = false;
+                StateHasChanged();
+            }
+        }
+    }
 
-	private void OnOfficeChanged(int? officeId)
-	{
-		newDocument.NextOfficeId = officeId;
-		newDocument.NextUnitId = null;
-	}
+    private void OnOfficeChanged(int? officeId)
+    {
+        newDocument.NextOfficeId = officeId;
+        newDocument.NextUnitId = null;
+    }
 
-	private IEnumerable<Unit> GetUnitsForOffice(int officeId)
-	{
-		return offices.FirstOrDefault(d => d.Id == officeId)?.Units ?? new List<Unit>();
+    private IEnumerable<Unit> GetUnitsForOffice(int officeId)
+    {
+        return offices.FirstOrDefault(d => d.Id == officeId)?.Units ?? new List<Unit>();
+    }
 
-	}
+    public async Task SubmitDocument()
+    {
+        isSaving = true;
+        try
+        {
+                await DocService.CreateDocumentAsync(newDocument);
 
-	public async Task SubmitDocument()
-	{
-		isSaving = true;
-		try
-		{
-			var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-			var user = authState.User;
+                Snackbar.Add("Document Created & Routed Successfully!", Severity.Success);
 
-
-			if (user.Identity is not null && user.Identity.IsAuthenticated)
-			{
-				var userIdClaim = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-				if (int.TryParse(userIdClaim, out int creatorId))
-				{
-					newDocument.CreatorId = creatorId;
-				}
-
-				await DocService.CreateDocumentAsync(newDocument);
-
-				Snackbar.Add("Document Created Successfully!", Severity.Success);
-				Navigation.NavigateTo("/");
-			}
-			else
-			{
-				Snackbar.Add("Error", Severity.Error);
-			}
-		}
-		catch (Exception)
-		{
-			Snackbar.Add("Error Saving Document", Severity.Warning);
-		}
-		finally
-		{
-			isSaving = false;
-		}
-
-
-	}
-
+                Navigation.NavigateTo("/my-tracking");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Save Error: {ex.Message}");
+            Snackbar.Add("Error Saving Document. Please try again.", Severity.Error);
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
 }

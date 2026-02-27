@@ -26,7 +26,7 @@ namespace DocTracking.Controllers
         }
 
         [HttpPost]
-        public async Task<ActionResult<Unit>> AddUnit( Unit unit)
+        public async Task<ActionResult<Unit>> AddUnit([FromBody] Unit unit)
         {
             _context.Add(unit);
             await _context.SaveChangesAsync();

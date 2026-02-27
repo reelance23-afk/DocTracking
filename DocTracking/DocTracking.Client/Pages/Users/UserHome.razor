@@ -1,14 +1,14 @@
-﻿
-@attribute [Authorize]
+﻿@attribute [Authorize]
 @using DocTracking.Client.Models
 @using DocTracking.Client.Services
-@using Microsoft.AspNetCore.Components.Authorization;
-@inject AuthenticationStateProvider AuthStateProvider;
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+@inject AuthenticationStateProvider AuthStateProvider
 @inject DocumentService DocService
 @rendermode InteractiveAuto
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
-    <MudText Typo="Typo.h4" Class="mb-6">System Dashboard</MudText>
+    <MudText Typo="Typo.h4" Class="mb-6 font-weight-bold">System Dashboard</MudText>
 
     <MudGrid>
         <MudItem xs="12" sm="6" md="3">
@@ -44,36 +44,70 @@
                 <ToolBarContent>
                     <MudText Typo="Typo.h6">Recent Activity</MudText>
                     <MudSpacer />
-                    <MudButton Href="my-tracking" Variant="Variant.Text" Color="Color.Primary">View All</MudButton>
+                    <MudButton Href="my-tracking" Variant="Variant.Text" Color="Color.Primary" EndIcon="@Icons.Material.Filled.ArrowForward">View All</MudButton>
                 </ToolBarContent>
+
                 <HeaderContent>
                     <MudTh>Document</MudTh>
                     <MudTh>Type</MudTh>
                     <MudTh>Current Status</MudTh>
                     <MudTh>Created At</MudTh>
-                    <MudTh>Current Office</MudTh>
-                    <MudTh>Next Office</MudTh>
+                    <MudTh>Current Location</MudTh>
+                    <MudTh>Next Destination</MudTh>
                     <MudTh>Action</MudTh>
                 </HeaderContent>
+
                 <RowTemplate>
-                    <MudTd DataLabel="Document">@context.Name</MudTd>
+                    <MudTd DataLabel="Document"><strong>@context.Name</strong></MudTd>
+
                     <MudTd DataLabel="Type">@context.Type</MudTd>
+
                     <MudTd DataLabel="Status">
-                        <MudChip T="string"
-                                 Color="@(context.Status == "Received" ? Color.Success : Color.Warning)"
-                                 Size="Size.Small">
+                        <MudChip T="string" Color="@(context.Status == "Received" ? Color.Success : Color.Warning)" Size="Size.Small" Variant="Variant.Filled">
                             @context.Status
                         </MudChip>
                     </MudTd>
-                    <MudTd DataLabel="CreatedAt">@context.CreatedAt</MudTd>
-                    <MudTd DataLabel="CurrentOffice">@context.CurrentOffice</MudTd>
-                    <MudTd DataLabel="NextOffice">@context.NextOffice?.Name</MudTd>
+
+                    <MudTd DataLabel="CreatedAt">@context.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")</MudTd>
+
+                    <MudTd DataLabel="Current Location">
+                        @if (context.CurrentOffice != null)
+                        {
+                            <MudText Typo="Typo.body2">
+                                <strong>@context.CurrentOffice.Name</strong> <br />
+                                <span style="color: gray; font-size: 0.85em;">↳ @(context.CurrentUnit?.Name ?? "General")</span>
+                            </MudText>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Default"><em>None</em></MudText>
+                        }
+                    </MudTd>
+
+                    <MudTd DataLabel="Next Destination">
+                        @if (context.NextOffice != null)
+                        {
+                            <MudText Typo="Typo.body2">
+                                <strong>@context.NextOffice.Name</strong> <br />
+                                <span style="color: gray; font-size: 0.85em;">↳ @(context.NextUnit?.Name ?? "General")</span>
+                            </MudText>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Default"><em>None</em></MudText>
+                        }
+                    </MudTd>
+
                     <MudTd DataLabel="Action">
-                        <MudButton Href="@($"/track-document/{context.Id}")" Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary">
+                        <MudButton Href="@($"/track-document/{context.Id}")" Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.History">
                             Track
                         </MudButton>
                     </MudTd>
                 </RowTemplate>
+
+                <NoRecordsContent>
+                    <MudText Class="pa-4">No recent activity.</MudText>
+                </NoRecordsContent>
             </MudTable>
         </MudItem>
     </MudGrid>
@@ -92,16 +126,20 @@
             var authState = await AuthStateProvider.GetAuthenticationStateAsync();
             var user = authState.User;
 
-            string email = user.Identity?.Name ?? "";
+            string email = user.FindFirst(ClaimTypes.Email)?.Value ?? user.Identity?.Name ?? "";
 
-            var allDocs = await DocService.GetUserDocumentsAsync(email);
-
-            if (allDocs != null)
+            if (!string.IsNullOrEmpty(email))
             {
-                myDocsCount = allDocs.Count;
-                pendingCount = allDocs.Count(d => d.Status != "Received");
-                receivedCount = allDocs.Count(d => d.Status == "Received");
-                recentDocs = allDocs.OrderByDescending(d => d.CreatedAt).Take(5).ToList();
+                var allDocs = await DocService.GetUserDocumentsAsync(email);
+
+                if (allDocs != null)
+                {
+                    myDocsCount = allDocs.Count;
+                    pendingCount = allDocs.Count(d => d.Status != "Received");
+                    receivedCount = allDocs.Count(d => d.Status == "Received");
+    
+                    recentDocs = allDocs.OrderByDescending(d => d.CreatedAt).Take(5).ToList();
+                }
             }
         }
         catch (Exception ex)
