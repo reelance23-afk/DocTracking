@@ -62,6 +62,19 @@ namespace DocTracking.Controllers
                 .ToListAsync();
         }
 
+        [HttpGet("my-profile")]
+        public async Task<ActionResult<AppUser>> GetMyProfile()
+        {
+            var email = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email);
+
+            var appUser = await _context.AppUsers
+                .Include(d => d.Unit)
+                .FirstOrDefaultAsync(d => d.Email == email);
+
+            return appUser == null ? NotFound() : Ok(appUser);
+
+        }
+
         [HttpGet("user/{email}")]
         public async Task<ActionResult<IEnumerable<Document>>> GetUserDocument(string email)
         {
@@ -77,14 +90,24 @@ namespace DocTracking.Controllers
         }
 
         [HttpGet("incoming/{officeId}")]
-        public async Task<ActionResult<IEnumerable<Document>>> GetIncoming(int officeId)
+        public async Task<ActionResult<IEnumerable<Document>>> GetIncoming(int officeId, [FromQuery] int? unitId = null )
         {
-            return await _context.Documents
+            var query = _context.Documents
                 .Include(d => d.Creator)
                 .Include(d => d.NextOffice)
                 .Include(d => d.NextUnit)
-                .Where(d => d.NextOfficeId == officeId && d.Status == "On Going")
-                .ToListAsync();
+                .Where(d => d.NextOfficeId == officeId && d.Status == "On Going");
+
+            if (unitId.HasValue)
+            {
+                query = query.Where(d => d.NextUnitId == unitId || d.NextUnitId == null);
+            }
+            else
+            {
+                query = query.Where(d => d.NextUnitId == null);
+            }
+
+            return await query.ToListAsync();
         }
 
         [HttpPut("{id}/receive")]
@@ -142,6 +165,46 @@ namespace DocTracking.Controllers
                 Action = "Forwarded",
                 OfficeId = request.NextOfficeId,
                 UnitId = request.NextUnitId,
+                AppUserId = appUser?.Id,
+                TimeStamp = DateTime.UtcNow
+            });
+
+            await _context.SaveChangesAsync();
+            return Ok();
+        }
+
+        [HttpPut("{id}/finish")]
+        public async Task<IActionResult> FinishDocument(int id)
+        {
+            var doc = await _context.Documents.FindAsync(id);
+            if (doc == null) return NotFound();
+
+            var email = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email);
+            var appUser = await _context.AppUsers.FirstOrDefaultAsync(u => u.Email == email);
+
+            doc.Status = "Completed";
+            doc.LastActionDate = DateTime.UtcNow;
+
+            var finishedAtOffice = doc.CurrentOfficeId;
+            var finishedAtUnit = doc.CurrentUnitId;
+
+
+            doc.CurrentOffice = null;
+            doc.CurrentUnit = null;
+            doc.CurrentOfficeId = null;
+            doc.CurrentUnitId = null;
+
+            doc.NextOffice = null;
+            doc.NextUnit = null;
+            doc.NextOfficeId = null;
+            doc.NextUnitId = null;
+
+            _context.DocumentLogs.Add(new DocumentLog
+            {
+                DocumentId = doc.Id,
+                Action = "Completed",
+                OfficeId = finishedAtOffice,
+                UnitId = finishedAtUnit,
                 AppUserId = appUser?.Id,
                 TimeStamp = DateTime.UtcNow
             });

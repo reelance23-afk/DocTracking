@@ -7,47 +7,60 @@
 <MudDialogProvider />
 <MudSnackbarProvider />
 
-<MudOverlay Visible="Loader.IsLoading" DarkBackground="true" Absolute="false" ZIndex="9999">
-    <MudPaper Class="pa-6 d-flex flex-column align-center justify-center rounded-lg" Elevation="4">
-        <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" Class="mb-4" />
-        <MudText Typo="Typo.h6" Class="font-weight-bold">Loading Data...</MudText>
-        <MudText Typo="Typo.body2" Color="Color.Secondary">Please wait</MudText>
-    </MudPaper>
-</MudOverlay>
+<style>
+    @@keyframes fadeIn {
+        0% {
+            opacity: 0;
+        }
+        100% {
+            opacity: 1;
+        }
+    }
+</style>
 
 <MudLayout>
-    <MudAppBar Elevation="4"
-               Dense="false"
-               Fixed="true"
-               Color="Color.Warning">
-        <MudIconButton Icon="@Icons.Material.Filled.Menu"
-                       Color="Color.Inherit"
-                       Edge="Edge.Start"
-                       Size="Size.Medium"
-                       OnClick="@((e) => DrawerToggle())" />
-        <MudSpacer/>
-    </MudAppBar>
 
-    <MudDrawer @bind-Open="_drawerOpen"
-               ClipMode="DrawerClipMode.Always"
+    <MudDrawer Open="_drawerOpen"
+               OpenChanged="HandleDrawerStateChange"
                Elevation="2"
-               >
-        <MudDrawerHeader>
+               Variant="DrawerVariant.Mini">
+
+        <MudDrawerHeader Class="pt-4 px-2">
             <AuthorizeView>
                 <Authorized>
-                <MudPaper Outlined="true" Class="pa-4 rounded-lg d-flex flex-column align-center" Style="width: 100%; background: rgba(0,0,0,0.03);">
-                    <MudIcon Icon="@Icons.Material.Filled.AccountCircle" Size="Size.Large" Color="Color.Default" Class="mb-2" />
-                    <MudText Typo="Typo.subtitle1">@context.User.Identity?.Name</MudText>
-                    <MudText Typo="Typo.caption">@context.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value</MudText>
-                </MudPaper>
+
+                    <MudPaper Class="pa-2 mb-20 rounded-lg d-flex flex-column align-center overflow-hidden"
+                              Elevation="0"
+                              Style="@($"width: 100%; transition: all 0.2s ease-in-out; {(_drawerOpen ? "height: 110px; background-color:rgb(189, 189, 189, 0.3);" : "height: 110px; background-color:transparent;")}")">
+
+                        <MudIcon Icon="@Icons.Material.Filled.AccountCircle"
+                                 Size="Size.Large"
+                                 Color="Color.Default"
+                                 Class="@(_drawerOpen ? "mb-2" : "")"
+                                 Style="cursor: pointer;"
+                                 @onclick="@(() => HandleDrawerStateChange(!_drawerOpen))" />
+
+                        @if (_showText)
+                        {
+                            <div style="animation: fadeIn 0.8s ease-in-out; display: flex; flex-direction: column; align-items: center;">
+                                <MudText Typo="Typo.subtitle1">@context.User.Identity?.Name</MudText>
+                                <MudText Typo="Typo.caption" Class="mb-4">@context.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value</MudText>
+                            </div>
+                        }
+
+                    </MudPaper>
+
                 </Authorized>
             </AuthorizeView>
         </MudDrawerHeader>
-        <NavMenu />
+
+        <CascadingValue Value="_showText">
+            <NavMenu />
+        </CascadingValue>
     </MudDrawer>
 
-    <MudMainContent>
-        <MudContainer MaxWidth="MaxWidth.ExtraExtraLarge" Class="mt-10">
+    <MudMainContent @onclick="CloseDrawerOnClickOutside">
+        <MudContainer MaxWidth="MaxWidth.ExtraLarge">
             @Body
         </MudContainer>
     </MudMainContent>
@@ -55,8 +68,35 @@
 
 @code {
     bool _drawerOpen = true;
+    bool _showText = true;
 
-    void DrawerToggle() => _drawerOpen = !_drawerOpen;
+    async Task HandleDrawerStateChange(bool isOpen)
+    {
+        if (_drawerOpen == isOpen) return;
+
+        if (isOpen)
+        {
+            _drawerOpen = true;
+            StateHasChanged();
+            await Task.Delay(250);
+            _showText = true;
+        }
+        else
+        {
+            _showText = false;
+            StateHasChanged();
+            await Task.Delay(50);
+            _drawerOpen = false;
+        }
+    }
+
+    async Task CloseDrawerOnClickOutside()
+    {
+        if (_drawerOpen)
+        {
+            await HandleDrawerStateChange(false);
+        }
+    }
 
     protected override void OnInitialized()
     {

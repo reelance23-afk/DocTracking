@@ -50,7 +50,7 @@
                     </MudTd>
 
                     <MudTd DataLabel="Current Location">
-                        @if (context.Action == "Received")
+                        @if (context.Action == "Received" || context.Action == "Completed")
                         {
                             <MudText Typo="Typo.body2">
                                 <strong>@(context.Office?.Name ?? "N/A")</strong>
@@ -79,7 +79,7 @@
                     </MudTd>
 
                     <MudTd DataLabel="Next Destination">
-                        @if (context.Action == "Received")
+                        @if (context.Action == "Received" || context.Action == "Completed")
                         {
                             <MudText Typo="Typo.body2" Color="Color.Default"><em>None</em></MudText>
                         }

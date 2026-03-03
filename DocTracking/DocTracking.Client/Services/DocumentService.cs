@@ -38,9 +38,24 @@ namespace DocTracking.Client.Services
             return await _http.GetFromJsonAsync<List<Document>>($"api/documents/user/{email}") ?? new();
         }
 
-        public async Task<List<Document>> GetIncomingAsync(int officeId)
+        public async Task<List<Document>> GetIncomingAsync(int officeId, int? unitId = null)
         {
-            return await _http.GetFromJsonAsync<List<Document>>($"api/documents/incoming/{officeId}") ?? new();
+            var url = $"api/documents/incoming/{officeId}";
+
+            if (unitId.HasValue)
+            {
+                url += $"?unitId={unitId.Value}";
+            }
+
+            return await _http.GetFromJsonAsync<List<Document>>(url) ?? new();
+        }
+
+        public async Task<AppUser?> GetProfileAsync()
+        {
+            var response = await _http.GetAsync("api/documents/my-profile");
+            if (!response.IsSuccessStatusCode) return null;
+
+            return await response.Content.ReadFromJsonAsync<AppUser>();
         }
 
         public async Task ReceivedDocumentAsync(int id)
@@ -52,6 +67,11 @@ namespace DocTracking.Client.Services
         {
             var request = new { NextOfficeId = nextOfficeId, NextUnitId = nextUnitId };
             await _http.PutAsJsonAsync($"api/documents/{id}/forward", request);
+        }
+
+        public async Task FinishDocumentAsync(int id)
+        {
+            await _http.PutAsync($"api/documents/{id}/finish", null);
         }
 
         public async Task<List<DocumentLog>> GetDocumentLogsAsync(int id)

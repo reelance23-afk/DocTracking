@@ -59,7 +59,7 @@
                     @if (newDocument.NextOfficeId.HasValue)
                     {
                         <MudItem xs="12">
-                            <MudSelect @bind-Value="newDocument.NextUnitId" Label="Route to Specific Unit (Optional)" Variant="Variant.Outlined">
+                            <MudSelect @bind-Value="newDocument.NextUnitId" Label="Route to Specific Unit" Variant="Variant.Outlined">
                                 @foreach (var unit in GetUnitsForOffice(newDocument.NextOfficeId.Value))
                                 {
                                     <MudSelectItem T="int?" Value="@((int?)unit.Id)">@unit.Name</MudSelectItem>

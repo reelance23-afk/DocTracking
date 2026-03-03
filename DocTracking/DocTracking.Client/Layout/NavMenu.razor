@@ -1,31 +1,96 @@
-﻿<MudNavMenu>
-    <MudNavLink Href="/" Style="align-content" Typo="Typo.h6" Match="NavLinkMatch.All" ForceLoad="true" Icon="@Icons.Material.Filled.Home">Dashboard</MudNavLink>
+﻿<style>
+    @@keyframes fadeIn {
+        0%
+    {
+        opacity: 0;
+    }
+    100% {
+        opacity: 1;
+    }
+    }
+</style>
 
-    <AuthorizeView>
-        <Authorized>
-            @if (!context.User.IsInRole("Admin") && !context.User.IsInRole("Office"))
+<div class="d-flex flex-column" style="height: 100%; overflow-x: hidden; white-space: nowrap;">
+
+    <MudNavMenu Class="my-auto">
+        <MudNavLink Class="mb-2" Href="/" Typo="Typo.h6" Match="NavLinkMatch.All" ForceLoad="true" Icon="@Icons.Material.Filled.Home">
+            @if (ShowText)
             {
-                <MudNavLink Href="/create-document" Icon="@Icons.Material.Filled.NoteAdd">Create Document</MudNavLink>
-                <MudNavLink Href="/my-tracking" Icon="@Icons.Material.Filled.History">My Tracking</MudNavLink>
+                <span style="animation: fadeIn 0.1s ease-in-out; display: inline-block;">Dashboard</span>
             }
-        </Authorized>
-    </AuthorizeView>
+        </MudNavLink>
 
-    <AuthorizeView Roles="Office">
-        <Authorized>
-            <MudNavLink Href="/office-desk" Icon="@Icons.Material.Filled.InsertDriveFile">Pending Documents</MudNavLink>
-        </Authorized>
-    </AuthorizeView>
+        <AuthorizeView>
+            <Authorized>
+                @if (!context.User.IsInRole("Admin") && !context.User.IsInRole("Office"))
+                {
+                    <MudNavLink Class="mb-2" Href="/create-document" Icon="@Icons.Material.Filled.NoteAdd">
+                        @if (ShowText)
+                        {
+                            <span style="animation: fadeIn 0.1s ease-in-out; display: inline-block;">Create Document</span>
+                        }
+                    </MudNavLink>
+                    <MudNavLink Class="mb-2" Href="/my-tracking" Icon="@Icons.Material.Filled.History">
+                        @if (ShowText)
+                        {
+                            <span style="animation: fadeIn 0.1s ease-in-out; display: inline-block;">My Tracking</span>
+                        }
+                    </MudNavLink>
+                }
+            </Authorized>
+        </AuthorizeView>
 
-    <AuthorizeView Roles="Admin">
-        <Authorized>
-            <MudNavLink Href="/manage-offices" Icon="@Icons.Material.Filled.Business">Manage Offices</MudNavLink>
-            <MudNavLink Href="/manage-users" Icon="@Icons.Material.Filled.People">User Management</MudNavLink>
-            <MudNavLink Href="/document-tracking" Icon="@Icons.Material.Filled.Description">Document Tracking</MudNavLink>
-        </Authorized>
-    </AuthorizeView>
-</MudNavMenu>
+        <AuthorizeView Roles="Office">
+            <Authorized>
+                <MudNavLink Class="mb-2" Href="/office-desk" Icon="@Icons.Material.Filled.InsertDriveFile">
+                    @if (ShowText)
+                    {
+                        <span style="animation: fadeIn 0.1s ease-in-out; display: inline-block;">Pending Documents</span>
+                    }
+                </MudNavLink>
+            </Authorized>
+        </AuthorizeView>
 
-    <div class="mt-auto pa-4">
-    <LoginDisplay />
-    </div>
+        <AuthorizeView Roles="Admin">
+            <Authorized>
+                <MudNavLink Class="mb-2" Href="/manage-offices" Icon="@Icons.Material.Filled.Business">
+                    @if (ShowText)
+                    {
+                        <span style="animation: fadeIn 0.1s ease-in-out; display: inline-block;">Manage Offices</span>
+                    }
+                </MudNavLink>
+                <MudNavLink Class="mb-2" Href="/manage-users" Icon="@Icons.Material.Filled.People">
+                    @if (ShowText)
+                    {
+                        <span style="animation: fadeIn 0.1s ease-in-out; display: inline-block;">User Management</span>
+                    }
+                </MudNavLink>
+                <MudNavLink Class="mb-2" Href="/document-tracking" Icon="@Icons.Material.Filled.Description">
+                    @if (ShowText)
+                    {
+                        <span style="animation: fadeIn 0.1s ease-in-out; display: inline-block;">Document Tracking</span>
+                    }
+                </MudNavLink>
+            </Authorized>
+        </AuthorizeView>
+    </MudNavMenu>
+
+    <MudNavMenu Class="mt-auto">
+        <AuthorizeView>
+            <Authorized>
+                <MudNavLink Href="/Account/Logout" ForceLoad="true" Icon="@Icons.Material.Filled.Logout">
+                    @if (ShowText)
+                    {
+                        <span style="animation: fadeIn 0.1s ease-in-out; display: inline-block;">Logout</span>
+                    }
+                </MudNavLink>
+            </Authorized>
+        </AuthorizeView>
+    </MudNavMenu>
+
+</div>
+
+@code {
+    [CascadingParameter]
+    public bool ShowText { get; set; } = true;
+}

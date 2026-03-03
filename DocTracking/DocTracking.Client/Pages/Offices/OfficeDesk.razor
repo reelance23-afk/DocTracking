@@ -66,7 +66,7 @@
                                 <MudSelect T="int?" Value="routingSelections[context.Id].OfficeId"
                                            ValueChanged="@((int? val) => OnOfficeSelected(context.Id, val))"
                                            Margin="Margin.Dense" Variant="Variant.Outlined" Label="Select Office">
-                                    @foreach (var off in allOffices.Where(o => o.Id != myOffice.Id))
+                                    @foreach (var off in allOffices)
                                     {
                                         <MudSelectItem T="int?" Value="@((int?)off.Id)">@off.Name</MudSelectItem>
                                     }
@@ -90,6 +90,11 @@
                                        Disabled="@(routingSelections[context.Id].OfficeId == null)"
                                        OnClick="@(() => ForwardDoc(context.Id))">
                                 Forward
+                            </MudButton>
+
+                            <MudButton Color="Color.Dark" Variant="Variant.Filled" Size="Size.Small"
+                                       OnClick="@(() => FinishDoc(context.Id))">
+                                Finish
                             </MudButton>
                         </MudTd>
                     </RowTemplate>
@@ -133,6 +138,7 @@
 
 @code {
     private Office? myOffice;
+    private int? myUnitId;
     private List<Office> allOffices = new();
 
     private List<Document> incomingDocs = new();
@@ -157,16 +163,18 @@
         {
             try
             {
-                var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-                var user = authState.User;
-                userEmail = user.FindFirst(ClaimTypes.Email)?.Value ?? user.Identity?.Name ?? "Uknown";
+                var profile = await DocService.GetProfileAsync();
 
-                allOffices = await DocService.GetOfficesAsync();
-                var officeIdClaim = user.Claims.FirstOrDefault(c => c.Type == "OfficeId");
-
-                if (officeIdClaim != null && int.TryParse(officeIdClaim.Value, out int assignedOfficeId))
+                if (profile != null)
                 {
-                    myOffice = allOffices.FirstOrDefault(o => o.Id == assignedOfficeId);
+                    userEmail = profile.Email ?? "Unknown";
+                    myUnitId = profile.UnitId;
+
+                    if (profile.Unit?.OfficeId != null)
+                    {
+                        allOffices = await DocService.GetOfficesAsync();
+                        myOffice = allOffices.FirstOrDefault(o => o.Id == profile.Unit.OfficeId);
+                    }
                 }
 
                 if (myOffice != null)
@@ -195,10 +203,16 @@
 
         try
         {
-            incomingDocs = await DocService.GetIncomingAsync(myOffice.Id);
+
+            incomingDocs = await DocService.GetIncomingAsync(myOffice.Id, myUnitId);
+
             var allDocs = await DocService.GetAllDocumentsAsync();
 
-            deskDocs = allDocs.Where(d => d.CurrentOfficeId == myOffice.Id && d.Status == "Received").ToList();
+            deskDocs = allDocs.Where(d =>
+                d.CurrentOfficeId == myOffice.Id &&
+                d.Status == "Received" &&
+                (myUnitId.HasValue ? (d.CurrentUnitId == null || d.CurrentUnitId == myUnitId) : d.CurrentUnitId == null)
+            ).ToList();
 
             outgoingDocs = await DocService.GetOutgoingAsync(userEmail);
 
@@ -245,5 +259,13 @@
             await RefreshQueues();
             Snackbar.Add("Document forwarded successfully!", Severity.Success);
         }
+    }
+
+    private async Task FinishDoc(int docId)
+    {
+        await DocService.FinishDocumentAsync(docId);
+        await RefreshQueues();
+
+        Snackbar.Add("Document completed");
     }
 }
