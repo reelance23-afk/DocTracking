@@ -34,10 +34,9 @@
     private bool isLoading = false;
     private Dictionary<int, int?> forwardSelections = new();
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    protected override async Task OnInitializedAsync()
     {
-        if (firstRender)
-        {
+        
             try
             {
  
@@ -54,23 +53,18 @@
                         myOffice = allOffices.FirstOrDefault(o => o.Id == profile.Unit.OfficeId);
                     }
                 }
-
-                if (myOffice != null)
-                {
-                    await RefreshQueues();
-                }
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Error: {ex.Message}");
-                Snackbar.Add("Error loading office data");
+                
             }
             finally
             {
                 isLoadingInitial = false;
-                StateHasChanged();
+
             }
-        }
+        
     }
 
     private async Task RefreshQueues()

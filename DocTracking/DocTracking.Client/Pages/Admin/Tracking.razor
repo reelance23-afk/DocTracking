@@ -14,18 +14,20 @@
 				<MudSpacer />
 			<MudTextField @bind-Value="searchString" Placeholder="Search documents, senders, or locations..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
 			</ToolBarContent>
-			<HeaderContent>
+		<HeaderContent>
 			<MudTh>Name</MudTh>
 			<MudTh>Sender</MudTh>
 			<MudTh>Location</MudTh>
 			<MudTh>Status</MudTh>
 			<MudTh>Date</MudTh>
-			</HeaderContent>
-			<RowTemplate>
-				<MudTd DataLabel="Name">
+			<MudTh>Action</MudTh>
+		</HeaderContent>
+
+		<RowTemplate>
+			<MudTd DataLabel="Name">
 				<MudText Typo="Typo.body1" Class="font-weight-bold">@context.Name</MudText>
-				</MudTd>
-				<MudTd DataLabel="Sender">@context.Creator?.Email</MudTd>
+			</MudTd>
+			<MudTd DataLabel="Sender">@context.Creator?.Email</MudTd>
 
 			<MudTd DataLabel="Location">
 				@if (context.CurrentOffice != null)
@@ -49,13 +51,23 @@
 				}
 			</MudTd>
 
-				<MudTd DataLabel="Status">
-					<MudChip T="string"  Color="@GetStatusColor(context.Status)" Size="Size.Small" Variant="Variant.Filled">
-						@context.Status
-					</MudChip>
-				</MudTd>
-				<MudTd DataLabel="Date">@context.CreatedAt</MudTd>
-			</RowTemplate>
+			<MudTd DataLabel="Status">
+				<MudChip T="string" Color="@GetStatusColor(context.Status)" Size="Size.Small" Variant="Variant.Filled">
+					@context.Status
+				</MudChip>
+			</MudTd>
+			<MudTd DataLabel="Date">@context.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")</MudTd>
+
+			<MudTd DataLabel="Action">
+				<MudButton Href="@($"/track-document/{context.Id}?ReturnUrl=document-tracking")"
+						   Size="Size.Small"
+						   Variant="Variant.Filled"
+						   Color="Color.Primary"
+						   StartIcon="@Icons.Material.Filled.Timeline">
+					Track
+				</MudButton>
+			</MudTd>
+		</RowTemplate>
 			<PagerContent>
 				<MudTablePager />
 			</PagerContent>

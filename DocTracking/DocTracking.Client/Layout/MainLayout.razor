@@ -1,5 +1,9 @@
 ﻿@inherits LayoutComponentBase
 @inject DocTracking.Client.Services.LoadingService Loader
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Navigation
 @implements IDisposable
 
 <MudThemeProvider />
@@ -12,63 +16,104 @@
         0% {
             opacity: 0;
         }
+
         100% {
             opacity: 1;
         }
     }
 </style>
 
-<MudLayout>
+@if (!_isAppReady)
+{
+    <div class="d-flex flex-column justify-center align-center" style="height: 100vh; width: 100vw; background-color: var(--mud-palette-background);">
+        <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" Class="mb-4" />
+        <MudText Typo="Typo.h5" Class="font-weight-bold">Loading Workspace...</MudText>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary">Please wait while we prepare your dashboard.</MudText>
+    </div>
+}
+else
+{
+    <MudLayout>
+        <MudDrawer Open="_drawerOpen"
+                   OpenChanged="HandleDrawerStateChange"
+                   Elevation="2"
+                   Variant="DrawerVariant.Mini"
+                   @onclick="OpenDrawerOnClickInside">
 
-    <MudDrawer Open="_drawerOpen"
-               OpenChanged="HandleDrawerStateChange"
-               Elevation="2"
-               Variant="DrawerVariant.Mini">
+            <MudDrawerHeader Class="pt-4 px-2">
+                <AuthorizeView>
+                    <Authorized>
 
-        <MudDrawerHeader Class="pt-4 px-2">
-            <AuthorizeView>
-                <Authorized>
+                        <MudPaper Class="pa-2 mb-20 rounded-lg d-flex flex-column align-center overflow-hidden"
+                                  Elevation="@(_drawerOpen ? 2 : 0)"
+                                  Style="@($"width: 100%; transition: all 0.2s ease-in-out; height: 110px; {(_drawerOpen ? " background-color:rgba(189, 189, 189, 0.3);" : " background-color:transparent;")}")">
 
-                    <MudPaper Class="pa-2 mb-20 rounded-lg d-flex flex-column align-center overflow-hidden"
-                              Elevation="0"
-                              Style="@($"width: 100%; transition: all 0.2s ease-in-out; {(_drawerOpen ? "height: 110px; background-color:rgb(189, 189, 189, 0.3);" : "height: 110px; background-color:transparent;")}")">
-
-                        <MudIcon Icon="@Icons.Material.Filled.AccountCircle"
-                                 Size="Size.Large"
-                                 Color="Color.Default"
-                                 Class="@(_drawerOpen ? "mb-2" : "")"
-                                 Style="cursor: pointer;"
-                                 @onclick="@(() => HandleDrawerStateChange(!_drawerOpen))" />
-
-                        @if (_showText)
-                        {
-                            <div style="animation: fadeIn 0.8s ease-in-out; display: flex; flex-direction: column; align-items: center;">
-                                <MudText Typo="Typo.subtitle1">@context.User.Identity?.Name</MudText>
-                                <MudText Typo="Typo.caption" Class="mb-4">@context.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value</MudText>
+                            <div @onclick="@(() => HandleDrawerStateChange(!_drawerOpen))" @onclick:stopPropagation="true" style="cursor: pointer;">
+                                <MudIcon Icon="@Icons.Material.Filled.AccountCircle"
+                                         Size="Size.Large"
+                                         Color="Color.Default"
+                                         Class="@(_drawerOpen ? "mb-2" : "")" />
                             </div>
-                        }
 
-                    </MudPaper>
+                            @if (_showText)
+                            {
+                                <div style="animation: fadeIn 0.8s ease-in-out; display: flex; flex-direction: column; align-items: center; width: 100%;">
+                                    <MudText Typo="Typo.subtitle1" Class="text-truncate" Style="max-width: 150px;">
+                                        @(context.User.FindFirst("name")?.Value ?? context.User.FindFirst(ClaimTypes.Name)?.Value)
+                                    </MudText>
+                                    <MudText Typo="Typo.caption" Class="mb-4 text-truncate" Style="max-width: 150px;">@context.User.FindFirst(ClaimTypes.Email)?.Value</MudText>
+                                </div>
+                            }
 
-                </Authorized>
-            </AuthorizeView>
-        </MudDrawerHeader>
+                        </MudPaper>
 
-        <CascadingValue Value="_showText">
-            <NavMenu />
-        </CascadingValue>
-    </MudDrawer>
+                    </Authorized>
+                </AuthorizeView>
+            </MudDrawerHeader>
 
-    <MudMainContent @onclick="CloseDrawerOnClickOutside">
-        <MudContainer MaxWidth="MaxWidth.ExtraLarge">
-            @Body
-        </MudContainer>
-    </MudMainContent>
-</MudLayout>
+            <CascadingValue Value="_showText">
+                <NavMenu />
+            </CascadingValue>
+        </MudDrawer>
+
+        <MudMainContent @onclick="CloseDrawerOnClickOutside" Class="pt-4">
+            <MudContainer MaxWidth="MaxWidth.False" Class="h-100">
+                @Body
+            </MudContainer>
+        </MudMainContent>
+    </MudLayout>
+}
 
 @code {
     bool _drawerOpen = true;
     bool _showText = true;
+    bool _isAppReady = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Loader.OnChange += StateHasChanged;
+
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            if (!user.Claims.Any(c => c.Type == ClaimTypes.Role))
+            {
+                Navigation.NavigateTo(Navigation.Uri, forceLoad: true);
+            }
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await Task.Delay(300);
+            _isAppReady = true;
+            StateHasChanged();
+        }
+    }
 
     async Task HandleDrawerStateChange(bool isOpen)
     {
@@ -92,15 +137,12 @@
 
     async Task CloseDrawerOnClickOutside()
     {
-        if (_drawerOpen)
-        {
-            await HandleDrawerStateChange(false);
-        }
+        if (_drawerOpen) await HandleDrawerStateChange(false);
     }
 
-    protected override void OnInitialized()
+    async Task OpenDrawerOnClickInside()
     {
-        Loader.OnChange += StateHasChanged;
+        if (!_drawerOpen) await HandleDrawerStateChange(true);
     }
 
     public void Dispose()

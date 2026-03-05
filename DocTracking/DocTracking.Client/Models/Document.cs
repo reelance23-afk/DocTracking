@@ -14,6 +14,8 @@ namespace DocTracking.Client.Models
         [Required]
         public string Type { get; set; }
 
+        public string Description { get; set; }
+
         public string Status { get; set; } = "In Progress";
 
         public int? CurrentOfficeId { get; set; }
@@ -44,5 +46,11 @@ namespace DocTracking.Client.Models
 
         [ForeignKey("CreatorId")]
         public AppUser? Creator { get; set; }
+
+        public string FileName { get; set; }
+
+        public string FilePath { get; set; }
+
+        
     }
 }

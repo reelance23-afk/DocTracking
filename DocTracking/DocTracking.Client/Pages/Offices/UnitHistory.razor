@@ -1,0 +1,115 @@
+﻿@page "/unit-history"
+@attribute [Authorize(Roles = "Office")]
+@using DocTracking.Client.Models
+@using DocTracking.Client.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@inject DocumentService DocService
+@inject NavigationManager Navigation
+@rendermode @(new InteractiveAutoRenderMode(prerender: false))
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4 mb-8">
+    <MudText Typo="Typo.h4" Class="mb-6 font-weight-bold">Unit History</MudText>
+    <MudText Typo="Typo.body1" Class="mud-text-secondary mb-6">A complete record of all documents processed by @myUnitName.</MudText>
+
+    @if (isLoading)
+    {
+        <div class="d-flex justify-center mt-8">
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
+        </div>
+    }
+    else
+    {
+        <MudTable Items="@historyDocs" Hover="true" Elevation="3" T="Document">
+            <ToolBarContent>
+                <MudText Typo="Typo.h6">@myUnitName Records</MudText>
+                <MudSpacer />
+            </ToolBarContent>
+
+            <HeaderContent>
+                <MudTh>Document Title</MudTh>
+                <MudTh>Type</MudTh>
+                <MudTh>Current Status</MudTh>
+                <MudTh>Created On</MudTh>
+                <MudTh>Current Location</MudTh>
+                <MudTh>Action</MudTh>
+            </HeaderContent>
+
+            <RowTemplate>
+                <MudTd DataLabel="Document Title"><strong>@context.Name</strong></MudTd>
+                <MudTd DataLabel="Type">@context.Type</MudTd>
+
+                <MudTd DataLabel="Status">
+                    <MudChip T="string" Color="@(context.Status == "Completed" ? Color.Success : (context.Status == "Received" ? Color.Success : Color.Warning))" Size="Size.Small" Variant="Variant.Filled">
+                        @context.Status
+                    </MudChip>
+                </MudTd>
+
+                <MudTd DataLabel="Created On">@context.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")</MudTd>
+
+                <MudTd DataLabel="Current Location">
+                    @if (context.CurrentOffice != null)
+                    {
+                        <MudText Typo="Typo.body2">
+                            <strong>@context.CurrentOffice.Name</strong> <br />
+                            <span style="color: gray; font-size: 0.85em;">↳ @(context.CurrentUnit?.Name ?? "General")</span>
+                        </MudText>
+                    }
+                    else if (context.NextOffice != null)
+                    {
+                        <MudText Typo="Typo.body2">
+                            <span style="color: #ff9800; font-size: 0.85em; font-style: italic;">Routing to:</span><br />
+                            <strong>@context.NextOffice.Name</strong>
+                        </MudText>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.body2" Color="Color.Default"><em>Completed / None</em></MudText>
+                    }
+                </MudTd>
+
+                <MudTd DataLabel="Action">
+                    <MudButton Href="@($"/office-track-document/{context.Id}?ReturnUrl=unit-history")" Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Timeline">
+                        Track
+                    </MudButton>
+                </MudTd>
+            </RowTemplate>
+
+            <NoRecordsContent>
+                <MudText Class="pa-4">Your unit has not handled any documents yet.</MudText>
+            </NoRecordsContent>
+            <PagerContent>
+                <MudTablePager />
+            </PagerContent>
+        </MudTable>
+    }
+</MudContainer>
+
+@code {
+    private List<Document> historyDocs = new();
+    private bool isLoading = true;
+    private string myUnitName = "Unit";
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var profile = await DocService.GetProfileAsync();
+            if (profile?.UnitId != null)
+            {
+                int myUnitId = profile.UnitId.Value;
+                myUnitName = profile.Unit?.Name ?? "Unit";
+
+                historyDocs = await DocService.GetUnitHistoryAsync(myUnitId);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading history: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+}

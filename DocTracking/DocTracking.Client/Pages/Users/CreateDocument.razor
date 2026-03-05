@@ -8,18 +8,19 @@
 @inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
+@using Microsoft.AspNetCore.Components.Forms
 @rendermode InteractiveAuto
 
 <MudContainer MaxWidth="MaxWidth.Small" Class="mt-8">
 
     <MudPaper Elevation="4" Class="pa-8 rounded-lg border-t-4 border-solid mud-border-primary">
-        <MudText Typo="Typo.h5" Class="mb-6 font-weight-bold">Create New Document</MudText>
+        <MudText Typo="Typo.h5" Class="mb-6 font-weight-bold">Create New Request</MudText>
 
         @if (isLoadingOffices)
         {
             <div class="d-flex flex-column align-center my-4">
                 <MudProgressCircular Color="Color.Primary" Indeterminate="true" Class="mb-2" />
-                <MudText Typo="Typo.body2" Class="mud-text-secondary">Loading routing options...</MudText>
+                <MudText Typo="Typo.body2" Class="mud-text-secondary">Loading...</MudText>
             </div>
         }
         else
@@ -33,6 +34,13 @@
                                       Variant="Variant.Outlined"
                                       Required="true"
                                       RequiredError="Document title is required" />
+                    </MudItem>
+
+                    <MudItem xs="12">
+                        <MudTextField @bind-Value="newDocument.Description"
+                                      Label="Document Description / Notes"
+                                      Variant="Variant.Outlined"
+                                      Lines="3" />
                     </MudItem>
 
                     <MudItem xs="12">
@@ -68,6 +76,26 @@
                         </MudItem>
                     }
 
+                    <MudItem xs="12">
+                        <MudFileUpload T="IBrowserFile" FilesChanged="OnFileSelected" Accept=".pdf,.doc,.docx,.jpg,.png" Required="true">
+                            <ActivatorContent>
+                                <MudButton Variant="Variant.Outlined"
+                                           Color="Color.Primary"
+                                           StartIcon="@Icons.Material.Filled.CloudUpload">
+                                    @(selectedFile == null ? "Attach a File" : "Change File")
+                                </MudButton>
+                            </ActivatorContent>
+                        </MudFileUpload>
+
+                        @if (selectedFile != null)
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Success" Class="mt-2 d-block">
+                                <MudIcon Icon="@Icons.Material.Filled.AttachFile" Size="Size.Small" Class="mr-1" />
+                                @selectedFile.Name (@(selectedFile.Size / 1024) KB)
+                            </MudText>
+                        }
+                    </MudItem>
+
                     <MudItem xs="12" Class="d-flex justify-end mt-4">
                         <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" Disabled="@(!success || isSaving)" OnClick="SubmitDocument">
                             @(isSaving ? "Routing..." : "Submit & Route Document")
@@ -87,11 +115,10 @@
     private bool success;
     private bool isSaving = false;
     private bool isLoadingOffices = true;
+    private IBrowserFile? selectedFile;
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    protected override async Task OnInitializedAsync()
     {
-        if (firstRender)
-        {
             try
             {
                 offices = await DocService.GetOfficesAsync();
@@ -104,9 +131,13 @@
             finally
             {
                 isLoadingOffices = false;
-                StateHasChanged();
             }
-        }
+    }
+
+    private void OnFileSelected(IBrowserFile file)
+    {
+        selectedFile = file;
+        newDocument.FileName = file.Name; 
     }
 
     private void OnOfficeChanged(int? officeId)
@@ -125,11 +156,27 @@
         isSaving = true;
         try
         {
-                await DocService.CreateDocumentAsync(newDocument);
+   
+            if (selectedFile != null)
+            {
+                Snackbar.Add("Uploading file...", Severity.Info);
+                var uploadedPath = await DocService.UploadFileAsync(selectedFile);
 
-                Snackbar.Add("Document Created & Routed Successfully!", Severity.Success);
+                if (uploadedPath != null)
+                {
+                    newDocument.FilePath = uploadedPath; 
+                }
+                else
+                {
+                    Snackbar.Add("File upload failed, but saving document anyway.", Severity.Warning);
+                }
+            }
 
-                Navigation.NavigateTo("/my-tracking");
+
+            await DocService.CreateDocumentAsync(newDocument);
+            Snackbar.Add("Document Created & Routed Successfully!", Severity.Success);
+
+            Navigation.NavigateTo("/my-tracking");
         }
         catch (Exception ex)
         {

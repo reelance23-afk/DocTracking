@@ -1,6 +1,7 @@
 ﻿using System.Formats.Asn1;
 using System.Net.Http.Json;
 using DocTracking.Client.Models;
+using Microsoft.AspNetCore.Components.Forms;
 
 namespace DocTracking.Client.Services
 {
@@ -27,6 +28,27 @@ namespace DocTracking.Client.Services
         {
             await _http.PostAsJsonAsync("api/documents", doc);
         }
+
+        public async Task<string?> UploadFileAsync(IBrowserFile file)
+        {
+            using var content = new MultipartFormDataContent();
+
+            var fileContent = new StreamContent(file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024));
+            fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(file.ContentType);
+
+            content.Add(fileContent, "file", file.Name);
+
+            var response = await _http.PostAsync("api/documents/upload", content);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<UploadResponse>();
+                return result?.FilePath;
+            }
+
+            return null;
+        }
+        
 
         public async Task AddOfficeAsync(Office office)
         {
@@ -109,5 +131,20 @@ namespace DocTracking.Client.Services
             return await _http.GetFromJsonAsync<List<Document>>($"api/documents/outgoing/user/{email}") ?? new();
         }
 
+        public async Task<List<Document>> GetUnitHistoryAsync(int unitId)
+        {
+            var response = await _http.GetAsync($"api/documents/history/unit/{unitId}");
+            if (response.IsSuccessStatusCode)
+            {
+                return await response.Content.ReadFromJsonAsync<List<Document>>() ?? new List<Document>();
+            }
+            return new List<Document>();
+        }
+
+
     }
+        public class UploadResponse
+        {
+            public string? FilePath { get; set; }
+        }
 }

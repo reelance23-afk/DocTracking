@@ -1,11 +1,11 @@
-﻿@page "/track-document/{DocumentId:int}"
-@attribute [Authorize]
+﻿@page "/office-track-document/{DocumentId:int}"
+@attribute [Authorize(Roles = "Office")]
 @using DocTracking.Client.Models
 @using DocTracking.Client.Services
 @using Microsoft.AspNetCore.Components.Authorization
 @inject DocumentService DocService
 @inject NavigationManager Navigation
-@rendermode InteractiveAuto
+@rendermode @(new InteractiveAutoRenderMode(prerender: false))
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-6 mb-8">
     <div class="d-flex align-center mb-6">
@@ -18,6 +18,14 @@
         <div class="d-flex justify-center mt-8">
             <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
         </div>
+    }
+    else if (!isAuthorized)
+    {
+        <MudPaper Elevation="0" Class="pa-8 text-center mud-background-gray rounded-xl border-solid border-2 mud-border-error">
+            <MudIcon Icon="@Icons.Material.Filled.GppBad" Size="Size.Large" Color="Color.Error" Class="mb-4" Style="font-size: 4rem;" />
+            <MudText Typo="Typo.h5" Class="font-weight-bold mb-2">Access Denied</MudText>
+            <MudText Typo="Typo.body1" Class="mud-text-secondary">You do not have authorization to view this document's history because it has not been routed through your office.</MudText>
+        </MudPaper>
     }
     else if (!documentLogs.Any())
     {
@@ -34,14 +42,13 @@
                 @for (int i = 0; i < documentLogs.Count; i++)
                 {
                     var log = documentLogs[i];
-                    bool isCurrent = (i == 0); 
+                    bool isCurrent = (i == 0);
 
-                   
                     Color dotColor = isCurrent ? Color.Success : Color.Default;
                     Size dotSize = isCurrent ? Size.Large : Size.Small;
-                    bool fillDot = isCurrent; 
+                    bool fillDot = isCurrent;
                     string dotIcon = GetIconForAction(log.Action);
-                    string paperOpacity = isCurrent ? "opacity-100" : "opacity-60"; 
+                    string paperOpacity = isCurrent ? "opacity-100" : "opacity-60";
                     string paperBorder = isCurrent ? "border-solid border-l-4 mud-border-success" : "";
 
                     <MudTimelineItem Color="@dotColor" Size="@dotSize" Variant="@(fillDot? Variant.Filled: Variant.Outlined)" Icon="@dotIcon">
@@ -100,23 +107,35 @@
     [Parameter]
     public int DocumentId { get; set; }
 
-
     [Parameter]
     [SupplyParameterFromQuery(Name = "ReturnUrl")]
     public string? ReturnUrl { get; set; }
 
     private List<DocumentLog> documentLogs = new();
     private bool isLoading = true;
+    private bool isAuthorized = false;
     private string? errorMessage;
 
     protected override async Task OnParametersSetAsync()
     {
         isLoading = true;
         errorMessage = null;
+        isAuthorized = false;
 
         try
         {
+
+            var profile = await DocService.GetProfileAsync();
+            int? myUnitId = profile?.UnitId;
+
+
             documentLogs = await DocService.GetDocumentLogsAsync(DocumentId);
+
+
+            if (myUnitId.HasValue && documentLogs.Any(log => log.UnitId == myUnitId.Value))
+            {
+                isAuthorized = true; 
+            }
         }
         catch (Exception ex)
         {
@@ -144,10 +163,6 @@
 
     private void Back()
     {
-
-        var target = string.IsNullOrEmpty(ReturnUrl) ? "my-tracking" : ReturnUrl;
-
-        Navigation.NavigateTo($"/{target}");
+        Navigation.NavigateTo($"/{ReturnUrl}");
     }
-}
 }

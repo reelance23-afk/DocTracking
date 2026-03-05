@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
+using Microsoft.Graph;
 
 namespace DocTracking.Controllers
 {
@@ -13,10 +14,12 @@ namespace DocTracking.Controllers
     public class DocumentsController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        private readonly IWebHostEnvironment _env;
 
-        public DocumentsController(ApplicationDbContext context)
+        public DocumentsController(ApplicationDbContext context, IWebHostEnvironment env)
         {
             _context = context;
+            _env = env;
         }
 
         [HttpPost]
@@ -48,6 +51,27 @@ namespace DocTracking.Controllers
 
             return Ok(doc);
         }
+
+     
+        [HttpPost("upload")]
+        public async Task<IActionResult> UploadFile(IFormFile file)
+        {
+            if (file == null) return BadRequest("No File Uploaded");
+
+            var uploadsFolder = Path.Combine(_env.WebRootPath, "uploads");
+            if (!System.IO.Directory.Exists(uploadsFolder)) System.IO.Directory.CreateDirectory(uploadsFolder);
+
+            var uniqueFileName = Guid.NewGuid().ToString() + "_" + file.FileName;
+            var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await file.CopyToAsync(stream);
+            }
+
+            return Ok(new { FilePath = $"/uploads/{uniqueFileName}" });
+
+        } 
 
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Document>>> GetAllDocument()
@@ -253,10 +277,26 @@ namespace DocTracking.Controllers
 
         }
 
+        [HttpGet("history/unit/{unitId}")]
+        public async Task<ActionResult<IEnumerable<Document>>> GetUnitHistory(int unitId)
+        {
+            var document = await _context.Documents
+                .Include(d => d.Creator)
+                .Include(d => d.NextOffice)
+                .Include(d => d.CurrentOffice)
+                .Include(d => d.NextOffice)
+                .Include(d => d.CurrentOffice)
+                .Where(d => _context.DocumentLogs.Any(log => log.DocumentId == d.Id && log.UnitId == unitId))
+                .OrderByDescending(d => d.CreatedAt)
+                .ToListAsync();
+
+            return Ok(document);
+        }
+
+    }
         public class ForwardRequest
         {
             public int NextOfficeId { get; set; }
             public int? NextUnitId { get; set; }
         }
-    }
 }

@@ -19,7 +19,8 @@
     }
     else
     {
-        <MudTable Items="@myDocuments" Hover="true" Elevation="3">
+        <MudTable Items="@myDocuments" Hover="true" Elevation="3" T="Document" OnRowClick="RowClicked" RowClass="cursor-pointer">
+
             <ToolBarContent>
                 <MudText Typo="Typo.h6">All My Documents</MudText>
                 <MudSpacer />
@@ -52,12 +53,8 @@
                     {
                         <MudText Typo="Typo.body2">
                             <strong>@context.CurrentOffice.Name</strong> <br />
-                            <span style="color: gray; font-size: 0.85em;">↳ @(context.CurrentUnit?.Name ?? "General")</span>
+                            <span style="color: gray; font-size: 0.85em;">↳ @context.CurrentUnit?.Name</span>
                         </MudText>
-                    }
-                    else if (context.Status == "On Going")
-                    {
-                        <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Text">In Transit</MudChip>
                     }
                     else
                     {
@@ -70,7 +67,7 @@
                     {
                         <MudText Typo="Typo.body2">
                             <strong>@context.NextOffice.Name</strong> <br />
-                            <span style="color: gray; font-size: 0.85em;">↳ @(context.NextUnit?.Name ?? "General")</span>
+                            <span style="color: gray; font-size: 0.85em;">↳ @context.NextUnit?.Name</span>
                         </MudText>
                     }
                     else
@@ -80,9 +77,11 @@
                 </MudTd>
 
                 <MudTd DataLabel="Action">
-                    <MudButton Href="@($"/track-document/{context.Id}")" Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.History">
-                        History
-                    </MudButton>
+                    <div @onclick:stopPropagation="true">
+                        <MudButton Href="@($"/track-document/{context.Id}")" Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.History">
+                            Track
+                        </MudButton>
+                    </div>
                 </MudTd>
             </RowTemplate>
 
@@ -101,12 +100,112 @@
             </MudAlert>
         }
     }
+
+    <MudDialog @bind-Visible="isDialogVisible" Options="dialogOptions">
+        <TitleContent>
+            <MudText Typo="Typo.h6">
+                <MudIcon Icon="@Icons.Material.Filled.Description" Class="mr-2 mb-n1" /> Document Details
+            </MudText>
+        </TitleContent>
+        <DialogContent>
+            @if (selectedDocument != null)
+            {
+                <MudGrid>
+                    <MudItem xs="12" sm="6">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Document Title</MudText>
+                        <MudText Typo="Typo.body1" Class="font-weight-bold">@selectedDocument.Name</MudText>
+                    </MudItem>
+
+                    <MudItem xs="12" sm="6">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Document Type</MudText>
+                        <MudText Typo="Typo.body1">@selectedDocument.Type</MudText>
+                    </MudItem>
+
+                    <MudItem xs="12" sm="6">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Status</MudText>
+                        <div>
+                            <MudChip T="string" Color="@(selectedDocument.Status == "Received" ? Color.Success : Color.Warning)" Size="Size.Small">
+                                @selectedDocument.Status
+                            </MudChip>
+                        </div>
+                    </MudItem>
+
+                    <MudItem xs="12" sm="6">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Created On</MudText>
+                        <MudText Typo="Typo.body2">@selectedDocument.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy hh:mm tt")</MudText>
+                    </MudItem>
+
+                    <MudItem xs="12" sm="6">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Current Location</MudText>
+                        @if (selectedDocument.CurrentOffice != null)
+                        {
+                            <MudText Typo="Typo.body1" Class="font-weight-bold">@selectedDocument.CurrentOffice.Name</MudText>
+                            <MudText Typo="Typo.body2" Class="mud-text-secondary">↳ @selectedDocument.CurrentUnit?.Name</MudText>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body1" Color="Color.Default"><em>None</em></MudText>
+                        }
+                    </MudItem>
+
+                    <MudItem xs="12" sm="6">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Next Destination</MudText>
+                        @if (selectedDocument.NextOffice != null)
+                        {
+                            <MudText Typo="Typo.body1" Class="font-weight-bold">@selectedDocument.NextOffice.Name</MudText>
+                            <MudText Typo="Typo.body2" Class="mud-text-secondary">↳ @selectedDocument.NextUnit?.Name</MudText>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body1" Color="Color.Default"><em>None</em></MudText>
+                        }
+                    </MudItem>
+
+                    @if (!string.IsNullOrEmpty(selectedDocument.Description))
+                    {
+                        <MudItem xs="12">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Description / Notes</MudText>
+                            <MudPaper Elevation="0" Class="pa-3 mt-1 mud-background-gray rounded">
+                                <MudText Typo="Typo.body2">@selectedDocument.Description</MudText>
+                            </MudPaper>
+                        </MudItem>
+                    }
+
+                    @if (!string.IsNullOrEmpty(selectedDocument.FileName))
+                    {
+                        <MudItem xs="12">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Attached File</MudText>
+                            <div class="d-flex align-center mt-1">
+                                <MudIcon Icon="@Icons.Material.Filled.AttachFile" Size="Size.Small" Class="mr-2" />
+                                <MudText Typo="Typo.body2" Class="mr-4">@selectedDocument.FileName</MudText>
+
+                                <MudButton Href="@selectedDocument.FilePath"
+                                           Target="_blank"
+                                           Variant="Variant.Outlined"
+                                           Size="Size.Small"
+                                           Color="Color.Primary"
+                                           StartIcon="@Icons.Material.Filled.Download">
+                                    Download
+                                </MudButton>
+                            </div>
+                        </MudItem>
+                    }
+                </MudGrid>
+            }
+        </DialogContent>
+        <DialogActions>
+            <MudButton Color="Color.Primary" OnClick="CloseDialog">Close</MudButton>
+        </DialogActions>
+    </MudDialog>
 </MudContainer>
 
 @code {
     private List<Document> myDocuments = new();
     private bool isLoading = true;
     private string? errorMessage;
+    private bool isDialogVisible;
+    private Document? selectedDocument;
+    private DialogOptions dialogOptions = new() { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
 
     protected override async Task OnInitializedAsync()
     {
@@ -116,7 +215,6 @@
             var user = authState.User;
 
             string email = user.FindFirst(ClaimTypes.Email)?.Value ?? user.Identity?.Name ?? "";
-
             if (!string.IsNullOrEmpty(email))
             {
                 myDocuments = await DocService.GetUserDocumentsAsync(email);
@@ -136,5 +234,16 @@
             isLoading = false;
             StateHasChanged();
         }
+    }
+
+    private void RowClicked(TableRowClickEventArgs<Document> args)
+    {
+        selectedDocument = args.Item; 
+        isDialogVisible = true;       
+    }
+
+    private void CloseDialog()
+    {
+        isDialogVisible = false;
     }
 }
