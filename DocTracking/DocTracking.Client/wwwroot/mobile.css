@@ -1,0 +1,106 @@
+/* Mobile-specific styles for DocTracking */
+
+/* Touch-friendly button sizing */
+@media (max-width: 768px) {
+    .mud-button {
+        min-height: 44px;
+        min-width: 44px;
+    }
+    
+    .mud-icon-button {
+        min-height: 44px;
+        min-width: 44px;
+    }
+    
+    /* Mobile-friendly spacing */
+    .mobile-spacing {
+        padding: 8px !important;
+    }
+    
+    /* Responsive text sizing */
+    .mud-typography-h4 {
+        font-size: 1.5rem !important;
+    }
+    
+    .mud-typography-h5 {
+        font-size: 1.25rem !important;
+    }
+    
+    /* Mobile card improvements */
+    .mud-card {
+        margin-bottom: 12px;
+    }
+    
+    /* Better mobile table handling */
+    .mud-table-container {
+        overflow-x: auto;
+    }
+    
+    /* Mobile-friendly form elements */
+    .mud-input-control {
+        margin-bottom: 16px;
+    }
+    
+    /* Responsive timeline adjustments */
+    .mud-timeline {
+        padding-left: 0 !important;
+    }
+    
+    .mud-timeline-item {
+        padding-left: 24px !important;
+    }
+    
+    /* Mobile navigation improvements */
+    .mud-drawer-temporary {
+        z-index: 1300;
+    }
+    
+    /* Better mobile dialog sizing */
+    .mud-dialog {
+        margin: 16px;
+        max-height: calc(100vh - 32px);
+    }
+    
+    /* Mobile-friendly tabs */
+    .mud-tabs .mud-tab {
+        min-width: auto;
+        padding: 8px 12px;
+    }
+    
+    /* Responsive container padding */
+    .mud-container {
+        padding-left: 16px !important;
+        padding-right: 16px !important;
+    }
+}
+
+/* Extra small devices */
+@media (max-width: 480px) {
+    .mud-typography-h4 {
+        font-size: 1.25rem !important;
+    }
+    
+    .mud-container {
+        padding-left: 8px !important;
+        padding-right: 8px !important;
+    }
+    
+    .mud-card-content {
+        padding: 12px !important;
+    }
+    
+    .mud-card-actions {
+        padding: 12px !important;
+    }
+}
+
+/* Landscape mobile adjustments */
+@media (max-width: 768px) and (orientation: landscape) {
+    .mud-appbar {
+        height: 48px;
+    }
+    
+    .mt-16 {
+        margin-top: 48px !important;
+    }
+}

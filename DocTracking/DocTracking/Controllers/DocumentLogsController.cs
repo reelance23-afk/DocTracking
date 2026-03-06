@@ -20,6 +20,7 @@ namespace DocTracking.Controllers
         public async Task<ActionResult<IEnumerable<DocumentLog>>> GetDocumentLogs(int documentId)
         {
             return await _context.DocumentLogs
+                .Include(m => m.Document)
                 .Include(m => m.Office)
                 .Include(m => m.Unit)
                 .Include(m => m.AppUser)

@@ -18,6 +18,10 @@ namespace DocTracking.Client.Models
 
         public string Status { get; set; } = "In Progress";
 
+        public string Priority { get; set; }
+
+        public string? ReferenceNumber { get; set; }
+
         public int? CurrentOfficeId { get; set; }
 
         [ForeignKey("CurrentOfficeId")]

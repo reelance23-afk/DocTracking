@@ -9,8 +9,16 @@
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-6 mb-8">
     <div class="d-flex align-center mb-6">
-        <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" Color="Color.Default" OnClick="Back" Class="mr-2" />
-        <MudText Typo="Typo.h4" Class="font-weight-bold">Document Tracking</MudText>
+        <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" Color="Color.Default" OnClick="Back" Class="mr-2" Size="Size.Large" />
+        <div class="d-flex flex-column flex-sm-row align-start align-sm-center gap-2">
+            <MudText Typo="Typo.h4" Class="font-weight-bold">Document Tracking</MudText>
+            @if (documentLogs.Any() && documentLogs.First().Document?.ReferenceNumber != null)
+            {
+                <MudChip T="string" Color="Color.Primary" Variant="Variant.Outlined" Size="Size.Medium">
+                    @documentLogs.First().Document?.ReferenceNumber
+                </MudChip>
+            }
+        </div>
     </div>
 
     @if (isLoading)
@@ -36,62 +44,122 @@
     }
     else
     {
-        <MudPaper Elevation="3" Class="pa-6 rounded-xl">
-
-            <MudTimeline TimelinePosition="TimelinePosition.Start" Class="w-100">
+        <MudPaper Elevation="3" Class="pa-4 pa-md-6 rounded-xl">    
+            <MudHidden Breakpoint="Breakpoint.MdAndUp">
                 @for (int i = 0; i < documentLogs.Count; i++)
                 {
                     var log = documentLogs[i];
                     bool isCurrent = (i == 0);
+                    
+                    <MudCard Elevation="@(isCurrent ? 3 : 1)" Class="@($"mb-3 {(isCurrent ? "border-solid border-l-4 mud-border-success" : "")}")">                        
+                        <MudCardContent Class="pa-3">
+                            <div class="d-flex align-center gap-2 mb-2">
+                                <MudIcon Icon="@GetIconForAction(log.Action)" 
+                                        Color="@(isCurrent ? Color.Success : Color.Default)" 
+                                        Size="Size.Medium" />
+                                <MudText Typo="Typo.h6" Class="font-weight-bold">@log.Action</MudText>
+                                @if (isCurrent)
+                                {
+                                    <MudChip T="string" Color="Color.Success" Size="Size.Small" Variant="Variant.Filled">Current</MudChip>
+                                }
+                            </div>
 
-                    Color dotColor = isCurrent ? Color.Success : Color.Default;
-                    Size dotSize = isCurrent ? Size.Large : Size.Small;
-                    bool fillDot = isCurrent;
-                    string dotIcon = GetIconForAction(log.Action);
-                    string paperOpacity = isCurrent ? "opacity-100" : "opacity-60";
-                    string paperBorder = isCurrent ? "border-solid border-l-4 mud-border-success" : "";
+                            <MudText Typo="Typo.caption" Class="@($"{(isCurrent ? "mud-text-success font-weight-bold" : "mud-text-secondary")} mb-2")">
+                                @log.TimeStamp.ToLocalTime().ToString("MMM dd, yyyy • hh:mm tt")
+                            </MudText>
 
-                    <MudTimelineItem Color="@dotColor" Size="@dotSize" Variant="@(fillDot? Variant.Filled: Variant.Outlined)" Icon="@dotIcon">
-                        <ItemContent>
-                            <MudPaper Elevation="@(isCurrent ? 2 : 0)" Class="@($"pa-4 mb-2 rounded-lg {paperBorder} {paperOpacity}")" Style="@(!isCurrent ? "background-color: transparent;" : "")">
+                            <div class="d-flex flex-column gap-1">
+                                <MudText Typo="Typo.body2">
+                                    <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Class="mr-1 mud-text-secondary" />
+                                    <strong>@(log.AppUser?.Email ?? "System")</strong>
+                                </MudText>
 
-                                <div class="d-flex align-center gap-2 mb-1">
-                                    <MudText Typo="Typo.caption" Class="@(isCurrent ? "mud-text-success font-weight-bold" : "mud-text-secondary")">
-                                        @log.TimeStamp.ToLocalTime().ToString("MMM dd, yyyy • hh:mm tt")
-                                    </MudText>
-                                </div>
-
-                                <MudText Typo="Typo.h6" Class="font-weight-bold mb-2">@log.Action</MudText>
-
-                                <div class="d-flex flex-column gap-1">
+                                @if (log.Action == "Created" || log.Action == "Forwarded")
+                                {
                                     <MudText Typo="Typo.body2">
-                                        <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Class="mr-1 mb-n1 mud-text-secondary" />
-                                        By: <strong>@(log.AppUser?.Email ?? "System")</strong>
+                                        <MudIcon Icon="@Icons.Material.Filled.DirectionsWalk" Size="Size.Small" Class="mr-1 mud-text-secondary" />
+                                        Heading to: <strong>@(log.Office?.Name ?? "N/A")</strong>
+                                        @if (log.Unit != null)
+                                        {
+                                            <br /><span class="mud-text-secondary ml-4">↳ @log.Unit.Name</span>
+                                        }
                                     </MudText>
-
-                                    @if (log.Action == "Created" || log.Action == "Forwarded")
-                                    {
-                                        <MudText Typo="Typo.body2">
-                                            <MudIcon Icon="@Icons.Material.Filled.DirectionsWalk" Size="Size.Small" Class="mr-1 mb-n1 mud-text-secondary" />
-                                            Heading to: <strong>@(log.Office?.Name ?? "N/A")</strong>
-                                            <span class="mud-text-secondary">@(log.Unit != null ? $" ↳ {log.Unit.Name}" : "")</span>
-                                        </MudText>
-                                    }
-                                    else if (log.Action == "Received" || log.Action == "Completed")
-                                    {
-                                        <MudText Typo="Typo.body2">
-                                            <MudIcon Icon="@Icons.Material.Filled.Place" Size="Size.Small" Class="mr-1 mb-n1 mud-text-secondary" />
-                                            At: <strong>@(log.Office?.Name ?? "N/A")</strong>
-                                            <span class="mud-text-secondary">@(log.Unit != null ? $" ↳ {log.Unit.Name}" : "")</span>
-                                        </MudText>
-                                    }
-                                </div>
-
-                            </MudPaper>
-                        </ItemContent>
-                    </MudTimelineItem>
+                                }
+                                else if (log.Action == "Received" || log.Action == "Completed")
+                                {
+                                    <MudText Typo="Typo.body2">
+                                        <MudIcon Icon="@Icons.Material.Filled.Place" Size="Size.Small" Class="mr-1 mud-text-secondary" />
+                                        At: <strong>@(log.Office?.Name ?? "N/A")</strong>
+                                        @if (log.Unit != null)
+                                        {
+                                            <br /><span class="mud-text-secondary ml-4">↳ @log.Unit.Name</span>
+                                        }
+                                    </MudText>
+                                }
+                            </div>
+                        </MudCardContent>
+                    </MudCard>
                 }
-            </MudTimeline>
+            </MudHidden>
+
+            <MudHidden Breakpoint="Breakpoint.SmAndDown">
+                <MudTimeline TimelinePosition="TimelinePosition.Start" Class="w-100">
+                    @for (int i = 0; i < documentLogs.Count; i++)
+                    {
+                        var log = documentLogs[i];
+                        bool isCurrent = (i == 0);
+
+                        Color dotColor = isCurrent ? Color.Success : Color.Default;
+                        Size dotSize = isCurrent ? Size.Large : Size.Small;
+                        bool fillDot = isCurrent;
+                        string dotIcon = GetIconForAction(log.Action);
+                        string paperOpacity = isCurrent ? "opacity-100" : "opacity-60";
+                        string paperBorder = isCurrent ? "border-solid border-l-4 mud-border-success" : "";
+
+                        string paperStyle = !isCurrent ? "background-color: transparent;" : "";
+
+                        <MudTimelineItem Color="@dotColor" Size="@dotSize" Variant="@(fillDot? Variant.Filled: Variant.Outlined)" Icon="@dotIcon">
+                            <ItemContent>
+                                <MudPaper Elevation="@(isCurrent ? 2 : 0)" Class="@($"pa-4 mb-2 rounded-lg {paperBorder} {paperOpacity}")" Style="@paperStyle">
+
+                                    <div class="d-flex align-center gap-2 mb-1">
+                                        <MudText Typo="Typo.caption" Class="@(isCurrent ? "mud-text-success font-weight-bold" : "mud-text-secondary")">
+                                            @log.TimeStamp.ToLocalTime().ToString("MMM dd, yyyy • hh:mm tt")
+                                        </MudText>
+                                    </div>
+
+                                    <MudText Typo="Typo.h6" Class="font-weight-bold mb-2">@log.Action</MudText>
+
+                                    <div class="d-flex flex-column gap-1">
+                                        <MudText Typo="Typo.body2">
+                                            <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Class="mr-1 mb-n1 mud-text-secondary" />
+                                            By: <strong>@(log.AppUser?.Email ?? "System")</strong>
+                                        </MudText>
+
+                                        @if (log.Action == "Created" || log.Action == "Forwarded")
+                                        {
+                                            <MudText Typo="Typo.body2">
+                                                <MudIcon Icon="@Icons.Material.Filled.DirectionsWalk" Size="Size.Small" Class="mr-1 mb-n1 mud-text-secondary" />
+                                                Heading to: <strong>@(log.Office?.Name ?? "N/A")</strong>
+                                                <span class="mud-text-secondary">@(log.Unit != null ? $" ↳ {log.Unit.Name}" : "")</span>
+                                            </MudText>
+                                        }
+                                        else if (log.Action == "Received" || log.Action == "Completed")
+                                        {
+                                            <MudText Typo="Typo.body2">
+                                                <MudIcon Icon="@Icons.Material.Filled.Place" Size="Size.Small" Class="mr-1 mb-n1 mud-text-secondary" />
+                                                At: <strong>@(log.Office?.Name ?? "N/A")</strong>
+                                                <span class="mud-text-secondary">@(log.Unit != null ? $" ↳ {log.Unit.Name}" : "")</span>
+                                            </MudText>
+                                        }
+                                    </div>
+
+                                </MudPaper>
+                            </ItemContent>
+                        </MudTimelineItem>
+                    }
+                </MudTimeline>
+            </MudHidden>
 
             @if (!string.IsNullOrEmpty(errorMessage))
             {

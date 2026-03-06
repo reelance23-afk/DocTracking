@@ -4,6 +4,7 @@
 @using System.Security.Claims
 @inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
 @implements IDisposable
 
 <MudThemeProvider />
@@ -21,73 +22,110 @@
             opacity: 1;
         }
     }
+
+    @@keyframes pulse {
+        0%, 100% {
+            transform: scale(1);
+            opacity: 1;
+        }
+
+        50% {
+            transform: scale(1.05);
+            opacity: 0.8;
+        }
+    }
+
+    @@keyframes slideUp {
+        from {
+            transform: translateY(20px);
+            opacity: 0;
+        }
+
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+
+    .loading-container {
+        animation: fadeIn 0.3s ease-in;
+    }
+
+    .loading-icon {
+        animation: pulse 2s ease-in-out infinite;
+    }
+
+    .loading-text {
+        animation: slideUp 0.5s ease-out 0.2s both;
+    }
+
+    .loading-subtext {
+        animation: slideUp 0.5s ease-out 0.4s both;
+    }
 </style>
+<MudLayout>
+    <MudDrawer Open="_drawerOpen"
+               OpenChanged="HandleDrawerStateChange"
+               Elevation="2"
+               Variant="@(_isMobile ? DrawerVariant.Temporary : DrawerVariant.Mini)"
+               @onclick="OpenDrawerOnClickInside"
+               Overlay="@_isMobile"
+               ClipMode="@(_isMobile ? DrawerClipMode.Always : DrawerClipMode.Never)">
 
-@if (!_isAppReady)
-{
-    <div class="d-flex flex-column justify-center align-center" style="height: 100vh; width: 100vw; background-color: var(--mud-palette-background);">
-        <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" Class="mb-4" />
-        <MudText Typo="Typo.h5" Class="font-weight-bold">Loading Workspace...</MudText>
-        <MudText Typo="Typo.body2" Class="mud-text-secondary">Please wait while we prepare your dashboard.</MudText>
-    </div>
-}
-else
-{
-    <MudLayout>
-        <MudDrawer Open="_drawerOpen"
-                   OpenChanged="HandleDrawerStateChange"
-                   Elevation="2"
-                   Variant="DrawerVariant.Mini"
-                   @onclick="OpenDrawerOnClickInside">
+        <MudDrawerHeader Class="pt-4 px-2">
+            <AuthorizeView>
+                <Authorized>
 
-            <MudDrawerHeader Class="pt-4 px-2">
-                <AuthorizeView>
-                    <Authorized>
+                    <MudPaper Class="pa-2 mb-20 rounded-lg d-flex flex-column align-center overflow-hidden"
+                              Elevation="@(_drawerOpen ? 2 : 0)"
+                              Style="@($"width: 100%; transition: all 0.2s ease-in-out; height: 110px; {(_drawerOpen ? " background-color:rgba(189, 189, 189, 0.3);" : " background-color:transparent;")}")">
 
-                        <MudPaper Class="pa-2 mb-20 rounded-lg d-flex flex-column align-center overflow-hidden"
-                                  Elevation="@(_drawerOpen ? 2 : 0)"
-                                  Style="@($"width: 100%; transition: all 0.2s ease-in-out; height: 110px; {(_drawerOpen ? " background-color:rgba(189, 189, 189, 0.3);" : " background-color:transparent;")}")">
+                        <div @onclick="@(() => HandleDrawerStateChange(!_drawerOpen))" @onclick:stopPropagation="true" style="cursor: pointer;">
+                            <MudIcon Icon="@Icons.Material.Filled.AccountCircle"
+                                     Size="Size.Large"
+                                     Color="Color.Default"
+                                     Class="@(_drawerOpen ? "mb-2" : "")" />
+                        </div>
 
-                            <div @onclick="@(() => HandleDrawerStateChange(!_drawerOpen))" @onclick:stopPropagation="true" style="cursor: pointer;">
-                                <MudIcon Icon="@Icons.Material.Filled.AccountCircle"
-                                         Size="Size.Large"
-                                         Color="Color.Default"
-                                         Class="@(_drawerOpen ? "mb-2" : "")" />
+                        @if (_showText)
+                        {
+                            <div style="animation: fadeIn 0.8s ease-in-out; display: flex; flex-direction: column; align-items: center; width: 100%;">
+                                <MudText Typo="Typo.subtitle1" Class="text-truncate" Style="max-width: 150px;">
+                                    @(context.User.FindFirst("name")?.Value ?? context.User.FindFirst(ClaimTypes.Name)?.Value)
+                                </MudText>
+                                <MudText Typo="Typo.caption" Class="mb-4 text-truncate" Style="max-width: 150px;">@context.User.FindFirst(ClaimTypes.Email)?.Value</MudText>
                             </div>
+                        }
 
-                            @if (_showText)
-                            {
-                                <div style="animation: fadeIn 0.8s ease-in-out; display: flex; flex-direction: column; align-items: center; width: 100%;">
-                                    <MudText Typo="Typo.subtitle1" Class="text-truncate" Style="max-width: 150px;">
-                                        @(context.User.FindFirst("name")?.Value ?? context.User.FindFirst(ClaimTypes.Name)?.Value)
-                                    </MudText>
-                                    <MudText Typo="Typo.caption" Class="mb-4 text-truncate" Style="max-width: 150px;">@context.User.FindFirst(ClaimTypes.Email)?.Value</MudText>
-                                </div>
-                            }
+                    </MudPaper>
 
-                        </MudPaper>
+                </Authorized>
+            </AuthorizeView>
+        </MudDrawerHeader>
 
-                    </Authorized>
-                </AuthorizeView>
-            </MudDrawerHeader>
+        <CascadingValue Value="_showText">
+            <NavMenu />
+        </CascadingValue>
+    </MudDrawer>
 
-            <CascadingValue Value="_showText">
-                <NavMenu />
-            </CascadingValue>
-        </MudDrawer>
-
-        <MudMainContent @onclick="CloseDrawerOnClickOutside" Class="pt-4">
-            <MudContainer MaxWidth="MaxWidth.False" Class="h-100">
-                @Body
-            </MudContainer>
-        </MudMainContent>
-    </MudLayout>
-}
+    <MudMainContent @onclick="CloseDrawerOnClickOutside" Class="pt-4">
+        @if (_isMobile)
+        {
+            <MudAppBar Elevation="1" Class="d-flex d-md-none">
+                <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@(() => HandleDrawerStateChange(!_drawerOpen))" />
+                <MudText Typo="Typo.h6">DocTracking</MudText>
+            </MudAppBar>
+        }
+        <MudContainer MaxWidth="MaxWidth.False" Class="@($"{(_isMobile ? "mt-16" : "")} h-100")">
+            @Body
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
 
 @code {
     bool _drawerOpen = true;
     bool _showText = true;
-    bool _isAppReady = false;
+    bool _isMobile = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -109,9 +147,25 @@ else
     {
         if (firstRender)
         {
-            await Task.Delay(300);
-            _isAppReady = true;
-            StateHasChanged();
+            await CheckIfMobile();
+            await JSRuntime.InvokeVoidAsync("eval", "document.getElementById('app-loading')?.remove()");
+        }
+    }
+
+    private async Task CheckIfMobile()
+    {
+        try
+        {
+            _isMobile = await JSRuntime.InvokeAsync<bool>("eval", "window.innerWidth <= 768");
+            if (_isMobile)
+            {
+                _drawerOpen = false;
+                _showText = false;
+            }
+        }
+        catch
+        {
+            _isMobile = false;
         }
     }
 
@@ -137,7 +191,7 @@ else
 
     async Task CloseDrawerOnClickOutside()
     {
-        if (_drawerOpen) await HandleDrawerStateChange(false);
+        if (_drawerOpen && _isMobile) await HandleDrawerStateChange(false);
     }
 
     async Task OpenDrawerOnClickInside()

@@ -9,96 +9,261 @@
 @rendermode InteractiveAuto
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
-    <MudText Typo="Typo.h4" Class="mb-6 font-weight-bold">My Document Tracking</MudText>
+    <div class="mb-6">
+        <div class="d-flex align-center mb-4">
+            <MudIcon Icon="@Icons.Material.Filled.TrackChanges" Size="Size.Large" Class="mr-3" Color="Color.Primary" />
+            <MudText Typo="Typo.h4" Class="font-weight-bold">My Document Tracking</MudText>
+        </div>
+
+        <MudGrid>
+            <MudItem xs="12" sm="4">
+                <MudPaper Style="border-top: 4px solid var(--mud-palette-warning);" Elevation="2" Class="pa-4 rounded-lg">
+                    <div class="d-flex align-center justify-space-between">
+                        <div>
+                            <MudText Typo="Typo.h3" Class="font-weight-bold" Color="Color.Warning">@filteredDocuments.Count(d => d.Status != "Received" && d.Status != "Completed")</MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Warning">In Motion</MudText>
+                        </div>
+                        <MudIcon Icon="@Icons.Material.Filled.DirectionsWalk" Size="Size.Large" Color="Color.Warning" />
+                    </div>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudPaper Style="border-top: 4px solid var(--mud-palette-success);" Elevation="2" Class="pa-4 rounded-lg">
+                    <div class="d-flex align-center justify-space-between">
+                        <div>
+                            <MudText Typo="Typo.h3" Class="font-weight-bold" Color="Color.Success">@filteredDocuments.Count(d => d.Status == "Received")</MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Success">Received</MudText>
+                        </div>
+                        <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Large" Color="Color.Success" />
+                    </div>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudPaper Style="border-top: 4px solid var(--mud-palette-info);" Elevation="2" Class="pa-4 rounded-lg">
+                    <div class="d-flex align-center justify-space-between">
+                        <div>
+                            <MudText Typo="Typo.h3" Class="font-weight-bold" Color="Color.Info">@filteredDocuments.Count(d => d.Status == "Completed")</MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Info">Completed Documents</MudText>
+                        </div>
+                        <MudIcon Icon="@Icons.Material.Filled.Description" Size="Size.Large" Color="Color.Info" />
+                    </div>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+    </div>
 
     @if (isLoading)
     {
-        <div class="d-flex justify-center mt-8">
-            <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
-        </div>
+        <MudPaper Elevation="2" Class="pa-8 text-center rounded-lg">
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" Class="mb-4" />
+            <MudText>Loading your documents...</MudText>
+        </MudPaper>
     }
     else
     {
-        <MudTable Items="@myDocuments" Hover="true" Elevation="3" T="Document" OnRowClick="RowClicked" RowClass="cursor-pointer">
-
-            <ToolBarContent>
+        <MudPaper Elevation="3" Class="pa-4 pa-md-6 rounded-lg">
+            <div class="d-flex justify-space-between align-center mb-4">
                 <MudText Typo="Typo.h6">All My Documents</MudText>
-                <MudSpacer />
-            </ToolBarContent>
+                <div class="d-flex gap-3 align-center">
+                    <MudTextField @bind-Value="searchString"
+                                  Placeholder="Search documents..."
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.Search"
+                                  IconSize="Size.Medium"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense"
+                                  Immediate="true" />
+                </div>
+            </div>
 
-            <HeaderContent>
-                <MudTh>Document Title</MudTh>
-                <MudTh>Type</MudTh>
-                <MudTh>Current Status</MudTh>
-                <MudTh>Created On</MudTh>
-                <MudTh>Current Location</MudTh>
-                <MudTh>Next Destination</MudTh>
-                <MudTh>Action</MudTh>
-            </HeaderContent>
+            <MudHidden Breakpoint="Breakpoint.SmAndDown">
+                <MudTable Items="@filteredDocuments" Hover="true" T="Document" OnRowClick="RowClicked" RowClass="cursor-pointer" SortLabel="Sort By">
+                    <HeaderContent>
+                        <MudTh><MudTableSortLabel SortBy="new Func<Document, object>(x => x.Name)">Document</MudTableSortLabel></MudTh>
+                        <MudTh>
+                            <MudButton Variant="Variant.Text"
+                                       onclick="CycleTypeFilter"
+                                       Class="pa-2"
+                                       Style="text-transform: none">
+                                Type
+                                <MudIcon Icon="@Icons.Material.Filled.FilterList" Size="Size.Small" Class="ml-1"/>
+                                 @(string.IsNullOrEmpty(typeFilter) ? "" : $"({typeFilter})")
+                            </MudButton>
+                        </MudTh>
+                        <MudTh>
+                            <MudButton Variant="Variant.Text"
+                                       OnClick="CycleStatusFilter"
+                                       Class="pa-2"
+                                       Style="text-transform: none;">
+                                Status
+                                <MudIcon Icon="@Icons.Material.Filled.FilterList" Size="Size.Small" Class="ml-1"/>
+                                 @(string.IsNullOrEmpty(statusFilter) ? "" : $"({statusFilter})")
+                            </MudButton>
+                        </MudTh>
+                        <MudTh>
+                            <MudButton Variant="Variant.Text"
+                                       OnClick="CyclePriorityFilter"
+                                       Class="pa-2"
+                                       Style="text-transform: none;">
+                                Priority
+                                <MudIcon Icon="@Icons.Material.Filled.FilterList" Size="Size.Small" Class="ml-1" />
+                                 @(string.IsNullOrEmpty(priorityFilter) ? "" : $"({priorityFilter})")
+                            </MudButton>
+                        </MudTh>
+                        <MudTh><MudTableSortLabel SortBy="new Func<Document, object>(x => x.CreatedAt)">Created</MudTableSortLabel></MudTh>
+                        <MudTh><MudTableSortLabel SortBy="new Func<Document, object>(x => x.CurrentOffice?.Name)">Current Location</MudTableSortLabel></MudTh>
+                        <MudTh><MudTableSortLabel SortBy="new Func<Document, object>(x => x.NextOffice?.Name)">Next Destination</MudTableSortLabel></MudTh>
+                        <MudTh>Action</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Document"><strong>@context.Name</strong></MudTd>
+                        <MudTd center;" DataLabel="Type">
+                            <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Info">@context.Type</MudChip>
+                        </MudTd>
+                        <MudTd center;" DataLabel="Status">
+                            <MudChip T="string" Color="@(context.Status == "Received" ? Color.Success : Color.Warning)" Size="Size.Small" Variant="Variant.Outlined">
+                                @context.Status
+                            </MudChip>
+                        </MudTd>
+                        <MudTd center;" DataLabel="Priority">
+                            <MudChip T="string" Color="@GetPriorityColor(context.Priority)" Size="Size.Small" Variant="Variant.Filled">
+                                @context.Priority
+                            </MudChip>
+                        </MudTd>
+                        <MudTd center;" DataLabel="Created">@context.CreatedAt.ToLocalTime().ToString("MMM dd, hh:mm tt")</MudTd>
+                        <MudTd center;" DataLabel="Current Location">
+                            @if (context.CurrentOffice != null)
+                            {
+                                <strong>@context.CurrentOffice.Name</strong>
+                                @if (context.CurrentUnit != null)
+                                {
+                                    <br />
+                                    <span style="color: gray; font-size: 0.85em;">↳ @context.CurrentUnit.Name</span>
+                                }
+                            }
+                            else
+                            {
+                                <MudText Typo="Typo.body2" Color="Color.Default"><em>None</em></MudText>
+                            }
+                        </MudTd>
+                        <MudTd DataLabel="Next Destination">
+                            @if (context.NextOffice != null)
+                            {
+                                <strong>@context.NextOffice.Name</strong>
+                                @if (context.NextUnit != null)
+                                {
+                                    <br />
+                                    <span style="color: gray; font-size: 0.85em;">↳ @context.NextUnit.Name</span>
+                                }
+                            }
+                            else
+                            {
+                                <MudText Typo="Typo.body2" Color="Color.Default"><em>None</em></MudText>
+                            }
+                        </MudTd>
+                        <MudTd DataLabel="Action">
+                            <div @onclick:stopPropagation="true">
+                                <MudButton Href="@($"/track-document/{context.Id}")" Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Visibility">
+                                    Track
+                                </MudButton>
+                            </div>
+                        </MudTd>
+                    </RowTemplate>
+                    <NoRecordsContent>
+                        <div class="pa-8 text-center">
+                            <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Large" Style="opacity: 0.3; font-size: 4rem;" Class="mb-4" />
+                            <MudText Typo="Typo.h6" Class="mud-text-secondary">@(string.IsNullOrEmpty(searchString) ? "No documents found" : "No matching documents")</MudText>
+                            <MudText Typo="Typo.body2" Class="mud-text-secondary">@(string.IsNullOrEmpty(searchString) ? "You haven't created any documents in this filter yet" : "Try adjusting your search terms")</MudText>
+                        </div>
+                    </NoRecordsContent>
+                    <PagerContent>
+                        <MudTablePager />
+                    </PagerContent>
+                </MudTable>
+            </MudHidden>
 
-            <RowTemplate>
-                <MudTd DataLabel="Document Title"><strong>@context.Name</strong></MudTd>
-                <MudTd DataLabel="Type">@context.Type</MudTd>
+            <MudHidden Breakpoint="Breakpoint.MdAndUp">
+                <MudTextField @bind-Value="searchString"
+                              Placeholder="Search documents..."
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Search"
+                              IconSize="Size.Medium"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense"
+                              Immediate="true"
+                              Class="mb-4" />
 
-                <MudTd DataLabel="Status">
-                    <MudChip T="string" Color="@(context.Status == "Received" ? Color.Success : Color.Warning)" Size="Size.Small" Variant="Variant.Filled">
-                        @context.Status
-                    </MudChip>
-                </MudTd>
-
-                <MudTd DataLabel="Created On">@context.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")</MudTd>
-
-                <MudTd DataLabel="Current Location">
-                    @if (context.CurrentOffice != null)
-                    {
-                        <MudText Typo="Typo.body2">
-                            <strong>@context.CurrentOffice.Name</strong> <br />
-                            <span style="color: gray; font-size: 0.85em;">↳ @context.CurrentUnit?.Name</span>
-                        </MudText>
-                    }
-                    else
-                    {
-                        <MudText Typo="Typo.body2" Color="Color.Default"><em>None</em></MudText>
-                    }
-                </MudTd>
-
-                <MudTd DataLabel="Next Destination">
-                    @if (context.NextOffice != null)
-                    {
-                        <MudText Typo="Typo.body2">
-                            <strong>@context.NextOffice.Name</strong> <br />
-                            <span style="color: gray; font-size: 0.85em;">↳ @context.NextUnit?.Name</span>
-                        </MudText>
-                    }
-                    else
-                    {
-                        <MudText Typo="Typo.body2" Color="Color.Default"><em>None</em></MudText>
-                    }
-                </MudTd>
-
-                <MudTd DataLabel="Action">
-                    <div @onclick:stopPropagation="true">
-                        <MudButton Href="@($"/track-document/{context.Id}")" Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.History">
-                            Track
-                        </MudButton>
+                @if (!filteredDocuments.Any())
+                {
+                    <div class="pa-8 text-center">
+                        <MudIcon Icon="@(string.IsNullOrEmpty(searchString) ? Icons.Material.Filled.Inbox : Icons.Material.Filled.SearchOff)" Size="Size.Large" Style="opacity: 0.3; font-size: 4rem;" Class="mb-4" />
+                        <MudText Typo="Typo.h6" Class="mud-text-secondary">@(string.IsNullOrEmpty(searchString) ? "No documents found" : "No matching documents")</MudText>
+                        @if (string.IsNullOrEmpty(searchString))
+                        {
+                            <MudButton Href="create-document" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Class="mt-4" FullWidth="true">
+                                Create Your First Document
+                            </MudButton>
+                        }
                     </div>
-                </MudTd>
-            </RowTemplate>
+                }
+                else
+                {
+                    @foreach (var doc in filteredDocuments)
+                    {
+                        <MudCard Elevation="2" Class="mb-3" @onclick="@(() => { selectedDocument = doc; isDialogVisible = true; })">
+                            <MudCardContent Class="pa-4">
+                                <div class="d-flex justify-space-between align-start mb-2">
+                                    <MudText Typo="Typo.subtitle1" Class="font-weight-bold">@doc.Name</MudText>
+                                    <MudChip T="string" Color="@GetPriorityColor(doc.Priority)" Size="Size.Small" Variant="Variant.Filled">
+                                        @doc.Priority
+                                    </MudChip>
+                                </div>
 
-            <NoRecordsContent>
-                <MudText Class="pa-4">You haven't created any documents yet.</MudText>
-            </NoRecordsContent>
-            <PagerContent>
-                <MudTablePager />
-            </PagerContent>
-        </MudTable>
+                                <MudChip T="string" Color="Color.Info" Size="Size.Small" Variant="Variant.Outlined" Class="mb-2">@doc.Type</MudChip>
 
-        @if (!string.IsNullOrEmpty(errorMessage))
-        {
-            <MudAlert Severity="Severity.Error" Class="mt-4">
-                Error loading data: @errorMessage
-            </MudAlert>
-        }
+                                <MudChip T="string" Color="@(doc.Status == "Received" ? Color.Success : Color.Warning)" Size="Size.Small" Variant="Variant.Filled" Class="mb-3">
+                                    @doc.Status
+                                </MudChip>
+
+                                <MudText Typo="Typo.body2" Class="mb-2">
+                                    <MudIcon Icon="@Icons.Material.Filled.LocationOn" Size="Size.Small" Class="mr-1" />
+                                    Current: <strong>@(doc.CurrentOffice?.Name ?? "None")</strong>
+                                </MudText>
+
+                                <MudText Typo="Typo.body2" Class="mb-2">
+                                    <MudIcon Icon="@Icons.Material.Filled.ArrowForward" Size="Size.Small" Class="mr-1" />
+                                    Next: <strong>@(doc.NextOffice?.Name ?? "None")</strong>
+                                </MudText>
+
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                                    <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" Class="mr-1" />
+                                    @doc.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy hh:mm tt")
+                                </MudText>
+                            </MudCardContent>
+                            <MudCardActions Class="pa-4 pt-0">
+                                <div @onclick:stopPropagation="true">
+                                    <MudButton Href="@($"/track-document/{doc.Id}")"
+                                               Color="Color.Primary"
+                                               Variant="Variant.Filled"
+                                               FullWidth="true"
+                                               Size="Size.Large"
+                                               StartIcon="@Icons.Material.Filled.Visibility">
+                                        Track Document
+                                    </MudButton>
+                                </div>
+                            </MudCardActions>
+                        </MudCard>
+                    }
+                }
+            </MudHidden>
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <MudAlert Severity="Severity.Error" Class="mt-4">
+                    Error loading data: @errorMessage
+                </MudAlert>
+            }
+        </MudPaper>
     }
 
     <MudDialog @bind-Visible="isDialogVisible" Options="dialogOptions">
@@ -126,6 +291,15 @@
                         <div>
                             <MudChip T="string" Color="@(selectedDocument.Status == "Received" ? Color.Success : Color.Warning)" Size="Size.Small">
                                 @selectedDocument.Status
+                            </MudChip>
+                        </div>
+                    </MudItem>
+
+                    <MudItem xs="12" sm="6">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Priority</MudText>
+                        <div>
+                            <MudChip T="string" Color="@GetPriorityColor(selectedDocument.Priority)" Size="Size.Small">
+                                @selectedDocument.Priority
                             </MudChip>
                         </div>
                     </MudItem>
@@ -206,6 +380,29 @@
     private bool isDialogVisible;
     private Document? selectedDocument;
     private DialogOptions dialogOptions = new() { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
+    private string searchString = "";
+    private string priorityFilter = "";
+    private readonly string[] priorityFilters = {"","Emergency","Urgent","Medium","Low"};
+    private int priorityFilterIndex = 0;
+    private string typeFilter = "";
+    private readonly string[] typeFilters = {"","Memo","Letter","Notice","Voucher","Report","Other"};
+    private int typeFilterIndex = 0;
+    private string statusFilter = "";
+    private readonly string[] statusFilters = {"","In Motion","Received", "Completed"};
+    private int statusFilterIndex = 0;
+
+    private bool FilterFunc(Document document)
+    {
+        if (string.IsNullOrWhiteSpace(searchString))
+            return true;
+
+        return document.Name?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true ||
+               document.Type?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true ||
+               document.Status?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true ||
+               document.Priority?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true ||
+               document.CurrentOffice?.Name?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true ||
+               document.NextOffice?.Name?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true;
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -238,12 +435,45 @@
 
     private void RowClicked(TableRowClickEventArgs<Document> args)
     {
-        selectedDocument = args.Item; 
-        isDialogVisible = true;       
+        selectedDocument = args.Item;
+        isDialogVisible = true;
     }
 
     private void CloseDialog()
     {
         isDialogVisible = false;
+    }
+
+    private Color GetPriorityColor(string? priority) => priority switch
+    {
+        "Emergency" => Color.Error,
+        "Urgent" => Color.Warning,
+        "Medium" => Color.Info,
+        "Low" => Color.Success,
+        _ => Color.Default
+    };
+
+    private IEnumerable<Document> filteredDocuments => myDocuments
+        .Where(FilterFunc)
+        .Where(d => string.IsNullOrEmpty(priorityFilter) || d.Priority == priorityFilter)
+        .Where(d => string.IsNullOrEmpty(typeFilter) || d.Type == typeFilter)
+        .Where(d => string.IsNullOrEmpty(statusFilter) || d.Status == statusFilter);
+
+    private void CyclePriorityFilter()
+    {
+        priorityFilterIndex = (priorityFilterIndex + 1) % priorityFilters.Length;
+        priorityFilter = priorityFilters[priorityFilterIndex];
+    }
+
+    private void CycleTypeFilter()
+    {
+        typeFilterIndex = (typeFilterIndex + 1) % typeFilters.Length;
+        typeFilter = typeFilters[typeFilterIndex];
+    }
+
+    private void CycleStatusFilter()
+    {
+        statusFilterIndex = (statusFilterIndex + 1) % statusFilters.Length;
+        statusFilter = statusFilters[statusFilterIndex];
     }
 }

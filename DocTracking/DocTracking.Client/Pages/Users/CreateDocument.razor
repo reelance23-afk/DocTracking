@@ -11,102 +11,216 @@
 @using Microsoft.AspNetCore.Components.Forms
 @rendermode InteractiveAuto
 
-<MudContainer MaxWidth="MaxWidth.Small" Class="mt-8">
+<MudContainer MaxWidth="MaxWidth.Medium" Class="mt-4">
+    <div class="mb-6">
+        <div class="d-flex align-center mb-4">
+            <MudIcon Icon="@Icons.Material.Filled.NoteAdd" Size="Size.Large" Class="mr-3" Color="Color.Primary" />
+            <MudText Typo="Typo.h4" Class="font-weight-bold">Create New Document</MudText>
+        </div>
+    </div>
 
-    <MudPaper Elevation="4" Class="pa-8 rounded-lg border-t-4 border-solid mud-border-primary">
-        <MudText Typo="Typo.h5" Class="mb-6 font-weight-bold">Create New Request</MudText>
-
-        @if (isLoadingOffices)
-        {
-            <div class="d-flex flex-column align-center my-4">
-                <MudProgressCircular Color="Color.Primary" Indeterminate="true" Class="mb-2" />
-                <MudText Typo="Typo.body2" Class="mud-text-secondary">Loading...</MudText>
-            </div>
-        }
-        else
-        {
+    @if (isLoadingOffices)
+    {
+        <MudPaper Elevation="2" Class="pa-8 text-center rounded-lg">
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" Class="mb-4" />
+            <MudText>Loading form...</MudText>
+        </MudPaper>
+    }
+    else
+    {
+        <MudPaper Style="border-top: 4px solid var(--mud-palette-primary);" Elevation="2" Class="pa-4 pa-md-6 rounded-lg">
             <MudForm @bind-IsValid="success">
-                <MudGrid>
-
+                <MudGrid Spacing="3">
                     <MudItem xs="12">
                         <MudTextField @bind-Value="newDocument.Name"
-                                      Label="Document Title / Subject"
+                                      Label="Document Title"
                                       Variant="Variant.Outlined"
                                       Required="true"
-                                      RequiredError="Document title is required" />
+                                      RequiredError="Document title is required"
+                                      HelperText="Enter a clear, descriptive title" />
                     </MudItem>
 
-                    <MudItem xs="12">
-                        <MudTextField @bind-Value="newDocument.Description"
-                                      Label="Document Description / Notes"
-                                      Variant="Variant.Outlined"
-                                      Lines="3" />
+                    <MudItem xs="12" md="6">
+                        <MudSelect T="string" @bind-Value="newDocument.Type"
+                                   Label="Document Type"
+                                   Variant="Variant.Outlined"
+                                   Required="true"
+                                   RequiredError="Please select a document type">
+                            <MudSelectItem Value="@("Memo")">
+                                <div class="d-flex align-center">
+                                    <MudIcon Icon="@Icons.Material.Filled.Description" Size="Size.Small" Class="mr-2" Color="Color.Info" />
+                                    Memo
+                                </div>
+                            </MudSelectItem>
+                            <MudSelectItem Value="@("Letter")">
+                                <div class="d-flex align-center">
+                                    <MudIcon Icon="@Icons.Material.Filled.Mail" Size="Size.Small" Class="mr-2" Color="Color.Info" />
+                                    Letter
+                                </div>
+                            </MudSelectItem>
+                            <MudSelectItem Value="@("Voucher")">
+                                <div class="d-flex align-center">
+                                    <MudIcon Icon="@Icons.Material.Filled.Receipt" Size="Size.Small" Class="mr-2" Color="Color.Info" />
+                                    Voucher
+                                </div>
+                            </MudSelectItem>
+                            <MudSelectItem Value="@("Report")">
+                                <div class="d-flex align-center">
+                                    <MudIcon Icon="@Icons.Material.Filled.Assessment" Size="Size.Small" Class="mr-2" Color="Color.Info" />
+                                    Report
+                                </div>
+                            </MudSelectItem>
+                            <MudSelectItem Value="@("Notice")">
+                                <div class="d-flex align-center">
+                                    <MudIcon Icon="@Icons.Material.Filled.Announcement" Size="Size.Small" Class="mr-2" Color="Color.Info" />
+                                    Notice
+                                </div>
+                            </MudSelectItem>
+                            <MudSelectItem Value="@("Other")">
+                                <div class="d-flex align-center">
+                                    <MudIcon Icon="@Icons.Material.Filled.InsertDriveFile" Size="Size.Small" Class="mr-2" Color="Color.Info" />
+                                    Other
+                                </div>
+                            </MudSelectItem>
+                        </MudSelect>
                     </MudItem>
 
-                    <MudItem xs="12">
-                        <MudSelect T="string" @bind-Value="newDocument.Type" Label="Document Type" Variant="Variant.Outlined" Required="true" RequiredError="Please select a document type">
-                            <MudSelectItem Value="@("Memo")">Memo</MudSelectItem>
-                            <MudSelectItem Value="@("Letter")">Letter</MudSelectItem>
-                            <MudSelectItem Value="@("Voucher")">Voucher</MudSelectItem>
-                            <MudSelectItem Value="@("Report")">Report</MudSelectItem>
-                            <MudSelectItem Value="@("Notice")">Notice</MudSelectItem>
-                            <MudSelectItem Value="@("Other")">Other</MudSelectItem>
+                    <MudItem xs="12" md="6">
+                        <MudSelect T="string" @bind-Value="newDocument.Priority"
+                                   Label="Priority Level"
+                                   Variant="Variant.Outlined"
+                                   Required="true"
+                                   RequiredError="Please select priority">
+                            <MudSelectItem Value="@("Emergency")">
+                                <div class="d-flex align-center">
+                                    <MudIcon Icon="@Icons.Material.Filled.PriorityHigh" Size="Size.Small" Class="mr-2" Color="Color.Error" />
+                                    Emergency
+                                </div>
+                            </MudSelectItem>
+                            <MudSelectItem Value="@("Urgent")">
+                                <div class="d-flex align-center">
+                                    <MudIcon Icon="@Icons.Material.Filled.Warning" Size="Size.Small" Class="mr-2" Color="Color.Warning" />
+                                    Urgent
+                                </div>
+                            </MudSelectItem>
+                            <MudSelectItem Value="@("Medium")">
+                                <div class="d-flex align-center">
+                                    <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" Class="mr-2" Color="Color.Info" />
+                                    Medium
+                                </div>
+                            </MudSelectItem>
+                            <MudSelectItem Value="@("Low")">
+                                <div class="d-flex align-center">
+                                    <MudIcon Icon="@Icons.Material.Filled.LowPriority" Size="Size.Small" Class="mr-2" Color="Color.Success" />
+                                    Low
+                                </div>
+                            </MudSelectItem>
                         </MudSelect>
                     </MudItem>
 
                     <MudItem xs="12">
+                        <MudTextField @bind-Value="newDocument.Description"
+                                      Label="Description / Notes"
+                                      Variant="Variant.Outlined"
+                                      Lines="3"
+                                      HelperText="Optional: Add any additional details or instructions" />
+                    </MudItem>
+
+                    <MudItem xs="12" md="8">
                         <MudSelect T="int?" Value="newDocument.NextOfficeId" ValueChanged="OnOfficeChanged"
-                                   Label="Route to Office..." Variant="Variant.Outlined" Required="true" RequiredError="Destination Office Required">
+                                   Label="Route to Office"
+                                   Variant="Variant.Outlined"
+                                   Required="true"
+                                   RequiredError="Destination office required">
                             @foreach (var office in offices)
                             {
-                                <MudSelectItem T="int?" Value="@((int?)office.Id)">@office.Name</MudSelectItem>
+                                <MudSelectItem T="int?" Value="@((int?)office.Id)">
+                                    <div class="d-flex align-center">
+                                        <MudIcon Icon="@Icons.Material.Filled.Business" Size="Size.Small" Class="mr-2" Color="Color.Primary" />
+                                        @office.Name
+                                    </div>
+                                </MudSelectItem>
                             }
                         </MudSelect>
                     </MudItem>
 
                     @if (newDocument.NextOfficeId.HasValue)
                     {
-                        <MudItem xs="12">
-                            <MudSelect @bind-Value="newDocument.NextUnitId" Label="Route to Specific Unit" Variant="Variant.Outlined">
+                        <MudItem xs="12" md="4">
+                            <MudSelect @bind-Value="newDocument.NextUnitId"
+                                       Label="Specific Unit (Optional)"
+                                       Variant="Variant.Outlined">
                                 @foreach (var unit in GetUnitsForOffice(newDocument.NextOfficeId.Value))
                                 {
-                                    <MudSelectItem T="int?" Value="@((int?)unit.Id)">@unit.Name</MudSelectItem>
+                                    <MudSelectItem T="int?" Value="@((int?)unit.Id)">
+                                        <div class="d-flex align-center">
+                                            <MudIcon Icon="@Icons.Material.Filled.Group" Size="Size.Small" Class="mr-2" Color="Color.Secondary" />
+                                            @unit.Name
+                                        </div>
+                                    </MudSelectItem>
                                 }
                             </MudSelect>
                         </MudItem>
                     }
 
                     <MudItem xs="12">
-                        <MudFileUpload T="IBrowserFile" FilesChanged="OnFileSelected" Accept=".pdf,.doc,.docx,.jpg,.png" Required="true">
+                        <MudText Typo="Typo.subtitle2" Class="mb-2">Attach Document</MudText>
+                        <MudFileUpload T="IBrowserFile" FilesChanged="OnFileSelected" Accept=".pdf,.doc,.docx,.jpg,.png">
                             <ActivatorContent>
-                                <MudButton Variant="Variant.Outlined"
-                                           Color="Color.Primary"
-                                           StartIcon="@Icons.Material.Filled.CloudUpload">
-                                    @(selectedFile == null ? "Attach a File" : "Change File")
-                                </MudButton>
+                                <MudPaper Style="border: 2px dashed var(--mud-palette-primary); background: rgba(33, 150, 243, 0.05);"
+                                          Class="pa-6 text-center rounded-lg cursor-pointer"
+                                          Elevation="0">
+                                    <MudIcon Icon="@Icons.Material.Filled.CloudUpload"
+                                             Size="Size.Large"
+                                             Color="Color.Primary"
+                                             Class="mb-2" />
+                                    <MudText Typo="Typo.body1" Color="Color.Primary" Class="font-weight-medium">
+                                        @(selectedFile == null ? "Click to upload file" : "Click to change file")
+                                    </MudText>
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                                        Supports: PDF, DOC, DOCX, JPG, PNG
+                                    </MudText>
+                                </MudPaper>
                             </ActivatorContent>
                         </MudFileUpload>
 
                         @if (selectedFile != null)
                         {
-                            <MudText Typo="Typo.caption" Color="Color.Success" Class="mt-2 d-block">
-                                <MudIcon Icon="@Icons.Material.Filled.AttachFile" Size="Size.Small" Class="mr-1" />
-                                @selectedFile.Name (@(selectedFile.Size / 1024) KB)
-                            </MudText>
+                            <MudPaper Elevation="1" Class="pa-3 mt-3 rounded-lg" Style="background: rgba(76, 175, 80, 0.1); border-left: 4px solid var(--mud-palette-success);">
+                                <div class="d-flex align-center">
+                                    <MudIcon Icon="@Icons.Material.Filled.AttachFile" Color="Color.Success" Class="mr-2" />
+                                    <div>
+                                        <MudText Typo="Typo.body2" Class="font-weight-medium">@selectedFile.Name</MudText>
+                                        <MudText Typo="Typo.caption" Color="Color.Success">@(selectedFile.Size / 1024) KB</MudText>
+                                    </div>
+                                </div>
+                            </MudPaper>
                         }
                     </MudItem>
 
-                    <MudItem xs="12" Class="d-flex justify-end mt-4">
-                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" Disabled="@(!success || isSaving)" OnClick="SubmitDocument">
-                            @(isSaving ? "Routing..." : "Submit & Route Document")
-                        </MudButton>
+                    <MudItem xs="12" Class="mt-4">
+                        <div class="d-flex gap-3 justify-end">
+                            <MudButton Variant="Variant.Outlined"
+                                       Color="Color.Default"
+                                       Size="Size.Large"
+                                       OnClick="@(() => Navigation.NavigateTo("/"))"
+                                       StartIcon="@Icons.Material.Filled.Cancel">
+                                Cancel
+                            </MudButton>
+                            <MudButton Variant="Variant.Filled"
+                                       Color="Color.Primary"
+                                       Size="Size.Large"
+                                       Disabled="@(!success || isSaving || selectedFile == null)"
+                                       OnClick="SubmitDocument"
+                                       StartIcon="@(isSaving ? Icons.Material.Filled.Sync : Icons.Material.Filled.Send)">
+                                @(isSaving ? "Submitting..." : "Submit Document")
+                            </MudButton>
+                        </div>
                     </MudItem>
-
                 </MudGrid>
             </MudForm>
-        }
-    </MudPaper>
-
+        </MudPaper>
+    }
 </MudContainer>
 
 @code {
@@ -119,25 +233,25 @@
 
     protected override async Task OnInitializedAsync()
     {
-            try
-            {
-                offices = await DocService.GetOfficesAsync();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error loading offices: {ex.Message}");
-                Snackbar.Add("Failed to load routing options.", Severity.Error);
-            }
-            finally
-            {
-                isLoadingOffices = false;
-            }
+        try
+        {
+            offices = await DocService.GetOfficesAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading offices: {ex.Message}");
+            Snackbar.Add("Failed to load routing options.", Severity.Error);
+        }
+        finally
+        {
+            isLoadingOffices = false;
+        }
     }
 
     private void OnFileSelected(IBrowserFile file)
     {
         selectedFile = file;
-        newDocument.FileName = file.Name; 
+        newDocument.FileName = file.Name;
     }
 
     private void OnOfficeChanged(int? officeId)
@@ -156,7 +270,6 @@
         isSaving = true;
         try
         {
-   
             if (selectedFile != null)
             {
                 Snackbar.Add("Uploading file...", Severity.Info);
@@ -164,7 +277,7 @@
 
                 if (uploadedPath != null)
                 {
-                    newDocument.FilePath = uploadedPath; 
+                    newDocument.FilePath = uploadedPath;
                 }
                 else
                 {
@@ -172,16 +285,15 @@
                 }
             }
 
-
             await DocService.CreateDocumentAsync(newDocument);
-            Snackbar.Add("Document Created & Routed Successfully!", Severity.Success);
+            Snackbar.Add("Document created & routed successfully!", Severity.Success);
 
             Navigation.NavigateTo("/my-tracking");
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Save Error: {ex.Message}");
-            Snackbar.Add("Error Saving Document. Please try again.", Severity.Error);
+            Snackbar.Add("Error saving document. Please try again.", Severity.Error);
         }
         finally
         {

@@ -5,6 +5,7 @@
 @using Microsoft.AspNetCore.Components.Authorization
 @inject DocumentService DocService
 @inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
 @rendermode @(new InteractiveAutoRenderMode(prerender: false))
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4 mb-8">
@@ -19,68 +20,153 @@
     }
     else
     {
-        <MudTable Items="@historyDocs" Hover="true" Elevation="3" T="Document">
-            <ToolBarContent>
-                <MudText Typo="Typo.h6">@myUnitName Records</MudText>
-                <MudSpacer />
-            </ToolBarContent>
+        <!-- Desktop Table View -->
+        <MudHidden Breakpoint="Breakpoint.SmAndDown">
+            <MudTable Items="@historyDocs" Hover="true" Elevation="3" T="Document">
+                <ToolBarContent>
+                    <MudText Typo="Typo.h6">@myUnitName Records</MudText>
+                    <MudSpacer />
+                </ToolBarContent>
 
-            <HeaderContent>
-                <MudTh>Document Title</MudTh>
-                <MudTh>Type</MudTh>
-                <MudTh>Current Status</MudTh>
-                <MudTh>Created On</MudTh>
-                <MudTh>Current Location</MudTh>
-                <MudTh>Action</MudTh>
-            </HeaderContent>
+                <HeaderContent>
+                    <MudTh>Document Title</MudTh>
+                    <MudTh>Type</MudTh>
+                    <MudTh>Priority</MudTh>
+                    <MudTh>Current Status</MudTh>
+                    <MudTh>Created On</MudTh>
+                    <MudTh>Current Location</MudTh>
+                    <MudTh>Action</MudTh>
+                </HeaderContent>
 
-            <RowTemplate>
-                <MudTd DataLabel="Document Title"><strong>@context.Name</strong></MudTd>
-                <MudTd DataLabel="Type">@context.Type</MudTd>
+                <RowTemplate>
+                    <MudTd DataLabel="Document Title"><strong>@context.Name</strong></MudTd>
+                    <MudTd DataLabel="Type">@context.Type</MudTd>
 
-                <MudTd DataLabel="Status">
-                    <MudChip T="string" Color="@(context.Status == "Completed" ? Color.Success : (context.Status == "Received" ? Color.Success : Color.Warning))" Size="Size.Small" Variant="Variant.Filled">
-                        @context.Status
-                    </MudChip>
-                </MudTd>
+                    <MudTd DataLabel="Status">
+                        <MudChip T="string" Color="@(context.Status == "Completed" ? Color.Success : (context.Status == "Received" ? Color.Success : Color.Warning))" Size="Size.Small" Variant="Variant.Filled">
+                            @context.Status
+                        </MudChip>
+                    </MudTd>
 
-                <MudTd DataLabel="Created On">@context.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")</MudTd>
+                    <MudTd DataLabel="Priority">
+                        <MudChip T="string" Color="@GetPriorityColor(context.Priority)" Size="Size.Small" Variant="Variant.Filled">
+                            @context.Priority
+                        </MudChip>
+                    </MudTd>
 
-                <MudTd DataLabel="Current Location">
-                    @if (context.CurrentOffice != null)
-                    {
-                        <MudText Typo="Typo.body2">
-                            <strong>@context.CurrentOffice.Name</strong> <br />
-                            <span style="color: gray; font-size: 0.85em;">↳ @(context.CurrentUnit?.Name ?? "General")</span>
-                        </MudText>
-                    }
-                    else if (context.NextOffice != null)
-                    {
-                        <MudText Typo="Typo.body2">
-                            <span style="color: #ff9800; font-size: 0.85em; font-style: italic;">Routing to:</span><br />
-                            <strong>@context.NextOffice.Name</strong>
-                        </MudText>
-                    }
-                    else
-                    {
-                        <MudText Typo="Typo.body2" Color="Color.Default"><em>Completed / None</em></MudText>
-                    }
-                </MudTd>
+                    <MudTd DataLabel="Created On">@context.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")</MudTd>
 
-                <MudTd DataLabel="Action">
-                    <MudButton Href="@($"/office-track-document/{context.Id}?ReturnUrl=unit-history")" Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Timeline">
-                        Track
-                    </MudButton>
-                </MudTd>
-            </RowTemplate>
+                    <MudTd DataLabel="Current Location">
+                        @if (context.CurrentOffice != null)
+                        {
+                            <MudText Typo="Typo.body2">
+                                <strong>@context.CurrentOffice.Name</strong> <br />
+                                <span style="color: gray; font-size: 0.85em;">↳ @(context.CurrentUnit?.Name ?? "General")</span>
+                            </MudText>
+                        }
+                        else if (context.NextOffice != null)
+                        {
+                            <MudText Typo="Typo.body2">
+                                <span style="color: #ff9800; font-size: 0.85em; font-style: italic;">Routing to:</span><br />
+                                <strong>@context.NextOffice.Name</strong>
+                            </MudText>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Default"><em>Completed / None</em></MudText>
+                        }
+                    </MudTd>
 
-            <NoRecordsContent>
-                <MudText Class="pa-4">Your unit has not handled any documents yet.</MudText>
-            </NoRecordsContent>
-            <PagerContent>
-                <MudTablePager />
-            </PagerContent>
-        </MudTable>
+                    <MudTd DataLabel="Action">
+                        <MudButton Href="@($"/office-track-document/{context.Id}?ReturnUrl=unit-history")" Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Timeline">
+                            Track
+                        </MudButton>
+                    </MudTd>
+                </RowTemplate>
+
+                <NoRecordsContent>
+                    <MudText Class="pa-4">Your unit has not handled any documents yet.</MudText>
+                </NoRecordsContent>
+                <PagerContent>
+                    <MudTablePager />
+                </PagerContent>
+            </MudTable>
+        </MudHidden>
+
+        <!-- Mobile Card View -->
+        <MudHidden Breakpoint="Breakpoint.MdAndUp">
+            <MudText Typo="Typo.h6" Class="mb-4">@myUnitName Records</MudText>
+            @if (!historyDocs.Any())
+            {
+                <MudPaper Elevation="0" Class="pa-8 text-center">
+                    <MudText Class="mud-text-secondary">Your unit has not handled any documents yet.</MudText>
+                </MudPaper>
+            }
+            else
+            {
+                @foreach (var doc in historyDocs)
+                {
+                    <MudCard Elevation="2" Class="mb-3">
+                        <MudCardContent Class="pa-4">
+                            <div class="d-flex justify-space-between align-start mb-2">
+                                <MudText Typo="Typo.subtitle1" Class="font-weight-bold">@doc.Name</MudText>
+                                <MudChip T="string" Color="@GetPriorityColor(doc.Priority)" Size="Size.Small" Variant="Variant.Filled">
+                                    @doc.Priority
+                                </MudChip>
+                            </div>
+                            
+                            <div class="d-flex gap-2 mb-2">
+                                <MudChip T="string" Color="Color.Info" Size="Size.Small" Variant="Variant.Outlined">@doc.Type</MudChip>
+                                <MudChip T="string" Color="@(doc.Status == "Completed" ? Color.Success : (doc.Status == "Received" ? Color.Success : Color.Warning))" Size="Size.Small" Variant="Variant.Filled">
+                                    @doc.Status
+                                </MudChip>
+                            </div>
+
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary mb-2">
+                                <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" Class="mr-1" />
+                                @doc.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")
+                            </MudText>
+
+                            @if (doc.CurrentOffice != null)
+                            {
+                                <MudText Typo="Typo.body2" Class="mb-2">
+                                    <MudIcon Icon="@Icons.Material.Filled.Place" Size="Size.Small" Class="mr-1" />
+                                    <strong>@doc.CurrentOffice.Name</strong>
+                                    @if (doc.CurrentUnit != null)
+                                    {
+                                        <span class="mud-text-secondary"> ↳ @doc.CurrentUnit.Name</span>
+                                    }
+                                </MudText>
+                            }
+                            else if (doc.NextOffice != null)
+                            {
+                                <MudText Typo="Typo.body2" Class="mb-2">
+                                    <MudIcon Icon="@Icons.Material.Filled.DirectionsWalk" Size="Size.Small" Class="mr-1" />
+                                    <span class="mud-text-warning">Routing to: </span><strong>@doc.NextOffice.Name</strong>
+                                </MudText>
+                            }
+                            else
+                            {
+                                <MudText Typo="Typo.body2" Class="mb-2 mud-text-secondary">
+                                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small" Class="mr-1" />
+                                    Completed
+                                </MudText>
+                            }
+                        </MudCardContent>
+                        <MudCardActions Class="pa-4 pt-0">
+                            <MudButton Href="@($"/office-track-document/{doc.Id}?ReturnUrl=unit-history")" 
+                                     Variant="Variant.Filled" 
+                                     Color="Color.Primary" 
+                                     StartIcon="@Icons.Material.Filled.Timeline"
+                                     FullWidth="true"
+                                     Size="Size.Large">
+                                Track Document
+                            </MudButton>
+                        </MudCardActions>
+                    </MudCard>
+                }
+            }
+        </MudHidden>
     }
 </MudContainer>
 
@@ -111,5 +197,17 @@
             isLoading = false;
             StateHasChanged();
         }
+    }
+
+    private Color GetPriorityColor(string? priority)
+    {
+        return priority switch
+        {
+            "Emergency" => Color.Error,
+            "Urgent" => Color.Warning,
+            "Medium" => Color.Info,
+            "Low" => Color.Success,
+            _ => Color.Default
+        };
     }
 }

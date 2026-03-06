@@ -10,7 +10,14 @@
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-6 mb-8">
     <div class="d-flex align-center mb-6">
         <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" Color="Color.Default" OnClick="Back" Class="mr-2" />
-        <MudText Typo="Typo.h4" Class="font-weight-bold">Document Tracking</MudText>
+        <MudText Typo="Typo.h4" Class="font-weight-bold mr-4">Document Tracking</MudText>
+
+        @if (documentLogs.Any() && documentLogs.First().Document?.ReferenceNumber != null)
+        {
+            <MudChip T="string" Color="Color.Primary" Variant="Variant.Outlined" Size="Size.Large">
+                @documentLogs.First().Document?.ReferenceNumber
+            </MudChip>
+        }
     </div>
 
     @if (isLoading)

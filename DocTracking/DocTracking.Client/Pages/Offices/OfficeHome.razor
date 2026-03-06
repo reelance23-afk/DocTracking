@@ -36,35 +36,35 @@
 
     protected override async Task OnInitializedAsync()
     {
-        
-            try
+
+        try
+        {
+
+            var profile = await DocService.GetProfileAsync();
+
+            if (profile != null)
             {
- 
-                var profile = await DocService.GetProfileAsync();
+                userEmail = profile.Email ?? "Unknown";
+                myUnitId = profile.UnitId;
 
-                if (profile != null)
+                if (profile.Unit?.OfficeId != null)
                 {
-                    userEmail = profile.Email ?? "Unknown";
-                    myUnitId = profile.UnitId;
-
-                    if (profile.Unit?.OfficeId != null)
-                    {
-                        allOffices = await DocService.GetOfficesAsync();
-                        myOffice = allOffices.FirstOrDefault(o => o.Id == profile.Unit.OfficeId);
-                    }
+                    allOffices = await DocService.GetOfficesAsync();
+                    myOffice = allOffices.FirstOrDefault(o => o.Id == profile.Unit.OfficeId);
                 }
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error: {ex.Message}");
-                
-            }
-            finally
-            {
-                isLoadingInitial = false;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
 
-            }
-        
+        }
+        finally
+        {
+            isLoadingInitial = false;
+
+        }
+
     }
 
     private async Task RefreshQueues()

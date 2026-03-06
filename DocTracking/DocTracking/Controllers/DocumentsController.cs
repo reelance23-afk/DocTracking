@@ -30,8 +30,12 @@ namespace DocTracking.Controllers
             var appuser = await _context.AppUsers.FirstOrDefaultAsync(u => u.Email == email);
 
             doc.CreatedAt = DateTime.UtcNow;
-            doc.Status = "On Going";
+            doc.Status = "In Motion";
             doc.CreatorId = appuser?.Id;
+
+            string randomNum = Guid.NewGuid().ToString("N").Substring(0, 6).ToUpper();
+            doc.ReferenceNumber = $"DOC-{DateTime.UtcNow:yyyyMMdd}-{randomNum}";
+            doc.LastActionDate = DateTime.UtcNow;
 
             _context.Documents.Add(doc);
             await _context.SaveChangesAsync();
@@ -120,7 +124,7 @@ namespace DocTracking.Controllers
                 .Include(d => d.Creator)
                 .Include(d => d.NextOffice)
                 .Include(d => d.NextUnit)
-                .Where(d => d.NextOfficeId == officeId && d.Status == "On Going");
+                .Where(d => d.NextOfficeId == officeId && d.Status == "In Motion");
 
             if (unitId.HasValue)
             {
@@ -174,7 +178,7 @@ namespace DocTracking.Controllers
             var email = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email);
             var appUser = await _context.AppUsers.FirstOrDefaultAsync(u => u.Email == email);
 
-            doc.Status = "On Going";
+            doc.Status = "In Motion";
             doc.LastActionDate = DateTime.UtcNow;
 
             doc.NextOfficeId = request.NextOfficeId;
@@ -250,7 +254,7 @@ namespace DocTracking.Controllers
                 .Include(d => d.Creator)
                 .Include(d => d.NextOffice)
                 .Include(d => d.NextUnit)
-                .Where(d => d.Status == "On Going");
+                .Where(d => d.Status == "In Motion");
 
             if (myUnitId.HasValue)
             {
