@@ -71,7 +71,7 @@ builder.Services.ConfigureApplicationCookie(options =>
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddScoped<AuthenticationStateProvider, DocTracking.Services.PersistingServerAuthenticationStateProvider>();
 builder.Services.AddScoped<DocumentService>();
-builder.Services.AddScoped<LoadingService>();
+builder.Services.AddScoped<ThemeService>();
 builder.Services.AddTransient<IClaimsTransformation, UserClaimsTransformation>();
 builder.Services.AddControllers()
     .AddJsonOptions( options =>

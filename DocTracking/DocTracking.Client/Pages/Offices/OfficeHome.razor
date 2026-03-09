@@ -10,41 +10,189 @@
 
     @if (isLoadingInitial)
     {
-        <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+        <div class="text-center pa-8">
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+            <MudText Class="mt-4">Loading dashboard...</MudText>
+        </div>
     }
     else
     {
-        <MudText Typo="Typo.h4" Class="mb-6">@myOffice?.Name Dashboard</MudText>
+        <!-- Header -->
+        <div class="d-flex align-center mb-6">
+            <MudIcon Icon="@Icons.Material.Filled.Business" Size="Size.Large" Color="Color.Primary" Class="mr-3" />
+            <div>
+                <MudText Typo="Typo.h4" Class="font-weight-bold">@myOffice?.Name</MudText>
+                <MudText Typo="Typo.body2" Class="mud-text-secondary">Office Dashboard</MudText>
+            </div>
+        </div>
 
-        <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-6">
+        <!-- Stats -->
+        <MudGrid Class="mb-6">
+            <MudItem xs="12" sm="4">
+                <MudPaper Elevation="2" Class="pa-4" Style="border-top: 4px solid var(--mud-palette-error);">
+                    <div class="d-flex justify-space-between align-center">
+                        <div>
+                            <MudText Typo="Typo.h3" Class="font-weight-bold" Color="Color.Error">@incomingDocs.Count</MudText>
+                            <MudText Typo="Typo.body2">Incoming</MudText>
+                        </div>
+                        <MudIcon Icon="@Icons.Material.Filled.Inbox" Size="Size.Large" Color="Color.Error" />
+                    </div>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudPaper Elevation="2" Class="pa-4" Style="border-top: 4px solid var(--mud-palette-warning);">
+                    <div class="d-flex justify-space-between align-center">
+                        <div>
+                            <MudText Typo="Typo.h3" Class="font-weight-bold" Color="Color.Warning">@deskDocs.Count</MudText>
+                            <MudText Typo="Typo.body2">On Desk</MudText>
+                        </div>
+                        <MudIcon Icon="@Icons.Material.Filled.Assignment" Size="Size.Large" Color="Color.Warning" />
+                    </div>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudPaper Elevation="2" Class="pa-4" Style="border-top: 4px solid var(--mud-palette-info);">
+                    <div class="d-flex justify-space-between align-center">
+                        <div>
+                            <MudText Typo="Typo.h3" Class="font-weight-bold" Color="Color.Info">@outgoingDocs.Count</MudText>
+                            <MudText Typo="Typo.body2">Outgoing</MudText>
+                        </div>
+                        <MudIcon Icon="@Icons.Material.Filled.Send" Size="Size.Large" Color="Color.Info" />
+                    </div>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
 
-        </MudTabs>
+        <!-- Split: Kanban + Timeline -->
+        <MudGrid Class="mb-6">
+
+            <!-- Kanban -->
+            <MudItem xs="12" md="7">
+                <MudPaper Elevation="2" Class="pa-4" Style="height: 100%;">
+                    <div class="d-flex align-center justify-space-between mb-4">
+                        <div class="d-flex align-center">
+                            <MudIcon Icon="@Icons.Material.Filled.ViewKanban" Class="mr-2" Color="Color.Primary" />
+                            <MudText Typo="Typo.h6">Document Queue</MudText>
+                        </div>
+                        <MudButton Href="/office-desk" Variant="Variant.Text" Color="Color.Primary" EndIcon="@Icons.Material.Filled.ArrowForward">
+                            Manage
+                        </MudButton>
+                    </div>
+                    <MudGrid>
+                        <MudItem xs="6">
+                            <MudPaper Elevation="0" Class="pa-3" Style="background: rgba(var(--mud-palette-error-rgb), 0.08); border-radius: 8px; min-height: 200px;">
+                                <MudText Typo="Typo.subtitle2" Color="Color.Error" Class="mb-3 font-weight-bold">Incoming</MudText>
+                                @foreach (var doc in incomingDocs.Take(5))
+                                {
+                                    <MudPaper Elevation="1" Class="pa-3 mb-2">
+                                        <MudText Typo="Typo.body2" Class="font-weight-bold mb-1">@doc.Name</MudText>
+                                        <div class="d-flex justify-space-between align-center">
+                                            <MudChip T="string" Size="Size.Small" Color="@GetPriorityColor(doc.Priority)" Variant="Variant.Filled">@doc.Priority</MudChip>
+                                            <MudIconButton Icon="@Icons.Material.Filled.OpenInNew" Size="Size.Small" Color="Color.Primary" Href="@($"/track-document/{doc.Id}")" />
+                                        </div>
+                                    </MudPaper>
+                                }
+                                @if (!incomingDocs.Any())
+                                {
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">No incoming documents</MudText>
+                                }
+                            </MudPaper>
+                        </MudItem>
+                        <MudItem xs="6">
+                            <MudPaper Elevation="0" Class="pa-3" Style="background: rgba(var(--mud-palette-warning-rgb), 0.08); border-radius: 8px; min-height: 200px;">
+                                <MudText Typo="Typo.subtitle2" Color="Color.Warning" Class="mb-3 font-weight-bold">On Desk</MudText>
+                                @foreach (var doc in deskDocs.Take(5))
+                                {
+                                    <MudPaper Elevation="1" Class="pa-3 mb-2">
+                                        <MudText Typo="Typo.body2" Class="font-weight-bold mb-1">@doc.Name</MudText>
+                                        <div class="d-flex justify-space-between align-center">
+                                            <MudChip T="string" Size="Size.Small" Color="@GetPriorityColor(doc.Priority)" Variant="Variant.Filled">@doc.Priority</MudChip>
+                                            <MudIconButton Icon="@Icons.Material.Filled.OpenInNew" Size="Size.Small" Color="Color.Primary" Href="@($"/track-document/{doc.Id}")" />
+                                        </div>
+                                    </MudPaper>
+                                }
+                                @if (!deskDocs.Any())
+                                {
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">Desk is clear</MudText>
+                                }
+                            </MudPaper>
+                        </MudItem>
+                    </MudGrid>
+                </MudPaper>
+            </MudItem>
+
+            <!-- Timeline -->
+            <MudItem xs="12" md="5">
+                <MudPaper Elevation="2" Class="pa-4" Style="height: 100%;">
+                    <div class="d-flex align-center mb-4">
+                        <MudIcon Icon="@Icons.Material.Filled.Timeline" Class="mr-2" Color="Color.Primary" />
+                        <MudText Typo="Typo.h6">Recent Activity</MudText>
+                    </div>
+                    @if (!recentDocs.Any())
+                    {
+                        <div class="text-center pa-6">
+                            <MudIcon Icon="@Icons.Material.Filled.Inbox" Size="Size.Large" Style="opacity: 0.3;" />
+                            <MudText Typo="Typo.body2" Class="mud-text-secondary mt-2">No recent activity</MudText>
+                        </div>
+                    }
+                    else
+                    {
+                        <MudTimeline TimelinePosition="TimelinePosition.Start">
+                            @foreach (var doc in recentDocs.Take(4))
+                            {
+                                <MudTimelineItem Color="@GetPriorityColor(doc.Priority)" Size="Size.Small">
+                                    <ItemContent>
+                                        <MudCard Elevation="1" Class="mb-1">
+                                            <MudCardContent Class="pa-3">
+                                                <div class="d-flex justify-space-between align-center">
+                                                    <MudText Typo="Typo.body2" Class="font-weight-bold">@doc.Name</MudText>
+                                                    <MudChip T="string" Size="Size.Small"
+                                                             Color="@(doc.Status == "Completed" ? Color.Success : Color.Warning)"
+                                                             Variant="Variant.Outlined">
+                                                        @doc.Status
+                                                    </MudChip>
+                                                </div>
+                                                <div class="d-flex align-center justify-space-between mt-2">
+                                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                                                        <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Class="mr-1" />
+                                                        @doc.Creator?.Email
+                                                    </MudText>
+                                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                                                        @doc.LastActionDate?.ToLocalTime().ToString("MMM dd, hh:mm tt")
+                                                    </MudText>
+                                                </div>
+                                            </MudCardContent>
+                                        </MudCard>
+                                    </ItemContent>
+                                </MudTimelineItem>
+                            }
+                        </MudTimeline>
+                    }
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
     }
 </MudContainer>
 
 @code {
     private Office? myOffice;
-    private int? myUnitId; 
+    private int? myUnitId;
     private List<Office> allOffices = new();
     private List<Document> incomingDocs = new();
     private List<Document> deskDocs = new();
+    private List<Document> outgoingDocs = new();
+    private List<Document> recentDocs = new();
     private string userEmail = "";
-
     private bool isLoadingInitial = true;
-    private bool isLoading = false;
-    private Dictionary<int, int?> forwardSelections = new();
 
     protected override async Task OnInitializedAsync()
     {
-
         try
         {
-
             var profile = await DocService.GetProfileAsync();
-
             if (profile != null)
             {
-                userEmail = profile.Email ?? "Unknown";
+                userEmail = profile.Email ?? "";
                 myUnitId = profile.UnitId;
 
                 if (profile.Unit?.OfficeId != null)
@@ -53,67 +201,40 @@
                     myOffice = allOffices.FirstOrDefault(o => o.Id == profile.Unit.OfficeId);
                 }
             }
+
+            if (myOffice != null)
+            {
+                incomingDocs = await DocService.GetIncomingAsync(myOffice.Id, myUnitId);
+                var allDocs = await DocService.GetAllDocumentsAsync();
+
+                deskDocs = allDocs.Where(d =>
+                    d.CurrentOfficeId == myOffice.Id &&
+                    d.Status == "Received" &&
+                    (myUnitId.HasValue ? (d.CurrentUnitId == null || d.CurrentUnitId == myUnitId) : d.CurrentUnitId == null)
+                ).ToList();
+
+                outgoingDocs = await DocService.GetOutgoingAsync(userEmail);
+
+                recentDocs = allDocs
+                    .Where(d => d.CurrentOfficeId == myOffice.Id || d.NextOfficeId == myOffice.Id)
+                    .OrderByDescending(d => d.LastActionDate)
+                    .Take(5).ToList();
+            }
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error: {ex.Message}");
-
+            Snackbar.Add("Error loading dashboard", Severity.Error);
         }
-        finally
-        {
-            isLoadingInitial = false;
-
-        }
-
+        finally { isLoadingInitial = false; }
     }
 
-    private async Task RefreshQueues()
+    private Color GetPriorityColor(string? priority) => priority switch
     {
-        if (myOffice == null) return;
-
-        isLoading = true;
-        StateHasChanged();
-
-        try
-        {
-            incomingDocs = await DocService.GetIncomingAsync(myOffice.Id, myUnitId);
-
-            var allDocs = await DocService.GetAllDocumentsAsync();
-
-            deskDocs = allDocs.Where(d =>
-                d.CurrentOfficeId == myOffice.Id &&
-                d.Status == "Received" &&
-                (myUnitId.HasValue ? (d.CurrentUnitId == null || d.CurrentUnitId == myUnitId) : d.CurrentUnitId == null)
-            ).ToList();
-
-            foreach (var doc in deskDocs)
-            {
-                if (!forwardSelections.ContainsKey(doc.Id))
-                {
-                    forwardSelections[doc.Id] = null;
-                }
-            }
-        }
-        finally
-        {
-            isLoading = false;
-            StateHasChanged();
-        }
-    }
-
-    private async Task ReceiveDoc(int docId)
-    {
-        await DocService.ReceivedDocumentAsync(docId);
-        await RefreshQueues();
-    }
-
-    private async Task ForwardDoc(int docId)
-    {
-        var nextOfficeId = forwardSelections[docId];
-        if (nextOfficeId.HasValue)
-        {
-            await DocService.ForwardDocumentAsync(docId, nextOfficeId.Value);
-            await RefreshQueues();
-        }
-    }
+        "Emergency" => Color.Error,
+        "Urgent" => Color.Warning,
+        "Medium" => Color.Info,
+        "Low" => Color.Success,
+        _ => Color.Default
+    };
 }

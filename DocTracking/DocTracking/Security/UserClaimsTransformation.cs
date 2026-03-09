@@ -3,9 +3,6 @@ using DocTracking.Data;
 using DocTracking.Client.Models;
 using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
-using MudBlazor.Extensions;
-using System.Security.Cryptography.Pkcs;
-using Microsoft.Graph;
 
 namespace DocTracking.Security
 {

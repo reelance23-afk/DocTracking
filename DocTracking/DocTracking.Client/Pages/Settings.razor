@@ -1,0 +1,35 @@
+﻿@page "/settings"
+@inject ThemeService ThemeService
+
+<MudText Typo="Typo.h5" Class="mb-4">Appearance</MudText>
+
+<MudText Typo="Typo.subtitle2" Class="mb-2">Color Theme</MudText>
+<MudGrid Class="mb-4">
+    @foreach (var (name, color) in Themes)
+    {
+        var isActive = ThemeService.SelectedTheme == name;
+        <MudItem xs="4" sm="2">
+            <MudPaper @onclick="() => SelectTheme(name)" Class="pa-3 d-flex flex-column align-center" Style="@($"cursor:pointer; border: 2px solid {(isActive ? color : "transparent")}; border-radius:12px;")">
+                <div style="@($"width:36px; height:36px; border-radius:50%; background:{color}; margin-bottom:6px;")"></div>
+                <MudText Typo="Typo.caption">@name</MudText>
+                @if (isActive)
+                {
+                    <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" />
+                }
+            </MudPaper>
+        </MudItem>
+    }
+</MudGrid>
+
+<MudSwitch T="bool" Value="ThemeService.IsDarkMode" ValueChanged="ToggleDark" Label="Dark Mode" Color="Color.Primary" />
+
+@code {
+    private static readonly (string Name, string Color)[] Themes =
+    [
+        ("Default", "#594AE2"), ("Ocean", "#0077B6"), ("Forest", "#2D6A4F"),
+        ("Sunset", "#E63946"), ("Slate", "#334155"), ("Rose", "#BE185D")
+    ];
+
+    private async Task SelectTheme(string name) => await ThemeService.SetThemeAsync(name);
+    private async Task ToggleDark(bool val) => await ThemeService.SetDarkModeAsync(val);
+}

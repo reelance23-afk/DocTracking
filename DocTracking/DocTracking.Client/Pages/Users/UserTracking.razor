@@ -7,7 +7,7 @@
 @inject NavigationManager Navigation
 @rendermode InteractiveAuto
 
-<MudContainer MaxWidth="MaxWidth.Large" Class="mt-6 mb-8">
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-6 mb-8">
     <div class="d-flex align-center mb-6">
         <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" Color="Color.Default" OnClick="Back" Class="mr-2" />
         <MudText Typo="Typo.h4" Class="font-weight-bold mr-4">Document Tracking</MudText>
@@ -41,53 +41,90 @@
                 @for (int i = 0; i < documentLogs.Count; i++)
                 {
                     var log = documentLogs[i];
-                    bool isCurrent = (i == 0); 
+                    bool isCurrent = (i == 0);
+                    bool isCompleted = log.Action == "Completed";
 
-                   
-                    Color dotColor = isCurrent ? Color.Success : Color.Default;
-                    Size dotSize = isCurrent ? Size.Large : Size.Small;
-                    bool fillDot = isCurrent; 
-                    string dotIcon = GetIconForAction(log.Action);
-                    string paperOpacity = isCurrent ? "opacity-100" : "opacity-60"; 
-                    string paperBorder = isCurrent ? "border-solid border-l-4 mud-border-success" : "";
-
-                    <MudTimelineItem Color="@dotColor" Size="@dotSize" Variant="@(fillDot? Variant.Filled: Variant.Outlined)" Icon="@dotIcon">
+                    <MudTimelineItem Color="@GetTimelineColor(log.Action, isCurrent)"
+                                     Size="Size.Large"
+                                     Variant="Variant.Filled"
+                                     Icon="@GetIconForAction(log.Action)">
                         <ItemContent>
-                            <MudPaper Elevation="@(isCurrent ? 2 : 0)" Class="@($"pa-4 mb-2 rounded-lg {paperBorder} {paperOpacity}")" Style="@(!isCurrent ? "background-color: transparent;" : "")">
+                            <MudCard Elevation="@(isCurrent ? 8 : 2)"
+                                     Class="@($"mb-4 {GetCardClass(log.Action, isCurrent)}")">
 
-                                <div class="d-flex align-center gap-2 mb-1">
-                                    <MudText Typo="Typo.caption" Class="@(isCurrent ? "mud-text-success font-weight-bold" : "mud-text-secondary")">
-                                        @log.TimeStamp.ToLocalTime().ToString("MMM dd, yyyy • hh:mm tt")
-                                    </MudText>
-                                </div>
+                                <MudCardHeader Class="pb-2">
+                                    <CardHeaderContent>
+                                        <div class="d-flex justify-space-between align-center">
+                                            <div class="d-flex align-center gap-2">
+                                                <MudIcon Icon="@GetIconForAction(log.Action)"
+                                                         Color="@GetActionColor(log.Action)"
+                                                         Size="Size.Medium" />
+                                                <MudText Typo="Typo.h6" Class="font-weight-bold">
+                                                    @log.Action
+                                                </MudText>
+                                                @if (isCurrent && !isCompleted)
+                                                {
+                                                    <MudChip T="string" Color="Color.Primary" Size="Size.Small" Variant="Variant.Filled">
+                                                        CURRENT
+                                                    </MudChip>
+                                                }
+                                            </div>
+                                            <MudText Typo="Typo.caption" Class="mud-text-secondary font-weight-medium">
+                                                @log.TimeStamp.ToLocalTime().ToString("MMM dd • hh:mm tt")
+                                            </MudText>
+                                        </div>
+                                    </CardHeaderContent>
+                                </MudCardHeader>
 
-                                <MudText Typo="Typo.h6" Class="font-weight-bold mb-2">@log.Action</MudText>
+                                <MudCardContent Class="pt-0">
+                                    <MudGrid>
+                                        <MudItem xs="12" sm="6">
+                                            <div class="d-flex align-center mb-2">
+                                                <MudIcon Icon="@Icons.Material.Filled.AccountCircle"
+                                                         Size="Size.Small"
+                                                         Class="mr-2 mud-text-secondary" />
+                                                <MudText Typo="Typo.body2">
+                                                    <span class="mud-text-secondary">By:</span>
+                                                    <strong>@(log.AppUser?.Email?.Split('@')[0] ?? "System")</strong>
+                                                </MudText>
+                                            </div>
+                                        </MudItem>
 
-                                <div class="d-flex flex-column gap-1">
-                                    <MudText Typo="Typo.body2">
-                                        <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Class="mr-1 mb-n1 mud-text-secondary" />
-                                        By: <strong>@(log.AppUser?.Email ?? "System")</strong>
-                                    </MudText>
+                                        @if (log.Office != null)
+                                        {
+                                            <MudItem xs="12" sm="6">
+                                                <div class="d-flex align-center mb-2">
+                                                    <MudIcon Icon="@GetLocationIcon(log.Action)"
+                                                             Size="Size.Small"
+                                                             Color="@GetLocationColor(log.Action)"
+                                                             Class="mr-2" />
+                                                    <div>
+                                                        <MudText Typo="Typo.body2">
+                                                            <span class="mud-text-secondary">@GetLocationLabel(log.Action):</span>
+                                                            <strong>@log.Office.Name</strong>
+                                                        </MudText>
+                                                        @if (log.Unit != null)
+                                                        {
+                                                            <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                                                                @log.Unit.Name
+                                                            </MudText>
+                                                        }
+                                                    </div>
+                                                </div>
+                                            </MudItem>
+                                        }
+                                    </MudGrid>
 
-                                    @if (log.Action == "Created" || log.Action == "Forwarded")
+                                    @if (isCompleted)
                                     {
-                                        <MudText Typo="Typo.body2">
-                                            <MudIcon Icon="@Icons.Material.Filled.DirectionsWalk" Size="Size.Small" Class="mr-1 mb-n1 mud-text-secondary" />
-                                            Heading to: <strong>@(log.Office?.Name ?? "N/A")</strong>
-                                            <span class="mud-text-secondary">@(log.Unit != null ? $" ↳ {log.Unit.Name}" : "")</span>
-                                        </MudText>
+                                        <div class="d-flex align-center mt-2 pa-2 rounded">
+                                            <MudText Typo="Typo.body2" Color="Color.Success" Class="font-weight-medium">
+                                                Document processing completed successfully
+                                            </MudText>
+                                        </div>
                                     }
-                                    else if (log.Action == "Received" || log.Action == "Completed")
-                                    {
-                                        <MudText Typo="Typo.body2">
-                                            <MudIcon Icon="@Icons.Material.Filled.Place" Size="Size.Small" Class="mr-1 mb-n1 mud-text-secondary" />
-                                            At: <strong>@(log.Office?.Name ?? "N/A")</strong>
-                                            <span class="mud-text-secondary">@(log.Unit != null ? $" ↳ {log.Unit.Name}" : "")</span>
-                                        </MudText>
-                                    }
-                                </div>
-
-                            </MudPaper>
+                                </MudCardContent>
+                            </MudCard>
                         </ItemContent>
                     </MudTimelineItem>
                 }
@@ -148,6 +185,49 @@
             _ => Icons.Material.Filled.Circle
         };
     }
+
+    private Color GetTimelineColor(string? action, bool isCurrent) => action switch
+    {
+        "Created" when isCurrent => Color.Info,
+        "Forwarded" when isCurrent => Color.Warning,
+        "Received" when isCurrent => Color.Primary,
+        "Completed" when isCurrent => Color.Success,
+        _ => Color.Default
+    };
+
+    private string GetCardClass(string? action, bool isCurrent)
+    {
+        var baseClass = "transition-all duration-300";
+        if (isCurrent) return $"{baseClass} mud-elevation-8";
+        return baseClass;
+    }
+
+    private Color GetActionColor(string? action) => action switch
+    {
+        "Created" => Color.Info,
+        "Forwaded" => Color.Warning,
+        "Received" => Color.Primary,
+        "Completed" => Color.Success,
+        _ => Color.Default
+    };
+
+    private Color GetLocationColor(string? action) => action switch
+    {
+        "Created" or "Forwarded" => Color.Warning,
+        _ => Color.Success
+    };
+
+    private string GetLocationIcon(string? action) => action switch
+    {
+        "Created" or "Forwarded" => Icons.Material.Filled.Send,
+        _ => Icons.Material.Filled.LocationOn
+    };
+
+    private string GetLocationLabel(string? action) => action switch
+    {
+        "Created" or "Forwarded" => "Sent to",
+        _ => "Location"
+    };
 
     private void Back()
     {
