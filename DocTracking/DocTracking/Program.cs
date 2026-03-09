@@ -28,7 +28,6 @@ builder.Services.Configure<OpenIdConnectOptions>(OpenIdConnectDefaults.Authentic
     options.TokenValidationParameters.RoleClaimType = "roles";
     options.TokenValidationParameters.NameClaimType = "name";
 });
-builder.Services.AddScoped<AuthenticationStateProvider, PersistingServerAuthenticationStateProvider>();
 builder.Services.AddMudServices();
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(connectionString));

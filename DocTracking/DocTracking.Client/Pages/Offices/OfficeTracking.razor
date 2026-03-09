@@ -1,4 +1,4 @@
-﻿@page "/office-track-document/{DocumentId:int}"
+@page "/office-track-document/{DocumentId:int}"
 @attribute [Authorize(Roles = "Office")]
 @using DocTracking.Client.Models
 @using DocTracking.Client.Services
@@ -71,7 +71,7 @@
                             <div class="d-flex flex-column gap-1">
                                 <MudText Typo="Typo.body2">
                                     <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Class="mr-1 mud-text-secondary" />
-                                    <strong>@(log.AppUser?.Email ?? "System")</strong>
+                                    <strong>@(log.AppUser?.Name ?? "System")</strong>
                                 </MudText>
 
                                 @if (log.Action == "Created" || log.Action == "Forwarded")
@@ -133,7 +133,7 @@
                                     <div class="d-flex flex-column gap-1">
                                         <MudText Typo="Typo.body2">
                                             <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Class="mr-1 mb-n1 mud-text-secondary" />
-                                            By: <strong>@(log.AppUser?.Email ?? "System")</strong>
+                                            By: <strong>@(log.AppUser?.Name ?? "System")</strong>
                                         </MudText>
 
                                         @if (log.Action == "Created" || log.Action == "Forwarded")
@@ -195,15 +195,15 @@
 
             var profile = await DocService.GetProfileAsync();
             int? myUnitId = profile?.UnitId;
+            int? myOfficeId = profile?.Unit?.OfficeId ?? profile?.OfficeId;
 
 
             documentLogs = await DocService.GetDocumentLogsAsync(DocumentId);
 
 
-            if (myUnitId.HasValue && documentLogs.Any(log => log.UnitId == myUnitId.Value))
-            {
-                isAuthorized = true; 
-            }
+            isAuthorized = (myUnitId.HasValue && documentLogs.Any(log => log.UnitId == myUnitId)) ||
+                           (myOfficeId.HasValue && documentLogs.Any(log => log.Office != null &&
+                            documentLogs.Any(l => l.AppUser?.Unit?.OfficeId == myOfficeId)));
         }
         catch (Exception ex)
         {

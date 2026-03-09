@@ -1,4 +1,4 @@
-﻿@attribute [Authorize(Roles = "Office")]
+@attribute [Authorize(Roles = "Office")]
 @using DocTracking.Client.Models
 @using DocTracking.Client.Services
 @inject DocumentService DocService
@@ -155,7 +155,7 @@
                                                 <div class="d-flex align-center justify-space-between mt-2">
                                                     <MudText Typo="Typo.caption" Class="mud-text-secondary">
                                                         <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Class="mr-1" />
-                                                        @doc.Creator?.Email
+                                                        @doc.Creator?.Name
                                                     </MudText>
                                                     <MudText Typo="Typo.caption" Class="mud-text-secondary">
                                                         @doc.LastActionDate?.ToLocalTime().ToString("MMM dd, hh:mm tt")
@@ -195,10 +195,13 @@
                 userEmail = profile.Email ?? "";
                 myUnitId = profile.UnitId;
 
-                if (profile.Unit?.OfficeId != null)
+
+                var officeId = profile.Unit?.OfficeId ?? profile.OfficeId;
+
+                if (officeId != null)
                 {
                     allOffices = await DocService.GetOfficesAsync();
-                    myOffice = allOffices.FirstOrDefault(o => o.Id == profile.Unit.OfficeId);
+                    myOffice = allOffices.FirstOrDefault(o => o.Id == officeId);
                 }
             }
 

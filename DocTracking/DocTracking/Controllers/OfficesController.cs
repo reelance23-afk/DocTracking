@@ -19,6 +19,9 @@ namespace DocTracking.Controllers
         [HttpPost]
         public async Task<ActionResult<List<Office>>> AddOffice([FromBody] Office office)
         {
+            var exists = await _context.Offices.AnyAsync(o => o.Name == office.Name);
+            if (exists) return Conflict("An office with this name already exists");
+
             _context.Offices.Add(office);
             await _context.SaveChangesAsync();
             return Ok(office);

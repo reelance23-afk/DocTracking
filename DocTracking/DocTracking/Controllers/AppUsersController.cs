@@ -1,4 +1,4 @@
-﻿using DocTracking.Client.Models;
+using DocTracking.Client.Models;
 using DocTracking.Data;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
@@ -26,7 +26,8 @@ namespace DocTracking.Controllers
             return await _context.AppUsers
                 .Include(u => u.Unit)
                 .ThenInclude(unit => unit.Office)
-                .OrderBy(u => u.Email)
+                .Include(u => u.Office)
+                .OrderBy(u => u.Name)
                 .ToListAsync();
         }
 
@@ -38,6 +39,7 @@ namespace DocTracking.Controllers
 
             user.Role = updatedUser.Role;
             user.UnitId = updatedUser.UnitId;
+            user.OfficeId = updatedUser.OfficeId;
 
             await _context.SaveChangesAsync();
             return Ok();

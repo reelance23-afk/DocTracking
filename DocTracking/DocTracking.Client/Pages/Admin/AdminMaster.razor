@@ -1,4 +1,4 @@
-﻿@page "/admin-dashboard"
+@page "/admin-dashboard"
 @attribute [Authorize(Roles = "Admin")]
 @using DocTracking.Client.Models
 @using DocTracking.Client.Services
@@ -80,7 +80,7 @@
                                 <div class="d-flex align-center justify-space-between w-100 px-2">
                                     <div class="d-flex align-center gap-3">
                                         <div style="width: 12px; height: 12px; border-radius: 50%; background-color: #ff9800;"></div>
-                                        <MudText Typo="Typo.body1" Class="font-weight-bold">On Going</MudText>
+                                        <MudText Typo="Typo.body1" Class="font-weight-bold">In Motion</MudText>
                                     </div>
                                     <div class="d-flex gap-4 align-center">
                                         <MudText Typo="Typo.body1" Class="mud-text-secondary">@inProgress.ToString("N0")</MudText>
@@ -240,7 +240,7 @@
                 totalOffices = allOffices.Count;
                 totalUsers = allAppUsers.Count;
 
-                inProgress = allDocuments.Count(u => u.Status == "On Going");
+                inProgress = allDocuments.Count(u => u.Status == "In Motion");
                 received = allDocuments.Count(u => u.Status == "Received");
 
                 if (totalDocuments == 0)

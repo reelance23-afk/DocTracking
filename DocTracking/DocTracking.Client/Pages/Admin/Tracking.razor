@@ -1,4 +1,4 @@
-﻿@page "/document-tracking"
+@page "/document-tracking"
 @attribute [Authorize(Roles = "Admin")]
 @using DocTracking.Client.Models
 @using DocTracking.Client.Services
@@ -27,7 +27,7 @@
 			<MudTd DataLabel="Name">
 				<MudText Typo="Typo.body1" Class="font-weight-bold">@context.Name</MudText>
 			</MudTd>
-			<MudTd DataLabel="Sender">@context.Creator?.Email</MudTd>
+			<MudTd DataLabel="Sender">@context.Creator?.Name</MudTd>
 
 			<MudTd DataLabel="Location">
 				@if (context.CurrentOffice != null)
@@ -101,7 +101,7 @@
 	{
 		if (string.IsNullOrWhiteSpace(searchString)) return true;
 		if (element.Name?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
-		if (element.Creator?.Email?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+		if (element.Creator?.Name?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
 		if (element.Status?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
 
 		if (element.CurrentOffice?.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
@@ -118,7 +118,7 @@
 		{
 			"Completed" => Color.Success,
 			"Received" => Color.Info,
-			"On Going" => Color.Warning,
+			"In Motion" => Color.Warning,
 			"Pending" => Color.Warning,
 			"Archived" => Color.Dark,
 			_ => Color.Default

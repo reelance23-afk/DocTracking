@@ -4,6 +4,7 @@
 @inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager Navigation
 @inject ThemeService ThemeService
+@inject DocumentService DocService
 @inject IJSRuntime JSRuntime
 
 <MudThemeProvider Theme="CurrentTheme" IsDarkMode="ThemeService.IsDarkMode" />
@@ -95,7 +96,7 @@
                         {
                             <div class="text-center mt-2" style="animation: fadeIn 0.4s ease-out;">
                                 <MudText Typo="Typo.body2" Class="font-weight-bold text-truncate mb-1" Style="max-width: 140px; color: var(--mud-palette-text-primary);">
-                                    @(context.User.FindFirst("name")?.Value?.Split(' ')[0] ?? "User")
+                                    @(displayName ?? "User")
                                 </MudText>
 
                                 <div class="d-flex justify-center">
@@ -136,6 +137,7 @@
     bool _showText = true;
     bool _isMobile = false;
     private MudTheme CurrentTheme = new();
+    private string? displayName;
 
     protected override async Task OnInitializedAsync()
     {
@@ -150,6 +152,8 @@
                 Navigation.NavigateTo(Navigation.Uri, forceLoad: true);
             }
         }
+
+  
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -162,6 +166,9 @@
             await CheckIfMobile();
             await JSRuntime.InvokeVoidAsync("eval", "document.getElementById('app-loading')?.remove()");
             StateHasChanged();
+
+            var profile = await DocService.GetProfileAsync();
+            displayName = profile?.Name;
         }
     }
 

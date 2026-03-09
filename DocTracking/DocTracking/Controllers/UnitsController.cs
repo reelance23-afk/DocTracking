@@ -28,6 +28,9 @@ namespace DocTracking.Controllers
         [HttpPost]
         public async Task<ActionResult<Unit>> AddUnit([FromBody] Unit unit)
         {
+            var exists = await _context.Units.AnyAsync(u => u.Name == unit.Name && u.OfficeId == unit.OfficeId);
+            if (exists) return Conflict("A unit with this name already exists in this office");
+
             _context.Add(unit);
             await _context.SaveChangesAsync();
             return Ok(unit);

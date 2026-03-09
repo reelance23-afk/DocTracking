@@ -23,6 +23,8 @@ namespace DocTracking.Security
                 ?? principal.FindFirst(ClaimTypes.Email)?.Value
                 ?? principal.FindFirst("preferred_username")?.Value;
 
+            var name = principal.FindFirst("name")?.Value ?? email;
+
             using var scope = _scopeFactory.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
@@ -32,12 +34,17 @@ namespace DocTracking.Security
 
             if (dbUser == null)
             {
-                dbUser = new AppUser { Email = email, Role = "User"};
+                dbUser = new AppUser { Email = email, Name = name, Role = "User"};
                 db.AppUsers.Add(dbUser);
                 await db.SaveChangesAsync();
             }
+            else if (dbUser.Name == null)
+            {
+                dbUser.Name = name;
+                await db.SaveChangesAsync();
+            }
 
-            var clone = principal.Clone();
+                var clone = principal.Clone();
             var identity = clone.Identity as ClaimsIdentity;
 
             if(identity != null)
@@ -59,6 +66,10 @@ namespace DocTracking.Security
                 {
                     identity.AddClaim(new Claim("UnitId", dbUser.UnitId.Value.ToString()));
                     identity.AddClaim(new Claim("OfficeId", dbUser.Unit!.OfficeId.ToString()));
+                }
+                else if (dbUser.OfficeId.HasValue)
+                {
+                    identity.AddClaim(new Claim("OfficeId", dbUser.OfficeId.Value.ToString()));
                 }
             }
 

@@ -43,6 +43,12 @@ namespace DocTracking.Data
                 .WithMany()
                 .HasForeignKey(d => d.AppUserId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<AppUser>()
+                .HasOne(u => u.Office)
+                .WithMany()
+                .HasForeignKey(u => u.OfficeId)
+                .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }

@@ -1,4 +1,4 @@
-﻿@page "/track-document/{DocumentId:int}"
+@page "/track-document/{DocumentId:int}"
 @attribute [Authorize]
 @using DocTracking.Client.Models
 @using DocTracking.Client.Services
@@ -85,7 +85,7 @@
                                                          Class="mr-2 mud-text-secondary" />
                                                 <MudText Typo="Typo.body2">
                                                     <span class="mud-text-secondary">By:</span>
-                                                    <strong>@(log.AppUser?.Email?.Split('@')[0] ?? "System")</strong>
+                                                    <strong>@(log.AppUser?.Name ?? "System")</strong>
                                                 </MudText>
                                             </div>
                                         </MudItem>
@@ -205,7 +205,7 @@
     private Color GetActionColor(string? action) => action switch
     {
         "Created" => Color.Info,
-        "Forwaded" => Color.Warning,
+        "Forwarded" => Color.Warning,
         "Received" => Color.Primary,
         "Completed" => Color.Success,
         _ => Color.Default
@@ -236,5 +236,4 @@
 
         Navigation.NavigateTo($"/{target}");
     }
-}
 }

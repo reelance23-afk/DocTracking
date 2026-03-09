@@ -9,6 +9,7 @@
 @inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
+@inject IDialogService DialogService
 @rendermode InteractiveAuto
 
 <MudContainer MaxWidth="MaxWidth.Medium" Class="mt-4">
@@ -244,6 +245,7 @@
     private bool isSaving;
     private bool isLoadingOffices = true;
     private IBrowserFile? selectedFile;
+    private static readonly string[] AllowedExtensions = { ".pdf", ".doc", ".docx", ".jpg", ".png" };
 
     protected override async Task OnInitializedAsync()
     {
@@ -258,6 +260,12 @@
 
     private void OnFileSelected(IBrowserFile file)
     {
+        var ext = Path.GetExtension(file.Name).ToLowerInvariant();
+        if (!AllowedExtensions.Contains(ext))
+        {
+            Snackbar.Add($"File type '{ext}' is not allowed. Use PDF, DOC, DOCX, JPG, or PNG.", Severity.Error);
+            return;
+        }
         selectedFile = file;
         newDocument.FileName = file.Name;
     }
@@ -273,13 +281,17 @@
 
     public async Task SubmitDocument()
     {
+        var result = await DialogService.ShowMessageBox("Confirm Submit", "Submit and route this document? This cannot be edited after submission.", "Submit", cancelText: "Cancel");
+        if (result != true) return;
+
         isSaving = true;
+        string? uploadedPath = null;
         try
         {
             if (selectedFile != null)
             {
                 Snackbar.Add("Uploading file...", Severity.Info);
-                var uploadedPath = await DocService.UploadFileAsync(selectedFile);
+                uploadedPath = await DocService.UploadFileAsync(selectedFile);
                 if (uploadedPath != null) newDocument.FilePath = uploadedPath;
                 else Snackbar.Add("File upload failed, saving anyway.", Severity.Warning);
             }
@@ -291,6 +303,8 @@
         catch (Exception ex)
         {
             Console.WriteLine($"Save Error: {ex.Message}");
+            if (uploadedPath != null)
+                await DocService.DeleteUploadAsync(uploadedPath);
             Snackbar.Add("Error saving document. Please try again.", Severity.Error);
         }
         finally { isSaving = false; }

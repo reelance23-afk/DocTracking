@@ -1,4 +1,4 @@
-﻿using DocTracking.Data;
+using DocTracking.Data;
 using DocTracking.Client.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;

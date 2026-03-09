@@ -17,72 +17,176 @@
     <script src="_content/MudBlazor/MudBlazor.min.js"></script>
 </head>
 
-<body>
-    <div id="app-loading" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; background: linear-gradient(135deg, #1976d2 0%, #42a5f5 50%, #64b5f6 100%); z-index: 9999;">
 
-        <div style="position: relative; margin-bottom: 2rem;">
-            <div style="width: 80px; height: 80px; background: rgba(255,255,255,0.1); border-radius: 20px; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2);">
-                <svg style="width: 3rem; height: 3rem; color: white;" viewBox="0 0 24 24">
-                    <path fill="currentColor" d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
+
+
+<body>
+    <div id="app-loading">
+        <div class="splash-bg"></div>
+
+        <div class="splash-content">
+            <div class="splash-logo">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2Z" fill="rgba(255,255,255,0.2)" stroke="white" stroke-width="1.5" />
+                    <path d="M14 2V8H20" stroke="white" stroke-width="1.5" stroke-linecap="round" fill="none" />
+                    <path d="M8 13H16M8 17H13" stroke="white" stroke-width="1.5" stroke-linecap="round" />
                 </svg>
             </div>
-            <div style="position: absolute; top: -10px; right: -10px; width: 6px; height: 6px; background: white; border-radius: 50%; opacity: 0.7; animation: float 3s ease-in-out infinite;"></div>
-            <div style="position: absolute; bottom: -5px; left: -5px; width: 4px; height: 4px; background: white; border-radius: 50%; opacity: 0.5; animation: float 2s ease-in-out infinite reverse;"></div>
-        </div>
 
-        <div style="position: relative; margin-bottom: 1.5rem;">
-            <div style="width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.2); border-radius: 50%;"></div>
-            <div style="position: absolute; top: 0; left: 0; width: 40px; height: 40px; border: 3px solid transparent; border-top-color: white; border-radius: 50%; animation: spin 1s linear infinite;"></div>
-        </div>
+            <h1 class="splash-title">DocTracking</h1>
+            <p class="splash-sub">Document Management System</p>
 
-        <div style="text-align: center;">
-            <h3 style="color: white; font-size: 1.5rem; font-weight: 600; margin: 0 0 0.5rem 0; font-family: 'Roboto', sans-serif;">DocTracking</h3>
-            <p style="color: rgba(255,255,255,0.8); font-size: 14px; margin: 0; font-family: 'Roboto', sans-serif;">Initializing your document management system...</p>
-        </div>
-
-        <div style="display: flex; gap: 8px; margin-top: 2rem;">
-            <div style="width: 8px; height: 8px; background: white; border-radius: 50%; animation: bounce 1.4s ease-in-out infinite both; animation-delay: 0s;"></div>
-            <div style="width: 8px; height: 8px; background: white; border-radius: 50%; animation: bounce 1.4s ease-in-out infinite both; animation-delay: 0.2s;"></div>
-            <div style="width: 8px; height: 8px; background: white; border-radius: 50%; animation: bounce 1.4s ease-in-out infinite both; animation-delay: 0.4s;"></div>
+            <div class="splash-spinner">
+                <div class="ring ring-1"></div>
+                <div class="ring ring-2"></div>
+                <div class="ring ring-3"></div>
+            </div>
         </div>
     </div>
 
     <style>
+        #app-loading {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            overflow: hidden;
+        }
+
+        .splash-bg {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(160deg, #0d47a1 0%, #1976d2 45%, #42a5f5 100%);
+        }
+
+            .splash-bg::before {
+                content: '';
+                position: absolute;
+                width: 600px;
+                height: 600px;
+                background: rgba(255,255,255,0.04);
+                border-radius: 50%;
+                top: -200px;
+                right: -150px;
+            }
+
+            .splash-bg::after {
+                content: '';
+                position: absolute;
+                width: 400px;
+                height: 400px;
+                background: rgba(255,255,255,0.04);
+                border-radius: 50%;
+                bottom: -100px;
+                left: -100px;
+            }
+
+        .splash-content {
+            position: relative;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+        }
+
+        .splash-logo {
+            width: 72px;
+            height: 72px;
+            background: rgba(255,255,255,0.12);
+            border: 1px solid rgba(255,255,255,0.25);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 0.5rem;
+            animation: logo-in 0.6s ease-out both;
+        }
+
+            .splash-logo svg {
+                width: 36px;
+                height: 36px;
+            }
+
+        .splash-title {
+            margin: 0;
+            font-family: 'Roboto', sans-serif;
+            font-size: 2rem;
+            font-weight: 700;
+            color: white;
+            letter-spacing: 1px;
+            animation: fade-up 0.6s ease-out 0.1s both;
+        }
+
+        .splash-sub {
+            margin: 0;
+            font-family: 'Roboto', sans-serif;
+            font-size: 0.85rem;
+            color: rgba(255,255,255,0.65);
+            letter-spacing: 0.5px;
+            animation: fade-up 0.6s ease-out 0.2s both;
+        }
+
+        .splash-spinner {
+            position: relative;
+            width: 48px;
+            height: 48px;
+            margin-top: 2rem;
+            animation: fade-up 0.6s ease-out 0.3s both;
+        }
+
+        .ring {
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            border: 2px solid transparent;
+        }
+
+        .ring-1 {
+            border-top-color: rgba(255,255,255,0.9);
+            animation: spin 1s linear infinite;
+        }
+
+        .ring-2 {
+            inset: 6px;
+            border-right-color: rgba(255,255,255,0.5);
+            animation: spin 1.4s linear infinite reverse;
+        }
+
+        .ring-3 {
+            inset: 12px;
+            border-bottom-color: rgba(255,255,255,0.3);
+            animation: spin 1.8s linear infinite;
+        }
+
         @@keyframes spin {
-            to
-
-        {
-            transform: rotate(360deg);
+            to {
+                transform: rotate(360deg);
+            }
         }
 
+        @@keyframes fade-up {
+            from {
+                opacity: 0;
+                transform: translateY(16px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
-       @@keyframes float {
-            0%, 100%
+        @@keyframes logo-in {
+            from {
+                opacity: 0;
+                transform: scale(0.7);
+            }
 
-        {
-            transform: translateY(0px) rotate(0deg);
-        }
-
-        50% {
-            transform: translateY(-10px) rotate(180deg);
-        }
-
-        }
-
-        @@keyframes bounce {
-            0%, 80%, 100%
-
-        {
-            transform: scale(0.8);
-            opacity: 0.5;
-        }
-
-        40% {
-            transform: scale(1.2);
-            opacity: 1;
-        }
-
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
         }
     </style>
 

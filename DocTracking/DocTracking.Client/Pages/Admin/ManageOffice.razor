@@ -1,4 +1,5 @@
 ﻿@page "/manage-offices"
+@attribute [Authorize(Roles = "Admin")]
 @using DocTracking.Client.Models
 @using DocTracking.Client.Services
 @inject DocumentService DocService
@@ -80,7 +81,7 @@
         </DialogContent>
         <DialogActions>
             <MudButton OnClick="CloseAddOfficeDialog" Class="mr-2">Cancel</MudButton>
-            <MudButton Color="Color.Primary" Variant="Variant.Filled" Disabled="@(!success || isSubmitting)" OnClick="SubmitOffice">
+            <MudButton Color="Color.Primary" Variant="Variant.Filled" Disabled="@(!success || isSubmitting)" OnClick="SubmitUnit">
                 @(isSubmitting ? "Saving..." : "Save Office")
             </MudButton>
         </DialogActions>
@@ -135,9 +136,9 @@
                                                     <MudListItem Class="px-0">
                                                         <div class="d-flex align-center gap-3">
                                                             <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small" Style="height: 24px; width: 24px; font-size: 0.75rem;">
-                                                                @worker.Email?.FirstOrDefault().ToString().ToUpper()
+                                                                @worker.Name?.FirstOrDefault().ToString().ToUpper()
                                                             </MudAvatar>
-                                                            <MudText Typo="Typo.body2">@worker.Email</MudText>
+                                                            <MudText Typo="Typo.body2">@worker.Name</MudText>
                                                         </div>
                                                     </MudListItem>
                                                 }
@@ -231,34 +232,6 @@
         isAddOfficeDialogOpen = false;
     }
 
-    private async Task SubmitOffice()
-    {
-        if (string.IsNullOrWhiteSpace(newOfficeName)) return;
-
-        isSubmitting = true;
-        try
-        {
-            var newOffice = new Office { Name = newOfficeName };
-            await DocService.AddOfficeAsync(newOffice);
-            Snackbar.Add($"Office '{newOfficeName}' added successfully!", Severity.Success);
-
-            newOfficeName = "";
-            form?.ResetAsync();
-            await LoadOffices();
-
-            CloseAddOfficeDialog();
-        }
-        catch (Exception)
-        {
-            Snackbar.Add("Error adding office.", Severity.Error);
-        }
-        finally
-        {
-            isSubmitting = false;
-        }
-    }
-
-
     private void OpenManageUnitsDialog(Office office)
     {
         selectedOffice = office;
@@ -272,33 +245,45 @@
         selectedOffice = null;
     }
 
+    private async Task SubmitOffice()
+    {
+        if (string.IsNullOrWhiteSpace(newOfficeName)) return;
+        isSubmitting = true;
+        try
+        {
+            var (success, error) = await DocService.AddOfficeAsync(new Office { Name = newOfficeName });
+            if (!success)
+            {
+                Snackbar.Add(error ?? "Error adding office.", Severity.Error);
+                return;
+            }
+            Snackbar.Add($"Office '{newOfficeName}' added successfully!", Severity.Success);
+            newOfficeName = "";
+            form?.ResetAsync();
+            await LoadOffices();
+            CloseAddOfficeDialog();
+        }
+        finally { isSubmitting = false; }
+    }
+
     private async Task SubmitUnit()
     {
         if (string.IsNullOrWhiteSpace(newUnitName) || selectedOffice == null) return;
-
         isSubmittingUnit = true;
         try
         {
-            var newUnit = new Unit
+            var (success, error) = await DocService.AddUnitAsync(new Unit { Name = newUnitName, OfficeId = selectedOffice.Id });
+            if (!success)
             {
-                Name = newUnitName,
-                OfficeId = selectedOffice.Id
-            };
-            await DocService.AddUnitAsync(newUnit);
+                Snackbar.Add(error ?? "Error adding unit.", Severity.Error);
+                return;
+            }
             Snackbar.Add($"Unit '{newUnitName}' added to {selectedOffice.Name}!", Severity.Success);
-
             newUnitName = "";
             unitForm?.ResetAsync();
-
             await LoadOffices();
         }
-        catch (Exception)
-        {
-            Snackbar.Add("Error adding unit.", Severity.Error);
-        }
-        finally
-        {
-            isSubmittingUnit = false;
-        }
+        finally { isSubmittingUnit = false; }
     }
+
 }

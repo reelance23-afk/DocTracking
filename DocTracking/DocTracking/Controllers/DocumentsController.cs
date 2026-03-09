@@ -1,4 +1,4 @@
-﻿using DocTracking.Data;
+using DocTracking.Data;
 using DocTracking.Client.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -75,7 +75,16 @@ namespace DocTracking.Controllers
 
             return Ok(new { FilePath = $"/uploads/{uniqueFileName}" });
 
-        } 
+        }
+
+        [HttpDelete("upload")]
+        public IActionResult DeleteUpload([FromQuery] string path)
+        {
+            var fullPath = Path.Combine(_env.WebRootPath, path.TrimStart('/'));
+            if (System.IO.File.Exists(fullPath))
+                System.IO.File.Delete(fullPath);
+            return Ok();
+        }
 
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Document>>> GetAllDocument()
@@ -97,6 +106,7 @@ namespace DocTracking.Controllers
 
             var appUser = await _context.AppUsers
                 .Include(d => d.Unit)
+                .Include(d => d.Office)
                 .FirstOrDefaultAsync(d => d.Email == email);
 
             return appUser == null ? NotFound() : Ok(appUser);
@@ -143,6 +153,7 @@ namespace DocTracking.Controllers
         {
             var doc = await _context.Documents.FindAsync(id);
             if (doc == null) return NotFound();
+            if (doc.Status != "In Motion") return Conflict("Document has already been Received");
 
             var email = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email);
             var appUser = await _context.AppUsers.FirstOrDefaultAsync(u => u.Email == email);
@@ -247,7 +258,7 @@ namespace DocTracking.Controllers
             var appUser = await _context.AppUsers.Include(u => u.Unit).FirstOrDefaultAsync(u => u.Email == email);
             if (appUser == null) return NotFound();
 
-            int? myOfficeId = appUser.Unit?.OfficeId;
+            int? myOfficeId = appUser.Unit?.OfficeId ?? appUser.OfficeId;
             int? myUnitId = appUser.UnitId;
 
             var query = _context.Documents
@@ -270,8 +281,10 @@ namespace DocTracking.Controllers
                 log.DocumentId == d.Id &&
                 log.Action == "Forwarded" &&
                 log.AppUser != null &&
-                log.AppUser.Unit != null &&
-                log.AppUser.Unit.OfficeId == myOfficeId));
+                (
+                    (log.AppUser.Unit != null && log.AppUser.Unit.OfficeId == myOfficeId) ||
+                    (log.AppUser.Unit == null && log.AppUser.OfficeId == myOfficeId)
+                )));
             }
             else
             {

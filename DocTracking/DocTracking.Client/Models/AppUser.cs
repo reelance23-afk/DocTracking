@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations.Schema;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace DocTracking.Client.Models
 {
@@ -6,6 +6,7 @@ namespace DocTracking.Client.Models
     {
         public int Id { get; set; }
 
+        public string? Name { get; set; }
         public string? Email { get; set; }
 
         public string? Role { get; set; }
@@ -14,6 +15,11 @@ namespace DocTracking.Client.Models
 
         [ForeignKey("UnitId")]
         public Unit? Unit { get; set; }
+
+        public int? OfficeId { get; set; }
+
+        [ForeignKey("OfficeId")]
+        public Office? Office { get; set; }
 
     }
 }

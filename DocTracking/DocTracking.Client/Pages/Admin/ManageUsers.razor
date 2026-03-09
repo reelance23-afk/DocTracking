@@ -1,16 +1,18 @@
-﻿@page "/manage-users"
+@page "/manage-users"
 @attribute [Authorize(Roles = "Admin")]
 @using DocTracking.Client.Models
 @using DocTracking.Client.Services
 @inject DocumentService DocService
 @inject ISnackbar Snackbar
+@inject IDialogService DialogService
 @rendermode InteractiveAuto
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
     <MudText Typo="Typo.h4" Class="mb-4">Manage Users</MudText>
 
     <MudTable Items="@users" Dense="true" Hover="true" CanCancelEdit="true"
-              CommitEditTooltip="Save Changes" RowEditCommit="@SaveUser"
+              CommitEditTooltip="Save Changes" RowEditCommit="@(async (obj) => await SaveUser(obj))"
+              RowEditCancel="@((obj) => { var u = (AppUser)obj; activeOfficeEdits.Remove(u.Id);})"
               Loading="@isLoading" Elevation="3">
         <ToolBarContent>
             <MudText Typo="Typo.h6">User Directory</MudText>
@@ -19,13 +21,13 @@
         </ToolBarContent>
 
         <HeaderContent>
-            <MudTh>Email</MudTh>
+            <MudTh>Name</MudTh>
             <MudTh>Role</MudTh>
             <MudTh>Assigned Location</MudTh>
         </HeaderContent>
 
         <RowTemplate>
-            <MudTd DataLabel="Email">@context.Email</MudTd>
+            <MudTd DataLabel="Email">@context.Name</MudTd>
             <MudTd DataLabel="Role">
                 <MudChip T="string" Color="@GetRoleColor(context.Role)" Size="Size.Small">@context.Role</MudChip>
             </MudTd>
@@ -46,7 +48,7 @@
 
         <RowEditingTemplate>
             <MudTd DataLabel="Email">
-                <MudTextField @bind-Value="context.Email" ReadOnly="true" Margin="Margin.Dense" />
+                <MudTextField @bind-Value="context.Name" ReadOnly="true" Margin="Margin.Dense" />
             </MudTd>
 
             <MudTd DataLabel="Role">
@@ -69,12 +71,18 @@
                             }
                         </MudSelect>
 
-                        <MudSelect @bind-Value="context.UnitId" Label="Select Unit" Margin="Margin.Dense" Variant="Variant.Outlined" Required="true">
-                            @foreach (var unit in GetUnitsForActiveOffice(context))
-                            {
-                                <MudSelectItem T="int?" Value="@((int?)unit.Id)">@unit.Name</MudSelectItem>
-                            }
-                        </MudSelect>
+                        @{
+                            var units = GetUnitsForActiveOffice(context).ToList();
+                        }
+                        @if (units.Any())
+                        {
+                            <MudSelect @bind-Value="context.UnitId" Label="Select Unit" Margin="Margin.Dense" Variant="Variant.Outlined">
+                                @foreach (var unit in units)
+                                {
+                                    <MudSelectItem T="int?" Value="@((int?)unit.Id)">@unit.Name</MudSelectItem>
+                                }
+                            </MudSelect>
+                        }
                     </div>
                 }
                 else
@@ -82,6 +90,7 @@
                     <MudText Typo="Typo.caption" Color="Color.Warning">Units are only for Office Workers</MudText>
                 }
             </MudTd>
+
         </RowEditingTemplate>
 
         <PagerContent>
@@ -116,17 +125,15 @@
     private int? GetActiveOfficeId(AppUser user)
     {
         if (activeOfficeEdits.ContainsKey(user.Id))
-        {
             return activeOfficeEdits[user.Id];
-        }
-        return user.Unit?.OfficeId;
+        return user.Unit?.OfficeId ?? user.OfficeId;
     }
 
     private void OnOfficeChanged(AppUser user, int? newOfficeId)
     {
         activeOfficeEdits[user.Id] = newOfficeId;
-
         user.UnitId = null;
+        user.OfficeId = newOfficeId;
     }
 
     private IEnumerable<Unit> GetUnitsForActiveOffice(AppUser user)
@@ -138,25 +145,24 @@
     }
 
 
-    private async void SaveUser(object element)
+    private async Task SaveUser(object element)
     {
         var userToUpdate = (AppUser)element;
+        var result = await DialogService.ShowMessageBox("Confirm Update", $"Update role/assignment for {userToUpdate.Name}?", "Save", cancelText: "Cancel");
+        if (result != true) return;
 
-        if (userToUpdate.Role != "Office")
+        if (userToUpdate.Role != "Office") 
         {
             userToUpdate.UnitId = null;
+            userToUpdate.OfficeId = null;
         }
 
         try
         {
             await DocService.UpdateAppUserAsync(userToUpdate);
-            Snackbar.Add($"Updated {userToUpdate.Email} successfully!", Severity.Success);
-
+            Snackbar.Add($"Updated {userToUpdate.Name} successfully!", Severity.Success);
             if (activeOfficeEdits.ContainsKey(userToUpdate.Id))
-            {
                 activeOfficeEdits.Remove(userToUpdate.Id);
-            }
-
             await LoadData();
             StateHasChanged();
         }
@@ -165,6 +171,7 @@
             Snackbar.Add("Failed to update user.", Severity.Error);
         }
     }
+
 
     private Color GetRoleColor(string? role) => role switch
     {

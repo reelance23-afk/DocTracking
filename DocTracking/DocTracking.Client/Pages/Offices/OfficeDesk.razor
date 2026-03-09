@@ -1,4 +1,4 @@
-﻿@page "/office-desk"
+@page "/office-desk"
 @attribute [Authorize(Roles = "Office")]
 @using DocTracking.Client.Models
 @using DocTracking.Client.Services
@@ -6,6 +6,7 @@
 @inject DocumentService DocService
 @inject ISnackbar Snackbar
 @inject AuthenticationStateProvider AuthStateProvider
+@inject IDialogService DialogService
 @rendermode InteractiveAuto
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
@@ -19,53 +20,54 @@
     }
     else if (myOffice != null)
     {
-        <div class="mb-6">
-            <div class="d-flex align-center mb-4">
-                <MudIcon Icon="@Icons.Material.Filled.Business" Size="Size.Large" Class="mr-3" Color="Color.Primary" />
+        <div class="d-flex align-center mb-6">
+            <MudIcon Icon="@Icons.Material.Filled.Business" Size="Size.Large" Class="mr-3" Color="Color.Primary" />
+            <div>
                 <MudText Typo="Typo.h4" Class="font-weight-bold">@myOffice.Name</MudText>
+                <MudText Typo="Typo.body2" Style="color: var(--mud-palette-text-secondary);">Office Desk</MudText>
             </div>
-            
-            <MudGrid>
-                <MudItem xs="12" sm="4">
-                    <MudPaper Elevation="2" Class="pa-4 rounded-lg" Style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                        <div class="d-flex align-center justify-space-between">
-                            <div>
-                                <MudText Typo="Typo.h3" Class="font-weight-bold" Style="color: white;">@incomingDocs.Count</MudText>
-                                <MudText Typo="Typo.body2" Style="color: rgba(255,255,255,0.9);">Incoming</MudText>
-                            </div>
-                            <MudIcon Icon="@Icons.Material.Filled.Inbox" Size="Size.Large" Style="color: rgba(255,255,255,0.7);" />
-                        </div>
-                    </MudPaper>
-                </MudItem>
-                <MudItem xs="12" sm="4">
-                    <MudPaper Elevation="2" Class="pa-4 rounded-lg" Style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
-                        <div class="d-flex align-center justify-space-between">
-                            <div>
-                                <MudText Typo="Typo.h3" Class="font-weight-bold" Style="color: white;">@deskDocs.Count</MudText>
-                                <MudText Typo="Typo.body2" Style="color: rgba(255,255,255,0.9);">On Desk</MudText>
-                            </div>
-                            <MudIcon Icon="@Icons.Material.Filled.Assignment" Size="Size.Large" Style="color: rgba(255,255,255,0.7);" />
-                        </div>
-                    </MudPaper>
-                </MudItem>
-                <MudItem xs="12" sm="4">
-                    <MudPaper Elevation="2" Class="pa-4 rounded-lg" Style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
-                        <div class="d-flex align-center justify-space-between">
-                            <div>
-                                <MudText Typo="Typo.h3" Class="font-weight-bold" Style="color: white;">@outgoingDocs.Count</MudText>
-                                <MudText Typo="Typo.body2" Style="color: rgba(255,255,255,0.9);">Outgoing</MudText>
-                            </div>
-                            <MudIcon Icon="@Icons.Material.Filled.Send" Size="Size.Large" Style="color: rgba(255,255,255,0.7);" />
-                        </div>
-                    </MudPaper>                   
-                </MudItem>
-            </MudGrid>
         </div>
+
+   
+        <MudGrid Class="mb-6">
+            <MudItem xs="12" sm="4">
+                <MudPaper Elevation="2" Class="pa-4 rounded-lg" Style="border-top: 4px solid var(--mud-palette-error);">
+                    <div class="d-flex align-center justify-space-between">
+                        <div>
+                            <MudText Typo="Typo.h3" Class="font-weight-bold" Color="Color.Error">@incomingDocs.Count</MudText>
+                            <MudText Typo="Typo.body2" Style="color: var(--mud-palette-text-secondary);">Incoming</MudText>
+                        </div>
+                        <MudIcon Icon="@Icons.Material.Filled.Inbox" Size="Size.Large" Color="Color.Error" Style="opacity:0.4;" />
+                    </div>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudPaper Elevation="2" Class="pa-4 rounded-lg" Style="border-top: 4px solid var(--mud-palette-warning);">
+                    <div class="d-flex align-center justify-space-between">
+                        <div>
+                            <MudText Typo="Typo.h3" Class="font-weight-bold" Color="Color.Warning">@deskDocs.Count</MudText>
+                            <MudText Typo="Typo.body2" Style="color: var(--mud-palette-text-secondary);">On Desk</MudText>
+                        </div>
+                        <MudIcon Icon="@Icons.Material.Filled.Assignment" Size="Size.Large" Color="Color.Warning" Style="opacity:0.4;" />
+                    </div>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudPaper Elevation="2" Class="pa-4 rounded-lg" Style="border-top: 4px solid var(--mud-palette-info);">
+                    <div class="d-flex align-center justify-space-between">
+                        <div>
+                            <MudText Typo="Typo.h3" Class="font-weight-bold" Color="Color.Info">@outgoingDocs.Count</MudText>
+                            <MudText Typo="Typo.body2" Style="color: var(--mud-palette-text-secondary);">Outgoing</MudText>
+                        </div>
+                        <MudIcon Icon="@Icons.Material.Filled.Send" Size="Size.Large" Color="Color.Info" Style="opacity:0.4;" />
+                    </div>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
 
         <MudTabs Elevation="3" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-4 pa-md-6" Color="Color.Primary">
 
             <MudTabPanel Icon="@Icons.Material.Filled.Inbox" Text="Incoming" BadgeData="@incomingDocs.Count" BadgeColor="Color.Error">
-                <!-- Desktop Table -->
                 <MudHidden Breakpoint="Breakpoint.SmAndDown">
                     <MudTable Items="@incomingDocs" Hover="true" Loading="@isLoading" T="Document" OnRowClick="RowClicked" RowClass="cursor-pointer">
                         <HeaderContent>
@@ -82,16 +84,14 @@
                                 <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Info">@context.Type</MudChip>
                             </MudTd>
                             <MudTd DataLabel="Priority">
-                                <MudChip T="string" Color="@GetPriorityColor(context.Priority)" Size="Size.Small" Variant="Variant.Filled">
-                                    @context.Priority
-                                </MudChip>
+                                <MudChip T="string" Color="@GetPriorityColor(context.Priority)" Size="Size.Small" Variant="Variant.Filled">@context.Priority</MudChip>
                             </MudTd>
-                            <MudTd DataLabel="Sender">@context.Creator?.Email</MudTd>
+                            <MudTd DataLabel="Sender">@context.Creator?.Name</MudTd>
                             <MudTd DataLabel="Date">@context.CreatedAt.ToLocalTime().ToString("MMM dd, hh:mm tt")</MudTd>
                             <MudTd DataLabel="Actions">
                                 <div @onclick:stopPropagation="true">
-                                    <MudButton Color="Color.Success" Variant="Variant.Filled" Size="Size.Small" 
-                                             OnClick="@(() => ReceiveDoc(context.Id))" StartIcon="@Icons.Material.Filled.CheckCircle">
+                                    <MudButton Color="Color.Success" Variant="Variant.Filled" Size="Size.Small"
+                                               OnClick="@(() => ReceiveDoc(context.Id))" StartIcon="@Icons.Material.Filled.CheckCircle">
                                         Receive
                                     </MudButton>
                                 </div>
@@ -99,7 +99,7 @@
                         </RowTemplate>
                         <NoRecordsContent>
                             <div class="pa-8 text-center">
-                                <MudIcon Icon="@Icons.Material.Filled.Inbox" Size="Size.Large" Style="opacity: 0.3; font-size: 4rem;" Class="mb-4" />
+                                <MudIcon Icon="@Icons.Material.Filled.Inbox" Size="Size.Large" Style="opacity:0.3; font-size:4rem;" Class="mb-4" />
                                 <MudText Typo="Typo.h6" Class="mud-text-secondary">No incoming documents</MudText>
                                 <MudText Typo="Typo.body2" Class="mud-text-secondary">Your inbox is empty</MudText>
                             </div>
@@ -107,7 +107,6 @@
                     </MudTable>
                 </MudHidden>
 
-                <!-- Mobile Cards -->
                 <MudHidden Breakpoint="Breakpoint.MdAndUp">
                     @if (isLoading)
                     {
@@ -127,31 +126,22 @@
                                 <MudCardContent Class="pa-4">
                                     <div class="d-flex justify-space-between align-start mb-2">
                                         <MudText Typo="Typo.subtitle1" Class="font-weight-bold">@doc.Name</MudText>
-                                        <MudChip T="string" Color="@GetPriorityColor(doc.Priority)" Size="Size.Small" Variant="Variant.Filled">
-                                            @doc.Priority
-                                        </MudChip>
+                                        <MudChip T="string" Color="@GetPriorityColor(doc.Priority)" Size="Size.Small" Variant="Variant.Filled">@doc.Priority</MudChip>
                                     </div>
-                                    
                                     <MudChip T="string" Color="Color.Info" Size="Size.Small" Variant="Variant.Outlined" Class="mb-2">@doc.Type</MudChip>
-                                    
                                     <MudText Typo="Typo.body2" Class="mb-2">
                                         <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Class="mr-1" />
-                                        From: <strong>@doc.Creator?.Email</strong>
+                                        From: <strong>@doc.Creator?.Name</strong>
                                     </MudText>
-                                    
-                                    <MudText Typo="Typo.caption" Class="mud-text-secondary mb-3">
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">
                                         <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" Class="mr-1" />
                                         @doc.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy hh:mm tt")
                                     </MudText>
                                 </MudCardContent>
                                 <MudCardActions Class="pa-4 pt-0">
                                     <div @onclick:stopPropagation="true">
-                                        <MudButton Color="Color.Success"
-                                                   Variant="Variant.Filled"
-                                                   FullWidth="true"
-                                                   Size="Size.Large"
-                                                   OnClick="@(() => ReceiveDoc(doc.Id))"
-                                                   StartIcon="@Icons.Material.Filled.Inbox">
+                                        <MudButton Color="Color.Success" Variant="Variant.Filled" FullWidth="true" Size="Size.Large"
+                                                   OnClick="@(() => ReceiveDoc(doc.Id))" StartIcon="@Icons.Material.Filled.Inbox">
                                             Receive Document
                                         </MudButton>
                                     </div>
@@ -162,7 +152,7 @@
                 </MudHidden>
             </MudTabPanel>
 
-            <MudTabPanel Icon="@Icons.Material.Filled.Assignment" Text="On Desk" BadgeData="@deskDocs.Count" BadgeColor="Color.Info">
+            <MudTabPanel Icon="@Icons.Material.Filled.Assignment" Text="On Desk" BadgeData="@deskDocs.Count" BadgeColor="Color.Warning">
                 <MudHidden Breakpoint="Breakpoint.SmAndDown">
                     <MudTable Items="@deskDocs" Hover="true" Loading="@isLoading" T="Document" OnRowClick="RowClicked" RowClass="cursor-pointer">
                         <HeaderContent>
@@ -178,11 +168,8 @@
                                 <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Info">@context.Type</MudChip>
                             </MudTd>
                             <MudTd DataLabel="Priority">
-                                <MudChip T="string" Color="@GetPriorityColor(context.Priority)" Size="Size.Small" Variant="Variant.Filled">
-                                    @context.Priority
-                                </MudChip>
+                                <MudChip T="string" Color="@GetPriorityColor(context.Priority)" Size="Size.Small" Variant="Variant.Filled">@context.Priority</MudChip>
                             </MudTd>
-
                             <MudTd>
                                 <div class="d-flex flex-column gap-2" style="min-width: 200px;" @onclick:stopPropagation="true">
                                     <MudSelect T="int?" Value="routingSelections[context.Id].OfficeId"
@@ -193,7 +180,6 @@
                                             <MudSelectItem T="int?" Value="@((int?)off.Id)">@off.Name</MudSelectItem>
                                         }
                                     </MudSelect>
-
                                     @if (routingSelections[context.Id].OfficeId.HasValue)
                                     {
                                         <MudSelect @bind-Value="routingSelections[context.Id].UnitId"
@@ -206,19 +192,15 @@
                                     }
                                 </div>
                             </MudTd>
-
                             <MudTd>
                                 <div class="d-flex gap-2" @onclick:stopPropagation="true">
                                     <MudButton Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small"
                                                Disabled="@(routingSelections[context.Id].OfficeId == null)"
-                                               OnClick="@(() => ForwardDoc(context.Id))"
-                                               StartIcon="@Icons.Material.Filled.Send">
+                                               OnClick="@(() => ForwardDoc(context.Id))" StartIcon="@Icons.Material.Filled.Send">
                                         Forward
                                     </MudButton>
-
                                     <MudButton Color="Color.Success" Variant="Variant.Filled" Size="Size.Small"
-                                               OnClick="@(() => FinishDoc(context.Id))"
-                                               StartIcon="@Icons.Material.Filled.Done">
+                                               OnClick="@(() => FinishDoc(context.Id))" StartIcon="@Icons.Material.Filled.Done">
                                         Finish
                                     </MudButton>
                                 </div>
@@ -226,7 +208,7 @@
                         </RowTemplate>
                         <NoRecordsContent>
                             <div class="pa-8 text-center">
-                                <MudIcon Icon="@Icons.Material.Filled.AssignmentTurnedIn" Size="Size.Large" Style="opacity: 0.3; font-size: 4rem;" Class="mb-4" />
+                                <MudIcon Icon="@Icons.Material.Filled.AssignmentTurnedIn" Size="Size.Large" Style="opacity:0.3; font-size:4rem;" Class="mb-4" />
                                 <MudText Typo="Typo.h6" Class="mud-text-secondary">Your desk is clear</MudText>
                                 <MudText Typo="Typo.body2" Class="mud-text-secondary">No documents to process</MudText>
                             </div>
@@ -234,7 +216,6 @@
                     </MudTable>
                 </MudHidden>
 
-                <!-- Mobile Cards -->
                 <MudHidden Breakpoint="Breakpoint.MdAndUp">
                     @if (isLoading)
                     {
@@ -254,17 +235,12 @@
                                 <MudCardContent Class="pa-4" @onclick="@(() => { selectedDocument = doc; isDialogVisible = true; })">
                                     <div class="d-flex justify-space-between align-start mb-2">
                                         <MudText Typo="Typo.subtitle1" Class="font-weight-bold">@doc.Name</MudText>
-                                        <MudChip T="string" Color="@GetPriorityColor(doc.Priority)" Size="Size.Small" Variant="Variant.Filled">
-                                            @doc.Priority
-                                        </MudChip>
+                                        <MudChip T="string" Color="@GetPriorityColor(doc.Priority)" Size="Size.Small" Variant="Variant.Filled">@doc.Priority</MudChip>
                                     </div>
-                                    
                                     <MudChip T="string" Color="Color.Info" Size="Size.Small" Variant="Variant.Outlined" Class="mb-3">@doc.Type</MudChip>
                                 </MudCardContent>
-                                
                                 <MudCardContent Class="pa-4 pt-0">
                                     <MudText Typo="Typo.body2" Class="mb-3 font-weight-bold">Route To:</MudText>
-                                    
                                     <MudSelect T="int?" Value="routingSelections[doc.Id].OfficeId"
                                                ValueChanged="@((int? val) => OnOfficeSelected(doc.Id, val))"
                                                Variant="Variant.Outlined" Label="Select Office" Class="mb-3" FullWidth="true">
@@ -273,7 +249,6 @@
                                             <MudSelectItem T="int?" Value="@((int?)off.Id)">@off.Name</MudSelectItem>
                                         }
                                     </MudSelect>
-
                                     @if (routingSelections[doc.Id].OfficeId.HasValue)
                                     {
                                         <MudSelect @bind-Value="routingSelections[doc.Id].UnitId"
@@ -285,27 +260,18 @@
                                         </MudSelect>
                                     }
                                 </MudCardContent>
-                                
                                 <MudCardActions Class="pa-4 pt-0">
                                     <MudGrid>
                                         <MudItem xs="6">
-                                            <MudButton Color="Color.Primary" 
-                                                     Variant="Variant.Filled" 
-                                                     FullWidth="true" 
-                                                     Size="Size.Large"
-                                                     Disabled="@(routingSelections[doc.Id].OfficeId == null)"
-                                                     OnClick="@(() => ForwardDoc(doc.Id))"
-                                                     StartIcon="@Icons.Material.Filled.Send">
+                                            <MudButton Color="Color.Primary" Variant="Variant.Filled" FullWidth="true" Size="Size.Large"
+                                                       Disabled="@(routingSelections[doc.Id].OfficeId == null)"
+                                                       OnClick="@(() => ForwardDoc(doc.Id))" StartIcon="@Icons.Material.Filled.Send">
                                                 Forward
                                             </MudButton>
                                         </MudItem>
                                         <MudItem xs="6">
-                                            <MudButton Color="Color.Success" 
-                                                     Variant="Variant.Filled" 
-                                                     FullWidth="true" 
-                                                     Size="Size.Large"
-                                                     OnClick="@(() => FinishDoc(doc.Id))"
-                                                     StartIcon="@Icons.Material.Filled.Done">
+                                            <MudButton Color="Color.Success" Variant="Variant.Filled" FullWidth="true" Size="Size.Large"
+                                                       OnClick="@(() => FinishDoc(doc.Id))" StartIcon="@Icons.Material.Filled.Done">
                                                 Finish
                                             </MudButton>
                                         </MudItem>
@@ -317,7 +283,7 @@
                 </MudHidden>
             </MudTabPanel>
 
-            <MudTabPanel Icon="@Icons.Material.Filled.Send" Text="Outgoing" BadgeData="@outgoingDocs.Count" BadgeColor="Color.Warning">
+            <MudTabPanel Icon="@Icons.Material.Filled.Send" Text="Outgoing" BadgeData="@outgoingDocs.Count" BadgeColor="Color.Info">
                 <MudHidden Breakpoint="Breakpoint.SmAndDown">
                     <MudTable Items="@outgoingDocs" Hover="true" Loading="@isLoading" T="Document" OnRowClick="RowClicked" RowClass="cursor-pointer">
                         <HeaderContent>
@@ -333,15 +299,14 @@
                                 <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Info">@context.Type</MudChip>
                             </MudTd>
                             <MudTd DataLabel="Priority">
-                                <MudChip T="string" Color="@GetPriorityColor(context.Priority)" Size="Size.Small" Variant="Variant.Filled">
-                                    @context.Priority
-                                </MudChip>
+                                <MudChip T="string" Color="@GetPriorityColor(context.Priority)" Size="Size.Small" Variant="Variant.Filled">@context.Priority</MudChip>
                             </MudTd>
                             <MudTd DataLabel="Destination">
                                 <strong>@context.NextOffice?.Name</strong>
                                 @if (context.NextUnit != null)
                                 {
                                     <br />
+                            
                                     <span style="color: gray; font-size: 0.85em;">↳ @context.NextUnit.Name</span>
                                 }
                             </MudTd>
@@ -349,7 +314,7 @@
                         </RowTemplate>
                         <NoRecordsContent>
                             <div class="pa-8 text-center">
-                                <MudIcon Icon="@Icons.Material.Filled.Send" Size="Size.Large" Style="opacity: 0.3; font-size: 4rem;" Class="mb-4" />
+                                <MudIcon Icon="@Icons.Material.Filled.Send" Size="Size.Large" Style="opacity:0.3; font-size:4rem;" Class="mb-4" />
                                 <MudText Typo="Typo.h6" Class="mud-text-secondary">No outgoing documents</MudText>
                                 <MudText Typo="Typo.body2" Class="mud-text-secondary">No documents in transit</MudText>
                             </div>
@@ -365,7 +330,7 @@
                     @if (!outgoingDocs.Any())
                     {
                         <div class="pa-8 text-center">
-                            <MudIcon Icon="@Icons.Material.Filled.Send" Size="Size.Large" Style="opacity: 0.3; font-size: 3rem;" Class="mb-3" />
+                            <MudIcon Icon="@Icons.Material.Filled.Send" Size="Size.Large" Style="opacity:0.3; font-size:3rem;" Class="mb-3" />
                             <MudText Typo="Typo.body1" Class="mud-text-secondary">No outgoing documents</MudText>
                         </div>
                     }
@@ -373,23 +338,19 @@
                     {
                         @foreach (var doc in outgoingDocs)
                         {
-                            <MudCard Elevation="3" Class="mb-3 rounded-lg" @onclick="@(() => { selectedDocument = doc; isDialogVisible = true; })">
+                            <MudCard Elevation="2" Class="mb-3 rounded-lg" @onclick="@(() => { selectedDocument = doc; isDialogVisible = true; })">
                                 <MudCardContent Class="pa-4">
                                     <div class="d-flex justify-space-between align-start mb-3">
                                         <div style="flex: 1;">
                                             <MudText Typo="Typo.subtitle1" Class="font-weight-bold mb-1">@doc.Name</MudText>
                                             <MudChip T="string" Color="Color.Info" Size="Size.Small" Variant="Variant.Text" Class="pa-0">@doc.Type</MudChip>
                                         </div>
-                                        <MudChip T="string" Color="@GetPriorityColor(doc.Priority)" Size="Size.Small" Variant="Variant.Filled">
-                                            @doc.Priority
-                                        </MudChip>
+                                        <MudChip T="string" Color="@GetPriorityColor(doc.Priority)" Size="Size.Small" Variant="Variant.Filled">@doc.Priority</MudChip>
                                     </div>
-                                    
                                     <MudDivider Class="mb-3" />
-                                    
                                     <div class="d-flex flex-column gap-2">
                                         <div class="d-flex align-center">
-                                            <MudIcon Icon="@Icons.Material.Filled.Place" Size="Size.Small" Class="mr-2" Color="Color.Warning" />
+                                            <MudIcon Icon="@Icons.Material.Filled.Place" Size="Size.Small" Class="mr-2" Color="Color.Info" />
                                             <div>
                                                 <MudText Typo="Typo.body2"><strong>@doc.NextOffice?.Name</strong></MudText>
                                                 @if (doc.NextUnit != null)
@@ -408,6 +369,15 @@
                                 </MudCardContent>
                             </MudCard>
                         }
+                    }
+                    else
+                    {
+                    <div class="d-flex flex-column align-center mt-10">
+                        <MudIcon Icon="@Icons.Material.Filled.BusinessCenter" Size="Size.Large" Style="opacity:0.3; font-size:4rem;" Class="mb-4" />
+                        <MudText Typo="Typo.h6" Class="mud-text-secondary">No Office assigned</MudText>
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary">Contact your Admin</MudText>
+
+                    </div>
                     }
                 </MudHidden>
             </MudTabPanel>
@@ -429,35 +399,24 @@
                         <MudText Typo="Typo.caption" Color="Color.Secondary">Document Title</MudText>
                         <MudText Typo="Typo.body1" Class="font-weight-bold">@selectedDocument.Name</MudText>
                     </MudItem>
-
                     <MudItem xs="12" sm="6">
                         <MudText Typo="Typo.caption" Color="Color.Secondary">Document Type</MudText>
                         <MudText Typo="Typo.body1">@selectedDocument.Type</MudText>
                     </MudItem>
-
                     <MudItem xs="12" sm="6">
                         <MudText Typo="Typo.caption" Color="Color.Secondary">Status</MudText>
-                        <div>
-                            <MudChip T="string" Color="@(selectedDocument.Status == "Received" ? Color.Success : Color.Warning)" Size="Size.Small">
-                                @selectedDocument.Status
-                            </MudChip>
-                        </div>
+                        <MudChip T="string" Color="@(selectedDocument.Status == "Received" ? Color.Success : Color.Warning)" Size="Size.Small">
+                            @selectedDocument.Status
+                        </MudChip>
                     </MudItem>
-
                     <MudItem xs="12" sm="6">
                         <MudText Typo="Typo.caption" Color="Color.Secondary">Priority</MudText>
-                        <div>
-                            <MudChip T="string" Color="@GetPriorityColor(selectedDocument.Priority)" Size="Size.Small">
-                                @selectedDocument.Priority
-                            </MudChip>
-                        </div>
+                        <MudChip T="string" Color="@GetPriorityColor(selectedDocument.Priority)" Size="Size.Small">@selectedDocument.Priority</MudChip>
                     </MudItem>
-
                     <MudItem xs="12" sm="6">
                         <MudText Typo="Typo.caption" Color="Color.Secondary">Created On</MudText>
                         <MudText Typo="Typo.body2">@selectedDocument.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy hh:mm tt")</MudText>
                     </MudItem>
-
                     <MudItem xs="12" sm="6">
                         <MudText Typo="Typo.caption" Color="Color.Secondary">Current Location</MudText>
                         @if (selectedDocument.CurrentOffice != null)
@@ -467,10 +426,10 @@
                         }
                         else
                         {
-                            <MudText Typo="Typo.body1" Color="Color.Default"><em>None</em></MudText>
+
+                            <MudText Typo="Typo.body1"><em>None</em></MudText>
                         }
                     </MudItem>
-
                     <MudItem xs="12" sm="6">
                         <MudText Typo="Typo.caption" Color="Color.Secondary">Next Destination</MudText>
                         @if (selectedDocument.NextOffice != null)
@@ -480,10 +439,10 @@
                         }
                         else
                         {
-                            <MudText Typo="Typo.body1" Color="Color.Default"><em>None</em></MudText>
+
+                            <MudText Typo="Typo.body1"><em>None</em></MudText>
                         }
                     </MudItem>
-
                     @if (!string.IsNullOrEmpty(selectedDocument.Description))
                     {
                         <MudItem xs="12">
@@ -493,7 +452,6 @@
                             </MudPaper>
                         </MudItem>
                     }
-
                     @if (!string.IsNullOrEmpty(selectedDocument.FileName))
                     {
                         <MudItem xs="12">
@@ -501,13 +459,8 @@
                             <div class="d-flex align-center mt-1">
                                 <MudIcon Icon="@Icons.Material.Filled.AttachFile" Size="Size.Small" Class="mr-2" />
                                 <MudText Typo="Typo.body2" Class="mr-4">@selectedDocument.FileName</MudText>
-
-                                <MudButton Href="@selectedDocument.FilePath"
-                                           Target="_blank"
-                                           Variant="Variant.Outlined"
-                                           Size="Size.Small"
-                                           Color="Color.Primary"
-                                           StartIcon="@Icons.Material.Filled.Download">
+                                <MudButton Href="@selectedDocument.FilePath" Target="_blank" Variant="Variant.Outlined"
+                                           Size="Size.Small" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Download">
                                     Download
                                 </MudButton>
                             </div>
@@ -516,7 +469,7 @@
                 </MudGrid>
             }
         </DialogContent>
-        <DialogActions>     
+        <DialogActions>
             <MudButton Color="Color.Primary" OnClick="CloseDialog">Close</MudButton>
         </DialogActions>
     </MudDialog>
@@ -527,11 +480,9 @@
     private Office? myOffice;
     private int? myUnitId;
     private List<Office> allOffices = new();
-
     private List<Document> incomingDocs = new();
     private List<Document> deskDocs = new();
     private List<Document> outgoingDocs = new();
-
     private string userEmail = "";
     private bool isLoadingInitial = true;
     private bool isLoading = false;
@@ -549,7 +500,6 @@
 
     protected override async Task OnInitializedAsync()
     {
-
         try
         {
             var profile = await DocService.GetProfileAsync();
@@ -558,17 +508,17 @@
                 userEmail = profile.Email ?? "Unknown";
                 myUnitId = profile.UnitId;
 
-                if (profile.Unit?.OfficeId != null)
+                var officeId = profile.Unit?.OfficeId ?? profile.OfficeId;
+
+                if (officeId != null)
                 {
                     allOffices = await DocService.GetOfficesAsync();
-                    myOffice = allOffices.FirstOrDefault(o => o.Id == profile.Unit.OfficeId);
+                    myOffice = allOffices.FirstOrDefault(o => o.Id == officeId);
                 }
             }
 
             if (myOffice != null)
-            {
                 await RefreshQueues();
-            }
         }
         catch (Exception ex)
         {
@@ -579,7 +529,6 @@
         {
             isLoadingInitial = false;
         }
-
     }
 
     private async Task RefreshQueues()
@@ -604,9 +553,7 @@
             foreach (var doc in deskDocs)
             {
                 if (!routingSelections.ContainsKey(doc.Id))
-                {
                     routingSelections[doc.Id] = new RoutingSelection();
-                }
             }
         }
         finally
@@ -622,10 +569,7 @@
         isDialogVisible = true;
     }
 
-    private void CloseDialog()
-    {
-        isDialogVisible = false;
-    }
+    private void CloseDialog() => isDialogVisible = false;
 
     private void OnOfficeSelected(int docId, int? officeId)
     {
@@ -633,46 +577,59 @@
         routingSelections[docId].UnitId = null;
     }
 
-    private IEnumerable<Unit> GetUnitsForOffice(int officeId)
-    {
-        return allOffices.FirstOrDefault(o => o.Id == officeId)?.Units ?? new List<Unit>();
-    }
+    private IEnumerable<Unit> GetUnitsForOffice(int officeId) =>
+        allOffices.FirstOrDefault(o => o.Id == officeId)?.Units ?? new List<Unit>();
 
     private async Task ReceiveDoc(int docId)
     {
-        await DocService.ReceivedDocumentAsync(docId);
+        var result = await DialogService.ShowMessageBox("Confirm Receive", "Accept this document onto your desk?", "Receive", cancelText: "Cancel");
+        if (result != true) return;
+
+        var response = await DocService.ReceivedDocumentAsync(docId);
+        if (!response)
+        {
+            Snackbar.Add("This document was already received by another worker", Severity.Warning);
+        }
+        else
+        {
+            Snackbar.Add("Document received!", Severity.Success);
+        }
         await RefreshQueues();
-        Snackbar.Add("Document received!", Severity.Success);
     }
 
     private async Task ForwardDoc(int docId)
     {
         var selection = routingSelections[docId];
-        if (selection.OfficeId.HasValue)
+        if (!selection.OfficeId.HasValue) return;
+        var doc = deskDocs.FirstOrDefault(d => d.Id == docId);
+        if(doc?.CurrentOfficeId == selection.OfficeId && doc?.CurrentUnitId == selection.UnitId)
         {
-            await DocService.ForwardDocumentAsync(docId, selection.OfficeId.Value, selection.UnitId);
-            await RefreshQueues();
-            Snackbar.Add("Document forwarded successfully!", Severity.Success);
+            Snackbar.Add("Cannot Forward to the same office and unit", Severity.Warning);
+            return;
         }
+        var dest = allOffices.FirstOrDefault(o => o.Id == selection.OfficeId)?.Name;
+        var result = await DialogService.ShowMessageBox("Confirm Forward", $"Forward this document to {dest}?", "Forward", cancelText: "Cancel");
+        if (result != true) return;
+        await DocService.ForwardDocumentAsync(docId, selection.OfficeId.Value, selection.UnitId);
+        await RefreshQueues();
+        Snackbar.Add("Document forwarded successfully!", Severity.Success);
     }
 
     private async Task FinishDoc(int docId)
     {
+        var result = await DialogService.ShowMessageBox("Confirm Finish", "Mark this document as completed? This cannot be undone.", "Finish", cancelText: "Cancel", options: new DialogOptions { MaxWidth = MaxWidth.ExtraSmall });
+        if (result != true) return;
         await DocService.FinishDocumentAsync(docId);
         await RefreshQueues();
-        Snackbar.Add("Document completed");
+        Snackbar.Add("Document completed", Severity.Success);
     }
 
-    private Color GetPriorityColor(string? priority)
+    private Color GetPriorityColor(string? priority) => priority switch
     {
-        return priority switch
-        {
-            "Emergency" => Color.Error,
-            "Urgent" => Color.Warning,
-            "Medium" => Color.Info,
-            "Low" => Color.Success,
-            _ => Color.Default
-        };
-    }
-
+        "Emergency" => Color.Error,
+        "Urgent" => Color.Warning,
+        "Medium" => Color.Info,
+        "Low" => Color.Success,
+        _ => Color.Default
+    };
 }

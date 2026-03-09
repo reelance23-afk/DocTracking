@@ -1,4 +1,4 @@
-﻿@page "/my-tracking"
+@page "/my-tracking"
 @attribute [Authorize]
 @using DocTracking.Client.Models
 @using DocTracking.Client.Services
@@ -82,7 +82,7 @@
                         <MudTh><MudTableSortLabel SortBy="new Func<Document, object>(x => x.Name)">Document</MudTableSortLabel></MudTh>
                         <MudTh>
                             <MudButton Variant="Variant.Text"
-                                       onclick="CycleTypeFilter"
+                                       Onclick="CycleTypeFilter"
                                        Class="pa-2"
                                        Style="text-transform: none">
                                 Type

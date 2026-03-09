@@ -1,4 +1,4 @@
-﻿using System.Net.Http.Json;
+using System.Net.Http.Json;
 using DocTracking.Client.Models;
 using Microsoft.AspNetCore.Components.Forms;
 
@@ -47,12 +47,22 @@ namespace DocTracking.Client.Services
 
             return null;
         }
-        
 
-        public async Task AddOfficeAsync(Office office)
+        public async Task DeleteUploadAsync(string path)
         {
-            await _http.PostAsJsonAsync("api/offices", office);
+            await _http.DeleteAsync($"api / DocumentService / UploadFileAsync ? path ={ Uri.EscapeDataString(path)}");
         }
+
+
+        public async Task<(bool Success, string? Error)> AddOfficeAsync(Office office)
+        {
+            var response = await _http.PostAsJsonAsync("api/offices", office);
+            if (response.IsSuccessStatusCode) return (true, null);
+            var error = await response.Content.ReadAsStringAsync();
+            return (false, error);
+        }
+
+
 
         public async Task<List<Document>> GetUserDocumentsAsync(string email)
         {
@@ -79,9 +89,10 @@ namespace DocTracking.Client.Services
             return await response.Content.ReadFromJsonAsync<AppUser>();
         }
 
-        public async Task ReceivedDocumentAsync(int id)
+        public async Task<bool> ReceivedDocumentAsync(int id)
         {
-            await _http.PutAsync($"api/documents/{id}/receive", null);
+            var response = await _http.PutAsync($"api/documents/{id}/receive", null);
+            return response.IsSuccessStatusCode;
         }
                                                                                                        
         public async Task ForwardDocumentAsync(int id, int nextOfficeId, int? nextUnitId = null)
@@ -120,9 +131,12 @@ namespace DocTracking.Client.Services
             return await _http.GetFromJsonAsync<List<Unit>>("api/units") ?? new();
         }
 
-        public async Task AddUnitAsync(Unit unit)
+        public async Task<(bool Success, string? Error)> AddUnitAsync(Unit unit)
         {
-            await _http.PostAsJsonAsync("api/units", unit);
+            var response = await _http.PostAsJsonAsync("api/units", unit);
+            if (response.IsSuccessStatusCode) return (true, null);
+            var error = await response.Content.ReadAsStringAsync();
+            return (false, error);
         }
 
         public async Task<List<Document>> GetOutgoingAsync(string email)
