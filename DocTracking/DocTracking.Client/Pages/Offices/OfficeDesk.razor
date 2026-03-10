@@ -9,7 +9,7 @@
 @inject IDialogService DialogService
 @rendermode InteractiveAuto
 
-<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
 
     @if (isLoadingInitial)
     {
@@ -175,12 +175,13 @@
                                     <MudSelect T="int?" Value="routingSelections[context.Id].OfficeId"
                                                ValueChanged="@((int? val) => OnOfficeSelected(context.Id, val))"
                                                Margin="Margin.Dense" Variant="Variant.Outlined" Label="Select Office">
-                                        @foreach (var off in allOffices)
+                                               <MudSelectItem T="int?" Value="@((int?)null)">None</MudSelectItem>
+                                        @foreach (var off in allOffices.Where(o => o.Id != myOffice!.Id))
                                         {
                                             <MudSelectItem T="int?" Value="@((int?)off.Id)">@off.Name</MudSelectItem>
                                         }
                                     </MudSelect>
-                                    @if (routingSelections[context.Id].OfficeId.HasValue)
+                                    @if (routingSelections[context.Id].OfficeId.HasValue && GetUnitsForOffice(routingSelections[context.Id].OfficeId.Value).Any())
                                     {
                                         <MudSelect @bind-Value="routingSelections[context.Id].UnitId"
                                                    Margin="Margin.Dense" Variant="Variant.Outlined" Label="Select Unit">
@@ -190,6 +191,7 @@
                                             }
                                         </MudSelect>
                                     }
+
                                 </div>
                             </MudTd>
                             <MudTd>
@@ -200,6 +202,7 @@
                                         Forward
                                     </MudButton>
                                     <MudButton Color="Color.Success" Variant="Variant.Filled" Size="Size.Small"
+                                               Disabled="@(routingSelections[context.Id].OfficeId != null)"
                                                OnClick="@(() => FinishDoc(context.Id))" StartIcon="@Icons.Material.Filled.Done">
                                         Finish
                                     </MudButton>
@@ -244,21 +247,22 @@
                                     <MudSelect T="int?" Value="routingSelections[doc.Id].OfficeId"
                                                ValueChanged="@((int? val) => OnOfficeSelected(doc.Id, val))"
                                                Variant="Variant.Outlined" Label="Select Office" Class="mb-3" FullWidth="true">
-                                        @foreach (var off in allOffices)
+                                               <MudSelectItem T="int?" Value="@((int?)null)">None</MudSelectItem>
+                                        @foreach (var off in allOffices.Where(o => o.Id != myOffice.Id))
                                         {
                                             <MudSelectItem T="int?" Value="@((int?)off.Id)">@off.Name</MudSelectItem>
                                         }
                                     </MudSelect>
-                                    @if (routingSelections[doc.Id].OfficeId.HasValue)
+                                    @if (routingSelections[doc.Id].OfficeId.HasValue && GetUnitsForOffice(routingSelections[doc.Id].OfficeId.Value).Any())
                                     {
-                                        <MudSelect @bind-Value="routingSelections[doc.Id].UnitId"
-                                                   Variant="Variant.Outlined" Label="Select Unit" Class="mb-3" FullWidth="true">
+                                        <MudSelect @bind-Value="routingSelections[doc.Id].UnitId" Variant="Variant.Outlined" Label="Select Unit" Class="mb-3" FullWidth="true">
                                             @foreach (var unit in GetUnitsForOffice(routingSelections[doc.Id].OfficeId.Value))
                                             {
                                                 <MudSelectItem T="int?" Value="@((int?)unit.Id)">@unit.Name</MudSelectItem>
                                             }
                                         </MudSelect>
                                     }
+
                                 </MudCardContent>
                                 <MudCardActions Class="pa-4 pt-0">
                                     <MudGrid>
@@ -271,6 +275,7 @@
                                         </MudItem>
                                         <MudItem xs="6">
                                             <MudButton Color="Color.Success" Variant="Variant.Filled" FullWidth="true" Size="Size.Large"
+                                                       Disabled="@(routingSelections[doc.Id].OfficeId != null)"
                                                        OnClick="@(() => FinishDoc(doc.Id))" StartIcon="@Icons.Material.Filled.Done">
                                                 Finish
                                             </MudButton>
@@ -369,15 +374,6 @@
                                 </MudCardContent>
                             </MudCard>
                         }
-                    }
-                    else
-                    {
-                    <div class="d-flex flex-column align-center mt-10">
-                        <MudIcon Icon="@Icons.Material.Filled.BusinessCenter" Size="Size.Large" Style="opacity:0.3; font-size:4rem;" Class="mb-4" />
-                        <MudText Typo="Typo.h6" Class="mud-text-secondary">No Office assigned</MudText>
-                        <MudText Typo="Typo.body2" Class="mud-text-secondary">Contact your Admin</MudText>
-
-                    </div>
                     }
                 </MudHidden>
             </MudTabPanel>

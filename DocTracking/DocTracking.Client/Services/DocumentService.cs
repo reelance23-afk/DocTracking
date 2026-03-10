@@ -85,9 +85,20 @@ namespace DocTracking.Client.Services
         {
             var response = await _http.GetAsync("api/documents/my-profile");
             if (!response.IsSuccessStatusCode) return null;
-
+            var content = await response.Content.ReadAsStringAsync();
+            if (content.TrimStart().StartsWith('<')) return null;
             return await response.Content.ReadFromJsonAsync<AppUser>();
         }
+
+        /*
+        public async Task<string?> GetProfilePhotoUrlAsync()
+        {
+            var response = await _http.GetAsync("api/documents/my-photo");
+            if (!response.IsSuccessStatusCode) return null;
+
+            var bytes = await response.Content.ReadAsByteArrayAsync();
+            return $"data:image/jpeg;base64,{Convert.ToBase64String(bytes)}";
+        }  */
 
         public async Task<bool> ReceivedDocumentAsync(int id)
         {
@@ -152,6 +163,65 @@ namespace DocTracking.Client.Services
                 return await response.Content.ReadFromJsonAsync<List<Document>>() ?? new List<Document>();
             }
             return new List<Document>();
+        }
+
+        public async Task<List<Document>> GetOfficeHistoryAsync(int officeId)
+        {
+            var response = await _http.GetAsync($"api/documents/history/office/{officeId}");
+            if (response.IsSuccessStatusCode)
+            {
+                return await response.Content.ReadFromJsonAsync<List<Document>>() ?? new();
+            }
+            return new();
+        }
+
+        public async Task<(bool Success, string? Error)> UpdateOfficeAsync(Office office)
+        {
+            var response = await _http.PutAsJsonAsync($"api/offices/{office.Id}", office);
+            if (response.IsSuccessStatusCode) return (true, null);
+            return (false, await response.Content.ReadAsStringAsync());
+        }
+
+        public async Task<(bool Success, string? Error)> DeleteOfficeAsync(int id)
+        {
+            var response = await _http.DeleteAsync($"api/offices/{id}");
+            if (response.IsSuccessStatusCode) return (true, null);
+            return (false, await response.Content.ReadAsStringAsync());
+        }
+
+        public async Task<(bool Success, string? Error)> UpdateUnitAsync(Unit unit)
+        {
+            var response = await _http.PutAsJsonAsync($"api/units/{unit.Id}", unit);
+            if (response.IsSuccessStatusCode) return (true, null);
+            return (false, await response.Content.ReadAsStringAsync());
+        }
+
+        public async Task<(bool Success, string? Error)> DeleteUnitAsync(int id)
+        {
+            var response = await _http.DeleteAsync($"api/units/{id}");
+            if (response.IsSuccessStatusCode) return (true, null);
+            return (false, await response.Content.ReadAsStringAsync());
+        }
+
+        public async Task<(bool Success, string? Error)> DeleteAppUserAsync(int id)
+        {
+            var response = await _http.DeleteAsync($"api/appusers/{id}");
+            if (response.IsSuccessStatusCode) return (true, null);
+            return (false, await response.Content.ReadAsStringAsync());
+        }
+
+        public async Task<(bool Success, string? Error)> UpdateDocumentAsync(Document doc)
+        {
+            var response = await _http.PutAsJsonAsync($"api/documents/{doc.Id}", doc);
+            if (response.IsSuccessStatusCode) return (true, null);
+            return (false, await response.Content.ReadAsStringAsync());
+        }
+
+        public async Task<(bool Success, string? Error)> DeleteDocumentAsync(int id)
+        {
+            var response = await _http.DeleteAsync($"api/document/{id}");
+            if (response.IsSuccessStatusCode) return (true, null);
+            return (false, await response.Content.ReadAsStringAsync());
         }
 
 

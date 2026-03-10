@@ -2,6 +2,7 @@
 using DocTracking.Client.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Cryptography;
 
 namespace DocTracking.Controllers
 {
@@ -34,6 +35,29 @@ namespace DocTracking.Controllers
             _context.Add(unit);
             await _context.SaveChangesAsync();
             return Ok(unit);
+        }
+
+        [HttpPut("{id}")]
+        public async Task <IActionResult> UpdateUnit(int id, [FromBody] Unit unit)
+        {
+            var existing = await _context.Units.FindAsync(id);
+            if (existing == null) return NotFound();
+
+            var duplicate = await _context.Units.AnyAsync(o => o.Name == unit.Name && o.Id != id);
+            if (duplicate) return Conflict("An Unit with this name already exists");
+            existing.Name = unit.Name;
+            await _context.SaveChangesAsync();
+            return Ok();
+        }
+
+        [HttpDelete("{id}")]
+        public async Task <IActionResult> DeleteUnit(int id)
+        {
+            var existing = await _context.Units.FindAsync(id);
+            if (existing == null) return NotFound();
+            _context.Units.Remove(existing);
+            await _context.SaveChangesAsync();
+            return Ok();
         }
     }
 }

@@ -1,5 +1,5 @@
-@page "/office-track-document/{DocumentId:int}"
-@attribute [Authorize(Roles = "Office")]
+﻿@page "/admin-track-document/{DocumentId:int}"
+@attribute [Authorize(Roles = "Admin")]
 @using DocTracking.Client.Models
 @using DocTracking.Client.Services
 @using Microsoft.AspNetCore.Components.Authorization
@@ -27,14 +27,6 @@
             <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
         </div>
     }
-    else if (!isAuthorized)
-    {
-        <MudPaper Elevation="0" Class="pa-8 text-center mud-background-gray rounded-xl border-solid border-2 mud-border-error">
-            <MudIcon Icon="@Icons.Material.Filled.GppBad" Size="Size.Large" Color="Color.Error" Class="mb-4" Style="font-size: 4rem;" />
-            <MudText Typo="Typo.h5" Class="font-weight-bold mb-2">Access Denied</MudText>
-            <MudText Typo="Typo.body1" Class="mud-text-secondary">You do not have authorization to view this document's history because it has not been routed through your office.</MudText>
-        </MudPaper>
-    }
     else if (!documentLogs.Any())
     {
         <MudPaper Elevation="0" Class="pa-8 text-center mud-background-gray rounded-xl">
@@ -54,39 +46,43 @@
                     bool isCurrent = (i == 0);
                     bool isCompleted = log.Action == "Completed";
 
-                    <MudCard Elevation="@(isCurrent ? 3 : 1)" Class="mb-3">
-                        <MudCardContent Class="pa-3">
-                            <div class="d-flex align-center gap-2 mb-1">
-                                <MudIcon Icon="@GetIconForAction(log.Action)" Color="@GetActionColor(log.Action)" Size="Size.Medium" />
-                                <MudText Typo="Typo.h6" Class="font-weight-bold">@log.Action</MudText>
-                                @if (isCurrent && !isCompleted)
-                                {
-                                    <MudChip T="string" Color="Color.Primary" Size="Size.Small" Variant="Variant.Filled">CURRENT</MudChip>
-                                }
-                            </div>
-                            <MudText Typo="Typo.caption" Class="mud-text-secondary mb-2">
-                                @log.TimeStamp.ToLocalTime().ToString("MMM dd, yyyy • hh:mm tt")
-                            </MudText>
-                            <div class="d-flex align-center mb-1">
-                                <MudIcon Icon="@Icons.Material.Filled.AccountCircle" Size="Size.Small" Class="mr-2 mud-text-secondary" />
-                                <MudText Typo="Typo.body2"><span class="mud-text-secondary">By:</span> <strong>@(log.AppUser?.Name ?? "System")</strong></MudText>
-                            </div>
-                            @if (log.Office != null)
-                            {
-                                <div class="d-flex align-center">
-                                    <MudIcon Icon="@GetLocationIcon(log.Action)" Size="Size.Small" Color="@GetLocationColor(log.Action)" Class="mr-2" />
-                                    <div>
-                                        <MudText Typo="Typo.body2"><span class="mud-text-secondary">@GetLocationLabel(log.Action):</span> <strong>@log.Office.Name</strong></MudText>
-                                        @if (log.Unit != null)
+                    <MudCard Elevation="@(isCurrent ? 4 : 1)" Class="@($"mb-3 {(isCurrent ? "border-solid border-l-4 mud-border-primary" : "")}")">
+                        <MudCardHeader Class="pb-1">
+                            <CardHeaderContent>
+                                <div class="d-flex justify-space-between align-center">
+                                    <div class="d-flex align-center gap-2">
+                                        <MudIcon Icon="@GetIconForAction(log.Action)" Color="@GetActionColor(log.Action)" Size="Size.Small" />
+                                        <MudText Typo="Typo.subtitle1" Class="font-weight-bold">@log.Action</MudText>
+                                        @if (isCurrent && !isCompleted)
                                         {
-                                            <MudText Typo="Typo.caption" Class="mud-text-secondary">@log.Unit.Name</MudText>
+                                            <MudChip T="string" Color="Color.Primary" Size="Size.Small" Variant="Variant.Filled">CURRENT</MudChip>
                                         }
                                     </div>
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                                        @log.TimeStamp.ToLocalTime().ToString("MMM dd • hh:mm tt")
+                                    </MudText>
                                 </div>
+                            </CardHeaderContent>
+                        </MudCardHeader>
+                        <MudCardContent Class="pt-0">
+                            <MudText Typo="Typo.body2" Class="mb-1">
+                                <MudIcon Icon="@Icons.Material.Filled.AccountCircle" Size="Size.Small" Class="mr-1 mud-text-secondary" />
+                                <span class="mud-text-secondary">By:</span> <strong>@(log.AppUser?.Name ?? "System")</strong>
+                            </MudText>
+                            @if (log.Office != null)
+                            {
+                                <MudText Typo="Typo.body2">
+                                    <MudIcon Icon="@GetLocationIcon(log.Action)" Size="Size.Small" Color="@GetLocationColor(log.Action)" Class="mr-1" />
+                                    <span class="mud-text-secondary">@GetLocationLabel(log.Action):</span> <strong>@log.Office.Name</strong>
+                                </MudText>
+                                @if (log.Unit != null)
+                                {
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary ml-5">↳ @log.Unit.Name</MudText>
+                                }
                             }
                             @if (isCompleted)
                             {
-                                <MudText Typo="Typo.body2" Color="Color.Success" Class="font-weight-medium mt-2">Document processing completed successfully</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Success" Class="font-weight-medium mt-1">Document processing completed successfully</MudText>
                             }
                         </MudCardContent>
                     </MudCard>
@@ -103,11 +99,10 @@
                         bool isCompleted = log.Action == "Completed";
 
                         <MudTimelineItem Color="@GetTimelineColor(log.Action, isCurrent)"
-                                         Size="Size.Large"
-                                         Variant="Variant.Filled"
+                                         Size="Size.Large" Variant="Variant.Filled"
                                          Icon="@GetIconForAction(log.Action)">
                             <ItemContent>
-                                <MudCard Elevation="@(isCurrent ? 8 : 2)" Class="mb-4">
+                                <MudCard Elevation="@(isCurrent ? 8 : 2)" Class="@($"mb-4 {GetCardClass(log.Action, isCurrent)}")">
                                     <MudCardHeader Class="pb-2">
                                         <CardHeaderContent>
                                             <div class="d-flex justify-space-between align-center">
@@ -130,7 +125,9 @@
                                             <MudItem xs="12" sm="6">
                                                 <div class="d-flex align-center mb-2">
                                                     <MudIcon Icon="@Icons.Material.Filled.AccountCircle" Size="Size.Small" Class="mr-2 mud-text-secondary" />
-                                                    <MudText Typo="Typo.body2"><span class="mud-text-secondary">By:</span> <strong>@(log.AppUser?.Name ?? "System")</strong></MudText>
+                                                    <MudText Typo="Typo.body2">
+                                                        <span class="mud-text-secondary">By:</span> <strong>@(log.AppUser?.Name ?? "System")</strong>
+                                                    </MudText>
                                                 </div>
                                             </MudItem>
                                             @if (log.Office != null)
@@ -139,10 +136,12 @@
                                                     <div class="d-flex align-center mb-2">
                                                         <MudIcon Icon="@GetLocationIcon(log.Action)" Size="Size.Small" Color="@GetLocationColor(log.Action)" Class="mr-2" />
                                                         <div>
-                                                            <MudText Typo="Typo.body2"><span class="mud-text-secondary">@GetLocationLabel(log.Action):</span> <strong>@log.Office.Name</strong></MudText>
+                                                            <MudText Typo="Typo.body2">
+                                                                <span class="mud-text-secondary">@GetLocationLabel(log.Action):</span> <strong>@log.Office.Name</strong>
+                                                            </MudText>
                                                             @if (log.Unit != null)
                                                             {
-                                                                <MudText Typo="Typo.caption" Class="mud-text-secondary">@log.Unit.Name</MudText>
+                                                                <MudText Typo="Typo.caption" Class="mud-text-secondary">↳ @log.Unit.Name</MudText>
                                                             }
                                                         </div>
                                                     </div>
@@ -167,35 +166,42 @@
             }
         </MudPaper>
     }
+
 </MudContainer>
 
 @code {
-    [Parameter] public int DocumentId { get; set; }
-    [Parameter][SupplyParameterFromQuery(Name = "ReturnUrl")] public string? ReturnUrl { get; set; }
+    [Parameter]
+    public int DocumentId { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "ReturnUrl")]
+    public string? ReturnUrl { get; set; }
 
     private List<DocumentLog> documentLogs = new();
     private bool isLoading = true;
-    private bool isAuthorized = false;
+
     private string? errorMessage;
 
     protected override async Task OnParametersSetAsync()
     {
         isLoading = true;
         errorMessage = null;
-        isAuthorized = false;
+
         try
         {
+
             var profile = await DocService.GetProfileAsync();
             int? myUnitId = profile?.UnitId;
             int? myOfficeId = profile?.Unit?.OfficeId ?? profile?.OfficeId;
+
+
             documentLogs = await DocService.GetDocumentLogsAsync(DocumentId);
-            isAuthorized = (myUnitId.HasValue && documentLogs.Any(log => log.UnitId == myUnitId)) ||
-                           (myOfficeId.HasValue && documentLogs.Any(log => log.Office != null &&
-                            documentLogs.Any(l => l.AppUser?.Unit?.OfficeId == myOfficeId)));
+
         }
         catch (Exception ex)
         {
             errorMessage = ex.Message;
+            Console.WriteLine($"Error loading logs: {ex.Message}");
         }
         finally
         {
@@ -204,14 +210,22 @@
         }
     }
 
-    private string GetIconForAction(string? action) => action switch
+    private string GetIconForAction(string? action)
     {
-        "Created" => Icons.Material.Filled.NoteAdd,
-        "Forwarded" => Icons.Material.Filled.DirectionsWalk,
-        "Received" => Icons.Material.Filled.Inbox,
-        "Completed" => Icons.Material.Filled.CheckCircle,
-        _ => Icons.Material.Filled.Circle
-    };
+        return action switch
+        {
+            "Created" => Icons.Material.Filled.NoteAdd,
+            "Forwarded" => Icons.Material.Filled.DirectionsWalk,
+            "Received" => Icons.Material.Filled.Inbox,
+            "Completed" => Icons.Material.Filled.CheckCircle,
+            _ => Icons.Material.Filled.Circle
+        };
+    }
+
+    private void Back()
+    {
+        Navigation.NavigateTo($"/document-tracking");
+    }
 
     private Color GetTimelineColor(string? action, bool isCurrent) => action switch
     {
@@ -221,6 +235,9 @@
         "Completed" when isCurrent => Color.Success,
         _ => Color.Default
     };
+
+    private string GetCardClass(string? action, bool isCurrent) =>
+        isCurrent ? "transition-all duration-300 mud-elevation-8" : "transition-all duration-300";
 
     private Color GetActionColor(string? action) => action switch
     {
@@ -249,5 +266,4 @@
         _ => "Location"
     };
 
-    private void Back() => Navigation.NavigateTo($"/{ReturnUrl}");
 }

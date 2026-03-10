@@ -1,0 +1,176 @@
+﻿@using DocTracking.Client.Models
+@using DocTracking.Client.Services
+@using Microsoft.AspNetCore.Components.Forms
+@inject DocumentService DocService
+@inject ISnackbar Snackbar
+@rendermode InteractiveAuto
+
+<MudDialog>
+    <TitleContent>
+        <div class="d-flex align-center gap-2">
+            <MudIcon Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" />
+            <MudText Typo="Typo.h6" Class="font-weight-bold">Edit Document</MudText>
+        </div>
+    </TitleContent>
+    <DialogContent>
+        <MudGrid Spacing="3">
+
+            <MudItem xs="12">
+                <MudPaper Elevation="2" Class="pa-4" Style="border-top: 4px solid var(--mud-palette-primary);">
+                    <MudText Typo="Typo.subtitle1" Class="font-weight-bold mb-4">Document Information</MudText>
+                    <MudGrid Spacing="3">
+                        <MudItem xs="12">
+                            <MudTextField @bind-Value="Doc.Name" Label="Document Title" Variant="Variant.Outlined"
+                                          Required="true" RequiredError="Document title is required" />
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudSelect T="string" @bind-Value="Doc.Type" Label="Document Type" Variant="Variant.Outlined"
+                                       Required="true" RequiredError="Please select a document type">
+                                <MudSelectItem Value="@("Memo")">
+                                    <div class="d-flex align-center"><MudIcon Icon="@Icons.Material.Filled.Description" Size="Size.Small" Class="mr-2" Color="Color.Info" />Memo</div>
+                                </MudSelectItem>
+                                <MudSelectItem Value="@("Letter")">
+                                    <div class="d-flex align-center"><MudIcon Icon="@Icons.Material.Filled.Mail" Size="Size.Small" Class="mr-2" Color="Color.Info" />Letter</div>
+                                </MudSelectItem>
+                                <MudSelectItem Value="@("Voucher")">
+                                    <div class="d-flex align-center"><MudIcon Icon="@Icons.Material.Filled.Receipt" Size="Size.Small" Class="mr-2" Color="Color.Info" />Voucher</div>
+                                </MudSelectItem>
+                                <MudSelectItem Value="@("Report")">
+                                    <div class="d-flex align-center"><MudIcon Icon="@Icons.Material.Filled.Assessment" Size="Size.Small" Class="mr-2" Color="Color.Info" />Report</div>
+                                </MudSelectItem>
+                                <MudSelectItem Value="@("Notice")">
+                                    <div class="d-flex align-center"><MudIcon Icon="@Icons.Material.Filled.Announcement" Size="Size.Small" Class="mr-2" Color="Color.Info" />Notice</div>
+                                </MudSelectItem>
+                                <MudSelectItem Value="@("Other")">
+                                    <div class="d-flex align-center"><MudIcon Icon="@Icons.Material.Filled.InsertDriveFile" Size="Size.Small" Class="mr-2" Color="Color.Info" />Other</div>
+                                </MudSelectItem>
+                            </MudSelect>
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudSelect T="string" @bind-Value="Doc.Priority" Label="Priority Level" Variant="Variant.Outlined"
+                                       Required="true" RequiredError="Please select priority">
+                                <MudSelectItem Value="@("Emergency")">
+                                    <div class="d-flex align-center"><MudIcon Icon="@Icons.Material.Filled.PriorityHigh" Size="Size.Small" Class="mr-2" Color="Color.Error" />Emergency</div>
+                                </MudSelectItem>
+                                <MudSelectItem Value="@("Urgent")">
+                                    <div class="d-flex align-center"><MudIcon Icon="@Icons.Material.Filled.Warning" Size="Size.Small" Class="mr-2" Color="Color.Warning" />Urgent</div>
+                                </MudSelectItem>
+                                <MudSelectItem Value="@("Medium")">
+                                    <div class="d-flex align-center"><MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" Class="mr-2" Color="Color.Info" />Medium</div>
+                                </MudSelectItem>
+                                <MudSelectItem Value="@("Low")">
+                                    <div class="d-flex align-center"><MudIcon Icon="@Icons.Material.Filled.LowPriority" Size="Size.Small" Class="mr-2" Color="Color.Success" />Low</div>
+                                </MudSelectItem>
+                            </MudSelect>
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudTextField @bind-Value="Doc.Description" Label="Description / Notes" Variant="Variant.Outlined"
+                                          Lines="3" HelperText="Optional: Add any additional details" />
+                        </MudItem>
+                    </MudGrid>
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12">
+                <MudPaper Elevation="2" Class="pa-4" Style="border-top: 4px solid var(--mud-palette-success);">
+                    <MudText Typo="Typo.subtitle1" Class="font-weight-bold mb-4">Attachment</MudText>
+
+                    <div style="position: relative; width: 100%;">
+                        <MudFileUpload T="IBrowserFile" FilesChanged="OnFileSelected"
+                                       Accept=".pdf,.doc,.docx,.jpg,.png" Hidden="false"
+                                       InputClass="absolute mud-width-full mud-height-full overflow-hidden"
+                                       InputStyle="opacity: 0; z-index: 20; top: 0; left: 0; bottom: 0; right: 0; cursor: pointer; position: absolute;">
+                            <ActivatorContent>
+                                <MudPaper Elevation="0" Class="pa-6 text-center d-flex flex-column align-center justify-center"
+                                          Style="border: 2px dashed var(--mud-palette-primary); background: rgba(33,150,243,0.04); min-height: 140px; position: relative; z-index: 10;">
+                                    <MudIcon Icon="@Icons.Material.Filled.CloudUpload" Size="Size.Large" Color="Color.Primary" Class="mb-2" />
+                                    <MudText Typo="Typo.body1" Color="Color.Primary" Class="font-weight-medium">
+                                        @(selectedFile == null ? "Click or drag to replace file" : "Click or drag to change file")
+                                    </MudText>
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">PDF, DOC, DOCX, JPG, PNG</MudText>
+                                </MudPaper>
+                            </ActivatorContent>
+                        </MudFileUpload>
+                    </div>
+
+                    @if (selectedFile != null)
+                    {
+                        <MudPaper Elevation="0" Class="pa-3 mt-3" Style="border-left: 4px solid var(--mud-palette-success); background: rgba(76,175,80,0.06);">
+                            <div class="d-flex align-center justify-space-between">
+                                <div class="d-flex align-center">
+                                    <MudIcon Icon="@Icons.Material.Filled.AttachFile" Color="Color.Success" Class="mr-2" />
+                                    <div>
+                                        <MudText Typo="Typo.body2" Class="font-weight-medium">@selectedFile.Name</MudText>
+                                        <MudText Typo="Typo.caption" Color="Color.Success">@(selectedFile.Size / 1024) KB — new file selected</MudText>
+                                    </div>
+                                </div>
+                                <MudIconButton Icon="@Icons.Material.Filled.Close" Color="Color.Error" Size="Size.Small" OnClick="RemoveFile" />
+                            </div>
+                        </MudPaper>
+                    }
+                    else if (!string.IsNullOrEmpty(Doc.FilePath))
+                    {
+                        <MudPaper Elevation="0" Class="pa-3 mt-3" Style="border-left: 4px solid var(--mud-palette-info); background: rgba(33,150,243,0.06);">
+                            <div class="d-flex align-center justify-space-between">
+                                <div class="d-flex align-center">
+                                    <MudIcon Icon="@Icons.Material.Filled.AttachFile" Color="Color.Info" Class="mr-2" />
+                                    <div>
+                                        <MudText Typo="Typo.body2" Class="font-weight-medium">@Doc.FileName</MudText>
+                                        <MudText Typo="Typo.caption" Class="mud-text-secondary">Current attachment</MudText>
+                                    </div>
+                                </div>
+                                <MudIconButton Icon="@Icons.Material.Filled.Download" Color="Color.Primary"
+                                               Size="Size.Small" Href="@Doc.FilePath" Target="_blank" />
+                            </div>
+                        </MudPaper>
+                    }
+                </MudPaper>
+            </MudItem>
+
+        </MudGrid>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled"
+                   StartIcon="@Icons.Material.Filled.Save" OnClick="Submit">Save Changes</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public Document Doc { get; set; } = new();
+
+    private IBrowserFile? selectedFile;
+    private static readonly string[] AllowedExtensions = { ".pdf", ".doc", ".docx", ".jpg", ".png" };
+
+    private void OnFileSelected(IBrowserFile file)
+    {
+        var ext = Path.GetExtension(file.Name).ToLowerInvariant();
+        if (!AllowedExtensions.Contains(ext))
+        {
+            Snackbar.Add($"File type '{ext}' is not allowed.", Severity.Error);
+            return;
+        }
+        selectedFile = file;
+        Doc.FileName = file.Name;
+    }
+
+    private void RemoveFile()
+    {
+        selectedFile = null;
+        Doc.FileName = string.Empty;
+    }
+
+    private async void Submit()
+    {
+        if (selectedFile != null)
+        {
+            var uploadedPath = await DocService.UploadFileAsync(selectedFile);
+            if (uploadedPath != null) Doc.FilePath = uploadedPath;
+            else Snackbar.Add("File upload failed, saving without new file.", Severity.Warning);
+        }
+        MudDialog.Close(DialogResult.Ok(Doc));
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

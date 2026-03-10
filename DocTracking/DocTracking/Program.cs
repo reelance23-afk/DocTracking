@@ -69,8 +69,14 @@ builder.Services.ConfigureApplicationCookie(options =>
 });
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddScoped<AuthenticationStateProvider, DocTracking.Services.PersistingServerAuthenticationStateProvider>();
-builder.Services.AddScoped<DocumentService>();
+builder.Services.AddHttpClient<DocumentService>(client =>
+{
+    client.BaseAddress = new Uri("https://localhost:7221/");
+});
+
 builder.Services.AddScoped<ThemeService>();
+builder.Services.AddScoped<NotificationService>();
+builder.Services.AddSignalR();
 builder.Services.AddTransient<IClaimsTransformation, UserClaimsTransformation>();
 builder.Services.AddControllers()
     .AddJsonOptions( options =>
@@ -124,5 +130,6 @@ app.MapRazorComponents<App>()
     .AddAdditionalAssemblies(typeof(DocTracking.Client._Imports).Assembly);
 
 app.MapControllers();
+app.MapHub<DocTracking.Hubs.NotificationHub>("/hubs/notifications");
 
 app.Run();

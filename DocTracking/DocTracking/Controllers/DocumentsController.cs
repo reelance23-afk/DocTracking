@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
 using Microsoft.Graph;
+using Microsoft.AspNetCore.Authentication;
 
 namespace DocTracking.Controllers
 {
@@ -98,6 +99,23 @@ namespace DocTracking.Controllers
                 .OrderByDescending(d => d.CreatedAt)
                 .ToListAsync();
         }
+
+        /*
+        [HttpGet("my-photo")]
+        public async Task<IActionResult> GetMyPhoto()
+        {
+            var token = await HttpContext.GetTokenAsync("access_token");
+            if (token == null) return NotFound();
+
+            using var client = new HttpClient();
+            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            var response = await client.GetAsync("https://graph.microsoft.com/v1.0/me/photo/$value");
+            if (!response.IsSuccessStatusCode) return NotFound($"Graph returned {response.StatusCode}");
+
+            var bytes = await response.Content.ReadAsByteArrayAsync();
+            return File(bytes, "image/jpeg");
+        }  */
 
         [HttpGet("my-profile")]
         public async Task<ActionResult<AppUser>> GetMyProfile()
@@ -308,6 +326,52 @@ namespace DocTracking.Controllers
                 .ToListAsync();
 
             return Ok(document);
+        }
+
+        [HttpGet("history/office/{officeId}")]
+        public async Task<ActionResult<IEnumerable<Document>>> GetOfficeHistory(int officeId)
+        {
+            var document = await _context.Documents
+                .Include(d => d.Creator)
+                .Include(d => d.NextOffice)
+                .Include(d => d.CurrentOffice)
+                .Include(d => d.NextUnit)
+                .Include(d => d.CurrentUnit)
+                .Where(d => _context.DocumentLogs.Any(log => log.DocumentId == d.Id &&
+                (_context.Units.Any(u => u.Id == log.UnitId && u.OfficeId == officeId) ||
+                (log.UnitId == null && log.OfficeId == officeId))))
+                .OrderByDescending(d => d.CreatedAt)
+                .ToListAsync();
+
+            return Ok(document);
+        }
+
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateDocument(int id, [FromBody] Document doc)
+        {
+            var existing = await _context.Documents.FindAsync(id);
+            if (existing == null) return NotFound();
+
+            existing.Name = doc.Name;
+            existing.Type = doc.Type;
+            existing.Description = doc.Description;
+            existing.Priority = doc.Priority;
+
+            await _context.SaveChangesAsync();
+            return Ok(existing);
+        }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteDocument(int id)
+        {
+            var doc = await _context.Documents.FindAsync(id);
+            if (doc == null) return NotFound();
+
+            var logs = _context.DocumentLogs.Where(d => d.DocumentId == id);
+            _context.DocumentLogs.RemoveRange(logs);
+            _context.Documents.Remove(doc);
+            await _context.SaveChangesAsync();
+            return Ok();
         }
 
     }

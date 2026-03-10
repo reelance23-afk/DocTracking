@@ -21,6 +21,7 @@ builder.Services.AddScoped(sp =>
 
 builder.Services.AddScoped<DocumentService>();
 builder.Services.AddScoped<ThemeService>();
+builder.Services.AddScoped<NotificationService>();
 builder.Services.AddMudServices();
 
 await builder.Build().RunAsync();

@@ -63,6 +63,7 @@
         animation: slideUp 0.5s ease-out 0.4s both;
     }
 </style>
+
 <MudLayout>
     <MudDrawer Open="_drawerOpen"
                OpenChanged="HandleDrawerStateChange"
@@ -75,8 +76,15 @@
         <MudDrawerHeader Class="pt-4 px-2">
             <AuthorizeView>
                 <Authorized>
-                    <div class="d-flex flex-column align-center pa-3 mb-4 rounded-lg position-relative overflow-hidden"
+                    <div class="d-flex flex-column align-center pa-3 mb-4 rounded-lg position-relative"
                          style="@($"width: 100%; transition: all 0.3s ease; height: 110px; background: {(_drawerOpen ? "linear-gradient(145deg, #f0f2f5 0%, #e8eaf0 100%)" : "transparent")}; border: {(_drawerOpen ? "1px solid rgba(0,0,0,0.08)" : "none")};")">
+
+                        @if (_showText)
+                        {
+                            <div style="position: absolute; top: 4px; right: 4px;" @onclick:stopPropagation="true">
+                                <NotificationBell />
+                            </div>
+                        }
 
                         <div @onclick="@(() => HandleDrawerStateChange(!_drawerOpen))"
                              @onclick:stopPropagation="true"
@@ -91,27 +99,18 @@
                             <div style="position: absolute; bottom: 2px; right: 2px; width: 12px; height: 12px; background: #4caf50; border: 2px solid white; border-radius: 50%;"></div>
                         </div>
 
-                        <!-- User details -->
                         @if (_showText)
                         {
                             <div class="text-center mt-2" style="animation: fadeIn 0.4s ease-out;">
                                 <MudText Typo="Typo.body2" Class="font-weight-bold text-truncate mb-1" Style="max-width: 140px; color: var(--mud-palette-text-primary);">
                                     @(displayName ?? "User")
                                 </MudText>
-
-                                <div class="d-flex justify-center">
-                                    <MudIcon Icon="@GetRoleIcon()" Size="Size.Small" Class="mr-1" Style="color: var(--mud-palette-success);" />
-                                    <MudText Typo="Typo.caption" Style="color: var(--mud-palette-text-secondary); font-weight: 500;">
-                                        @(context.User.IsInRole("Admin") ? "Administrator" : context.User.IsInRole("Office") ? "Office Staff" : "User")
-                                    </MudText>
-                                </div>
                             </div>
                         }
                     </div>
                 </Authorized>
             </AuthorizeView>
         </MudDrawerHeader>
-
 
         <CascadingValue Value="_showText">
             <NavMenu />
@@ -138,22 +137,18 @@
     bool _isMobile = false;
     private MudTheme CurrentTheme = new();
     private string? displayName;
+    private string? photoUrl;
 
     protected override async Task OnInitializedAsync()
     {
-
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         var user = authState.User;
 
         if (user.Identity?.IsAuthenticated == true)
         {
             if (!user.Claims.Any(c => c.Type == ClaimTypes.Role))
-            {
                 Navigation.NavigateTo(Navigation.Uri, forceLoad: true);
-            }
         }
-
-  
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -165,10 +160,10 @@
             CurrentTheme = BuildTheme();
             await CheckIfMobile();
             await JSRuntime.InvokeVoidAsync("eval", "document.getElementById('app-loading')?.remove()");
-            StateHasChanged();
 
             var profile = await DocService.GetProfileAsync();
             displayName = profile?.Name;
+            StateHasChanged();
         }
     }
 
@@ -177,22 +172,14 @@
         try
         {
             _isMobile = await JSRuntime.InvokeAsync<bool>("eval", "window.innerWidth <= 768");
-            if (_isMobile)
-            {
-                _drawerOpen = false;
-                _showText = false;
-            }
+            if (_isMobile) { _drawerOpen = false; _showText = false; }
         }
-        catch
-        {
-            _isMobile = false;
-        }
+        catch { _isMobile = false; }
     }
 
     async Task HandleDrawerStateChange(bool isOpen)
     {
         if (_drawerOpen == isOpen) return;
-
         if (isOpen)
         {
             _drawerOpen = true;
@@ -223,12 +210,10 @@
     {
         var authState = AuthStateProvider.GetAuthenticationStateAsync().Result;
         var user = authState.User;
-
         if (user.IsInRole("Admin")) return Icons.Material.Filled.AdminPanelSettings;
         if (user.IsInRole("Office")) return Icons.Material.Filled.Business;
         return Icons.Material.Filled.Person;
     }
-
 
     private MudTheme BuildTheme() => ThemeService.SelectedTheme switch
     {
@@ -239,5 +224,4 @@
         "Rose" => new MudTheme { PaletteLight = new PaletteLight { Primary = "#BE185D", Secondary = "#F472B6" }, PaletteDark = new PaletteDark { Primary = "#BE185D", Secondary = "#F472B6" } },
         _ => new MudTheme()
     };
-
 }

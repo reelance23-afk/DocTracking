@@ -3,125 +3,246 @@
 @using DocTracking.Client.Models
 @using DocTracking.Client.Services
 @inject DocumentService DocumentService
+@inject IDialogService DialogService
 @rendermode InteractiveAuto
 
-<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
-	<MudText Typo="Typo.h4" Class="mb-4 font-weight-bold">Tracking List</MudText>
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+    <div class="mb-6">
+        <div class="d-flex align-center mb-4">
+            <MudIcon Icon="@Icons.Material.Filled.TrackChanges" Size="Size.Large" Class="mr-3" Color="Color.Primary" />
+            <MudText Typo="Typo.h4" Class="font-weight-bold">Tracking List</MudText>
+        </div>
+        <MudGrid>
+            <MudItem xs="12" sm="4">
+                <MudPaper Style="border-top: 4px solid var(--mud-palette-warning);" Elevation="2" Class="pa-4 rounded-lg">
+                    <div class="d-flex align-center justify-space-between">
+                        <div>
+                            <MudText Typo="Typo.h3" Class="font-weight-bold" Color="Color.Warning">@allDocuments.Count(d => d.Status != "Received" && d.Status != "Completed")</MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Warning">In Motion</MudText>
+                        </div>
+                        <MudIcon Icon="@Icons.Material.Filled.DirectionsWalk" Size="Size.Large" Color="Color.Warning" />
+                    </div>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudPaper Style="border-top: 4px solid var(--mud-palette-success);" Elevation="2" Class="pa-4 rounded-lg">
+                    <div class="d-flex align-center justify-space-between">
+                        <div>
+                            <MudText Typo="Typo.h3" Class="font-weight-bold" Color="Color.Success">@allDocuments.Count(d => d.Status == "Received")</MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Success">Received</MudText>
+                        </div>
+                        <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Large" Color="Color.Success" />
+                    </div>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudPaper Style="border-top: 4px solid var(--mud-palette-info);" Elevation="2" Class="pa-4 rounded-lg">
+                    <div class="d-flex align-center justify-space-between">
+                        <div>
+                            <MudText Typo="Typo.h3" Class="font-weight-bold" Color="Color.Info">@allDocuments.Count(d => d.Status == "Completed")</MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Info">Completed</MudText>
+                        </div>
+                        <MudIcon Icon="@Icons.Material.Filled.Description" Size="Size.Large" Color="Color.Info" />
+                    </div>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+    </div>
 
-		<MudTable Items="@allDocuments" Hover="true" Striped="true" Elevation="3" Loading="@loading" Filter="new Func<Document, bool>(FilterFunc)">
-			<ToolBarContent>
-				<MudText Typo="Typo.h6">All Document</MudText>
-				<MudSpacer />
-			<MudTextField @bind-Value="searchString" Placeholder="Search documents, senders, or locations..." Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
-			</ToolBarContent>
-		<HeaderContent>
-			<MudTh>Name</MudTh>
-			<MudTh>Sender</MudTh>
-			<MudTh>Location</MudTh>
-			<MudTh>Status</MudTh>
-			<MudTh>Date</MudTh>
-			<MudTh>Action</MudTh>
-		</HeaderContent>
+    @if (loading)
+    {
+        <MudPaper Elevation="2" Class="pa-8 text-center rounded-lg">
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" Class="mb-4" />
+            <MudText>Loading documents...</MudText>
+        </MudPaper>
+    }
+    else
+    {
+        <MudPaper Elevation="3" Class="pa-4 pa-md-6 rounded-lg">
+            <div class="d-flex justify-space-between align-center mb-4">
+                <MudText Typo="Typo.h6">All Documents</MudText>
+                <MudTextField @bind-Value="searchString" Placeholder="Search documents, senders, or locations..."
+                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                              IconSize="Size.Medium" Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" />
+            </div>
 
-		<RowTemplate>
-			<MudTd DataLabel="Name">
-				<MudText Typo="Typo.body1" Class="font-weight-bold">@context.Name</MudText>
-			</MudTd>
-			<MudTd DataLabel="Sender">@context.Creator?.Name</MudTd>
+            <MudHidden Breakpoint="Breakpoint.SmAndDown">
+                <MudTable Items="@allDocuments" Hover="true" T="Document" Filter="new Func<Document, bool>(FilterFunc)">
+                    <HeaderContent>
+                        <MudTh><MudTableSortLabel SortBy="new Func<Document, object>(x => x.Name)">Name</MudTableSortLabel></MudTh>
+                        <MudTh>Sender</MudTh>
+                        <MudTh>Location</MudTh>
+                        <MudTh>Status</MudTh>
+                        <MudTh><MudTableSortLabel SortBy="new Func<Document, object>(x => x.CreatedAt)">Date</MudTableSortLabel></MudTh>
+                        <MudTh>Actions</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Name"><strong>@context.Name</strong></MudTd>
+                        <MudTd DataLabel="Sender">@context.Creator?.Name</MudTd>
+                        <MudTd DataLabel="Location">
+                            @if (context.CurrentOffice != null)
+                            {
+                                <MudText Typo="Typo.body2"><strong>@context.CurrentOffice.Name</strong><br /><span style="color: gray; font-size: 0.85em;">↳ @(context.CurrentUnit?.Name ?? "General")</span></MudText>
+                            }
+                            else if (context.NextOffice != null)
+                            {
+                                <MudText Typo="Typo.body2"><span style="color: #ff9800; font-size: 0.85em; font-style: italic;">Routing to:</span><br /><strong>@context.NextOffice.Name</strong><br /><span style="color: gray; font-size: 0.85em;">↳ @(context.NextUnit?.Name ?? "General")</span></MudText>
+                            }
+                            else
+                            {
+                                <MudText Typo="Typo.body2" Color="Color.Default">Unassigned</MudText>
+                            }
+                        </MudTd>
+                        <MudTd DataLabel="Status">
+                            <MudChip T="string" Color="@GetStatusColor(context.Status)" Size="Size.Small" Variant="Variant.Filled">@context.Status</MudChip>
+                        </MudTd>
+                        <MudTd DataLabel="Date">@context.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")</MudTd>
+                        <MudTd DataLabel="Actions">
+                            <MudButton Href="@($"/admin-track-document/{context.Id}")" Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Timeline" Class="mr-1">Track</MudButton>
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Warning" OnClick="@(async () => await OpenEditDialog(context))" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(() => DeleteDocument(context))" />
+                        </MudTd>
+                    </RowTemplate>
+                    <NoRecordsContent>
+                        <div class="pa-8 text-center">
+                            <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Large" Style="opacity: 0.3; font-size: 4rem;" Class="mb-4" />
+                            <MudText Typo="Typo.h6" Class="mud-text-secondary">No documents found</MudText>
+                        </div>
+                    </NoRecordsContent>
+                    <PagerContent><MudTablePager /></PagerContent>
+                </MudTable>
+            </MudHidden>
 
-			<MudTd DataLabel="Location">
-				@if (context.CurrentOffice != null)
-				{
-					<MudText Typo="Typo.body2">
-						<strong>@context.CurrentOffice.Name</strong> <br />
-						<span style="color: gray; font-size: 0.85em;">↳ @(context.CurrentUnit?.Name ?? "General")</span>
-					</MudText>
-				}
-				else if (context.NextOffice != null)
-				{
-					<MudText Typo="Typo.body2">
-						<span style="color: #ff9800; font-size: 0.85em; font-style: italic;">Routing to:</span><br />
-						<strong>@context.NextOffice.Name</strong> <br />
-						<span style="color: gray; font-size: 0.85em;">↳ @(context.NextUnit?.Name ?? "General")</span>
-					</MudText>
-				}
-				else
-				{
-					<MudText Typo="Typo.body2" Color="Color.Default">Unassigned</MudText>
-				}
-			</MudTd>
-
-			<MudTd DataLabel="Status">
-				<MudChip T="string" Color="@GetStatusColor(context.Status)" Size="Size.Small" Variant="Variant.Filled">
-					@context.Status
-				</MudChip>
-			</MudTd>
-			<MudTd DataLabel="Date">@context.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")</MudTd>
-
-			<MudTd DataLabel="Action">
-				<MudButton Href="@($"/track-document/{context.Id}?ReturnUrl=document-tracking")"
-						   Size="Size.Small"
-						   Variant="Variant.Filled"
-						   Color="Color.Primary"
-						   StartIcon="@Icons.Material.Filled.Timeline">
-					Track
-				</MudButton>
-			</MudTd>
-		</RowTemplate>
-			<PagerContent>
-				<MudTablePager />
-			</PagerContent>
-		</MudTable>
-
+            <MudHidden Breakpoint="Breakpoint.MdAndUp">
+                @if (!allDocuments.Where(d => FilterFunc(d)).Any())
+                {
+                    <div class="pa-8 text-center">
+                        <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Large" Style="opacity: 0.3; font-size: 4rem;" Class="mb-4" />
+                        <MudText Typo="Typo.h6" Class="mud-text-secondary">No documents found</MudText>
+                    </div>
+                }
+                else
+                {
+                    @foreach (var doc in allDocuments.Where(d => FilterFunc(d)))
+                    {
+                        <MudCard Elevation="2" Class="mb-3">
+                            <MudCardContent Class="pa-4">
+                                <div class="d-flex justify-space-between align-start mb-2">
+                                    <MudText Typo="Typo.subtitle1" Class="font-weight-bold">@doc.Name</MudText>
+                                    <MudChip T="string" Color="@GetStatusColor(doc.Status)" Size="Size.Small" Variant="Variant.Filled">@doc.Status</MudChip>
+                                </div>
+                                <MudText Typo="Typo.body2" Class="mb-2">Sender: <strong>@(doc.Creator?.Name ?? "—")</strong></MudText>
+                                @if (doc.CurrentOffice != null)
+                                {
+                                    <MudText Typo="Typo.body2" Class="mb-2">
+                                        <MudIcon Icon="@Icons.Material.Filled.Place" Size="Size.Small" Class="mr-1" />
+                                        <strong>@doc.CurrentOffice.Name</strong>
+                                        @if (doc.CurrentUnit != null)
+                                        {
+                                            <span class="mud-text-secondary"> ↳ @doc.CurrentUnit.Name</span>
+                                        }
+                                    </MudText>
+                                }
+                                else if (doc.NextOffice != null)
+                                {
+                                    <MudText Typo="Typo.body2" Class="mb-2">
+                                        <MudIcon Icon="@Icons.Material.Filled.DirectionsWalk" Size="Size.Small" Class="mr-1" />
+                                        <span style="color:#ff9800;">Routing to: </span><strong>@doc.NextOffice.Name</strong>
+                                    </MudText>
+                                }
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                                    <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" Class="mr-1" />
+                                    @doc.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")
+                                </MudText>
+                            </MudCardContent>
+                            <MudCardActions Class="pa-4 pt-0 d-flex gap-2">
+                                <MudButton Href="@($"/admin-track-document/{doc.Id}")" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Timeline" FullWidth="true">Track</MudButton>
+                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Warning" OnClick="@(async () => await OpenEditDialog(doc))" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => DeleteDocument(doc))" />
+                            </MudCardActions>
+                        </MudCard>
+                    }
+                }
+            </MudHidden>
+        </MudPaper>
+    }
 </MudContainer>
 
 @code {
-	private List<Document> allDocuments = new();
-	private bool loading = true;
+    private List<Document> allDocuments = new();
+    private bool loading = true;
+    private string searchString = "";
 
-	private string searchString = "";
+    protected override async Task OnInitializedAsync()
+    {
+        try { allDocuments = await DocumentService.GetAllDocumentsAsync(); }
+        catch (Exception ex) { Console.WriteLine(ex.Message); }
+        finally { loading = false; }
+    }
 
-	protected override async Task OnInitializedAsync()
-	{
-		try
-		{
-			allDocuments = await DocumentService.GetAllDocumentsAsync();
-		}
-		catch (Exception ex)
-		{
-			Console.WriteLine(ex.Message);
-		}
-		finally
-		{
-			loading = false;
-		}
-	}
+    private async Task OpenEditDialog(Document doc)
+    {
+        var editingDoc = new Document
+        {
+            Id = doc.Id,
+            Name = doc.Name,
+            Type = doc.Type,
+            Description = doc.Description,
+            Priority = doc.Priority,
+            FileName = doc.FileName,
+            FilePath = doc.FilePath
+        };
+        var parameters = new DialogParameters<EditDocumentDialog> { { x => x.Doc, editingDoc } };
+        var dialog = await DialogService.ShowAsync<EditDocumentDialog>("Edit Document", parameters);
+        var result = await dialog.Result;
+        if (!result!.Canceled && result.Data is Document updated)
+        {
+            var (success, _) = await DocumentService.UpdateDocumentAsync(updated);
+            if (success)
+            {
+                var existing = allDocuments.FirstOrDefault(d => d.Id == updated.Id);
+                if (existing != null)
+                {
+                    existing.Name = updated.Name; existing.Type = updated.Type;
+                    existing.Description = updated.Description; existing.Priority = updated.Priority;
+                    existing.FileName = updated.FileName; existing.FilePath = updated.FilePath;
+                }
+                StateHasChanged();
+            }
+        }
+    }
 
-	private bool FilterFunc(Document element)
-	{
-		if (string.IsNullOrWhiteSpace(searchString)) return true;
-		if (element.Name?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
-		if (element.Creator?.Name?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
-		if (element.Status?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+    private async Task DeleteDocument(Document doc)
+    {
+        var confirmed = await DialogService.ShowMessageBox("Delete Document",
+            $"Are you sure you want to delete \"{doc.Name}\"? This cannot be undone.",
+            yesText: "Delete", cancelText: "Cancel");
+        if (confirmed == true)
+        {
+            var (success, _) = await DocumentService.DeleteDocumentAsync(doc.Id);
+            if (success) allDocuments.Remove(doc);
+        }
+    }
 
-		if (element.CurrentOffice?.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
-		if (element.NextOffice?.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
-		if (element.CurrentUnit?.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
-		if (element.NextUnit?.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+    private bool FilterFunc(Document element)
+    {
+        if (string.IsNullOrWhiteSpace(searchString)) return true;
+        if (element.Name?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+        if (element.Creator?.Name?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+        if (element.Status?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+        if (element.CurrentOffice?.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+        if (element.NextOffice?.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+        if (element.CurrentUnit?.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+        if (element.NextUnit?.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+        return false;
+    }
 
-		return false;
-	}
-
-	private Color GetStatusColor(string? status)
-	{
-		return status switch
-		{
-			"Completed" => Color.Success,
-			"Received" => Color.Info,
-			"In Motion" => Color.Warning,
-			"Pending" => Color.Warning,
-			"Archived" => Color.Dark,
-			_ => Color.Default
-		};
-	}
+    private Color GetStatusColor(string? status) => status switch
+    {
+        "Completed" => Color.Success,
+        "Received" => Color.Info,
+        "In Motion" => Color.Warning,
+        "Archived" => Color.Dark,
+        _ => Color.Default
+    };
 }

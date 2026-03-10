@@ -45,5 +45,15 @@ namespace DocTracking.Controllers
             return Ok();
         }
 
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteUser(int id)
+        {
+            var user = await _context.AppUsers.FindAsync(id);
+            if (user == null) return NotFound();
+
+            _context.AppUsers.Remove(user);
+            await _context.SaveChangesAsync();
+            return Ok();
+        }
     }
 }

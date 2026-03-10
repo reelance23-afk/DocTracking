@@ -1,0 +1,72 @@
+﻿@using DocTracking.Client.Models
+@using DocTracking.Client.Services
+@using Microsoft.AspNetCore.Components.Authorization
+@inject NotificationService NotifService
+@inject DocumentService DocService
+@implements IAsyncDisposable
+
+<MudMenu AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" Dense="true">
+    <ActivatorContent>
+        <MudBadge Content="@NotifService.UnreadCount" Visible="@(NotifService.UnreadCount > 0)"
+                  Color="Color.Error" Overlap="true" Class="mr-2">
+            <MudIconButton Icon="@Icons.Material.Filled.Notifications" Color="Color.Inherit" />
+        </MudBadge>
+    </ActivatorContent>
+    <ChildContent>
+        <MudPaper MinWidth="300px" MaxWidth="360px" Elevation="0">
+            <div class="d-flex align-center justify-space-between pa-3 pb-1">
+                <MudText Typo="Typo.subtitle1" Class="font-weight-bold">Notifications</MudText>
+                @if (NotifService.UnreadCount > 0)
+                {
+                    <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="NotifService.MarkAllRead">Mark all read</MudButton>
+                }
+            </div>
+            <MudDivider />
+            @if (!NotifService.Notifications.Any())
+            {
+                <div class="pa-4 text-center">
+                    <MudIcon Icon="@Icons.Material.Filled.NotificationsNone" Size="Size.Large" Class="mud-text-secondary mb-2" />
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary">No notifications yet</MudText>
+                </div>
+            }
+            else
+            {
+                <MudList T="AppNotification" Dense="true" Style="max-height: 360px; overflow-y: auto;">
+                    @foreach (var notif in NotifService.Notifications.Take(20))
+                    {
+                        <MudListItem T="AppNotification" Style="@(!notif.IsRead ? "background: rgba(var(--mud-palette-primary-rgb), 0.06);" : "")">
+                            <div class="d-flex align-start gap-2">
+                                <MudIcon Icon="@Icons.Material.Filled.Description" Color="Color.Primary" Size="Size.Small" Class="mt-1" />
+                                <div>
+                                    <MudText Typo="Typo.body2" Class="font-weight-bold">@notif.DocumentName</MudText>
+                                    <MudText Typo="Typo.caption">@notif.Message</MudText>
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">@notif.Time.ToLocalTime().ToString("MMM dd • hh:mm tt")</MudText>
+                                </div>
+                            </div>
+                        </MudListItem>
+                        <MudDivider />
+                    }
+                </MudList>
+            }
+        </MudPaper>
+    </ChildContent>
+</MudMenu>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        var profile = await DocService.GetProfileAsync();
+        if (profile != null)
+        {
+            var group = profile.UnitId.HasValue ? $"unit-{profile.UnitId}" : $"office-{profile.OfficeId}";
+            await NotifService.StartAsync(group);
+        }
+        NotifService.OnChange += StateHasChanged;
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        NotifService.OnChange -= StateHasChanged;
+        return ValueTask.CompletedTask;
+    }
+}

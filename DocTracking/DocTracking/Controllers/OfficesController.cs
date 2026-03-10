@@ -35,5 +35,29 @@ namespace DocTracking.Controllers
                 .OrderBy(o => o.Name)
                 .ToListAsync();
         }
+
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateOffice(int id, [FromBody] Office office)
+        {
+            var existing = await _context.Offices.FindAsync(id);
+            if (existing == null) return NotFound();
+
+            var duplicate = await _context.Offices.AnyAsync(o => o.Name == office.Name && o.Id != id);
+            if (duplicate) return Conflict("An office with this name already exists");
+            existing.Name = office.Name;
+            await _context.SaveChangesAsync();
+            return Ok(existing);
+        }
+
+        [HttpDelete("{id}")]
+        public async Task <IActionResult> DeleteOffice(int id)
+        {
+            var existing = await _context.Offices.FindAsync(id);
+            if (existing == null) return NotFound();
+            _context.Offices.Remove(existing);
+            await _context.SaveChangesAsync();
+            return Ok();
+
+        }
     }
 }

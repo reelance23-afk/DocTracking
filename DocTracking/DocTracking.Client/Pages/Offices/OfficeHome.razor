@@ -6,7 +6,7 @@
 @inject AuthenticationStateProvider AuthStateProvider
 @rendermode InteractiveAuto
 
-<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
 
     @if (isLoadingInitial)
     {
@@ -17,7 +17,6 @@
     }
     else
     {
-        <!-- Header -->
         <div class="d-flex align-center mb-6">
             <MudIcon Icon="@Icons.Material.Filled.Business" Size="Size.Large" Color="Color.Primary" Class="mr-3" />
             <div>
@@ -26,7 +25,6 @@
             </div>
         </div>
 
-        <!-- Stats -->
         <MudGrid Class="mb-6">
             <MudItem xs="12" sm="4">
                 <MudPaper Elevation="2" Class="pa-4" Style="border-top: 4px solid var(--mud-palette-error);">
@@ -63,10 +61,8 @@
             </MudItem>
         </MudGrid>
 
-        <!-- Split: Kanban + Timeline -->
         <MudGrid Class="mb-6">
 
-            <!-- Kanban -->
             <MudItem xs="12" md="7">
                 <MudPaper Elevation="2" Class="pa-4" Style="height: 100%;">
                     <div class="d-flex align-center justify-space-between mb-4">
