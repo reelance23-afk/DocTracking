@@ -21,5 +21,7 @@ namespace DocTracking.Client.Models
         [ForeignKey("OfficeId")]
         public Office? Office { get; set; }
 
+        public bool IsOfficeHead { get; set; }
+
     }
 }

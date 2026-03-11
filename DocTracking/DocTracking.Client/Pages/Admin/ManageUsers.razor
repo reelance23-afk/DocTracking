@@ -36,11 +36,19 @@
                         <span style="color: gray; font-size: 0.85em;">↳ @context.Unit.Name</span>
                     </MudText>
                 }
+                else if (context.Office != null)
+                {
+                    <MudText Typo="Typo.body2">
+                        <strong>@context.Office.Name</strong><br />
+                        <span style="color: gray; font-size: 0.85em;">↳ @(context.IsOfficeHead ? "Office Head" : "No Unit Assigned")</span>
+                    </MudText>
+                }
                 else
                 {
                     <MudText Typo="Typo.body2" Color="Color.Default">N/A</MudText>
                 }
             </MudTd>
+
             <MudTd>
                 <div class="d-flex gap-1">
                     <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Warning"
@@ -75,20 +83,33 @@
             {
                 <MudSelect T="int?" Value="GetActiveOfficeId(editingUser)"
                            ValueChanged="@((int? id) => OnOfficeChanged(editingUser, id))"
-                           Label="Select Office" Variant="Variant.Outlined" Class="mb-4">
+                           Label="Select Office" Variant="Variant.Outlined" Class="mb-3">
                     @foreach (var office in offices)
                     {
                         <MudSelectItem T="int?" Value="@((int?)office.Id)">@office.Name</MudSelectItem>
                     }
                 </MudSelect>
-                @if (GetUnitsForActiveOffice(editingUser).ToList() is var units && units.Any())
+
+                @if (GetActiveOfficeId(editingUser) != null)
                 {
-                    <MudSelect @bind-Value="editingUser.UnitId" Label="Select Unit" Variant="Variant.Outlined">
-                        @foreach (var unit in units)
-                        {
-                            <MudSelectItem T="int?" Value="@((int?)unit.Id)">@unit.Name</MudSelectItem>
-                        }
-                    </MudSelect>
+                    <MudCheckBox @bind-Value="isOfficeHead" Label="Office Head" Color="Color.Warning" Class="mb-2" />
+
+                    @if (!isOfficeHead && GetUnitsForActiveOffice(editingUser).Any())
+                    {
+                        <MudSelect @bind-Value="editingUser.UnitId" Label="Select Unit" Variant="Variant.Outlined" Class="mb-3">
+                            @foreach (var unit in GetUnitsForActiveOffice(editingUser))
+                            {
+                                <MudSelectItem T="int?" Value="@((int?)unit.Id)">@unit.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+                    }
+
+                    @if (isOfficeHead)
+                    {
+                        <MudAlert Severity="Severity.Warning" Dense="true">
+                            This user will become an Office Head of @(offices.FirstOrDefault(o => o.Id == GetActiveOfficeId(editingUser))?.Name).
+                        </MudAlert>
+                    }
                 }
             }
             else
@@ -110,6 +131,7 @@
     private List<Office> offices = new();
     private bool isLoading = true;
     private bool isSaving = false;
+    private bool isOfficeHead = false;
     private string searchString = "";
     private Dictionary<int, int?> activeOfficeEdits = new();
 
@@ -138,9 +160,11 @@
         {
             Id = user.Id, Name = user.Name, Role = user.Role,
             OfficeId = user.OfficeId, UnitId = user.UnitId,
-            Unit = user.Unit, Office = user.Office, Email = user.Email
+            Unit = user.Unit, Office = user.Office, Email = user.Email ,
+            IsOfficeHead = user.IsOfficeHead
         };
         activeOfficeEdits.Remove(editingUser.Id);
+        isOfficeHead = user.IsOfficeHead;
         isEditDialogOpen = true;
     }
 
@@ -155,6 +179,7 @@
         activeOfficeEdits[user.Id] = newOfficeId;
         user.UnitId = null;
         user.OfficeId = newOfficeId;
+        isOfficeHead = false; 
     }
 
     private IEnumerable<Unit> GetUnitsForActiveOffice(AppUser user)
@@ -174,6 +199,25 @@
             {
                 editingUser.UnitId = null;
                 editingUser.OfficeId = null;
+                editingUser.IsOfficeHead = false;
+            }
+            else if (isOfficeHead)
+            {
+                editingUser.UnitId = null;
+                editingUser.OfficeId = GetActiveOfficeId(editingUser);
+                editingUser.IsOfficeHead = true;
+            } 
+            else
+            {
+                editingUser.IsOfficeHead = false;
+                if (editingUser.UnitId != null)
+                {
+                    editingUser.OfficeId = null; 
+                }
+                else
+                {
+                    editingUser.OfficeId = GetActiveOfficeId(editingUser);
+                }
             }
             await DocService.UpdateAppUserAsync(editingUser);
             Snackbar.Add($"Updated {editingUser.Name} successfully!", Severity.Success);

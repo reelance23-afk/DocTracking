@@ -79,12 +79,9 @@
                     <div class="d-flex flex-column align-center pa-3 mb-4 rounded-lg position-relative"
                          style="@($"width: 100%; transition: all 0.3s ease; height: 110px; background: {(_drawerOpen ? "linear-gradient(145deg, #f0f2f5 0%, #e8eaf0 100%)" : "transparent")}; border: {(_drawerOpen ? "1px solid rgba(0,0,0,0.08)" : "none")};")">
 
-                        @if (_showText)
-                        {
-                            <div style="position: absolute; top: 4px; right: 4px;" @onclick:stopPropagation="true">
-                                <NotificationBell />
-                            </div>
-                        }
+                        <div style="position: absolute; top: 4px; right: 4px; @(_showText ? "" : "visibility: hidden;")" @onclick:stopPropagation="true">
+                            <NotificationBell />
+                        </div>
 
                         <div @onclick="@(() => HandleDrawerStateChange(!_drawerOpen))"
                              @onclick:stopPropagation="true"
@@ -111,6 +108,7 @@
                 </Authorized>
             </AuthorizeView>
         </MudDrawerHeader>
+
 
         <CascadingValue Value="_showText">
             <NavMenu />

@@ -16,6 +16,8 @@ namespace DocTracking.Data
 
         public DbSet<Unit> Units { get; set; }
 
+        public DbSet<AppNotification> AppNotifications { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -49,6 +51,12 @@ namespace DocTracking.Data
                 .WithMany()
                 .HasForeignKey(u => u.OfficeId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<AppNotification>()
+                .HasOne<AppUser>()
+                .WithMany()
+                .HasForeignKey(n => n.AppUserId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

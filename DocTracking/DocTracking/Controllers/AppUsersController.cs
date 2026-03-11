@@ -40,6 +40,7 @@ namespace DocTracking.Controllers
             user.Role = updatedUser.Role;
             user.UnitId = updatedUser.UnitId;
             user.OfficeId = updatedUser.OfficeId;
+            user.IsOfficeHead = updatedUser.IsOfficeHead;
 
             await _context.SaveChangesAsync();
             return Ok();

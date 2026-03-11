@@ -93,7 +93,7 @@
                         <MudTd DataLabel="Current Location">
                             @if (context.CurrentOffice != null)
                             {
-                                <MudText Typo="Typo.body2"><strong>@context.CurrentOffice.Name</strong><br /><span style="color: gray; font-size: 0.85em;">↳ @(context.CurrentUnit?.Name ?? "General")</span></MudText>
+                                <MudText Typo="Typo.body2"><strong>@context.CurrentOffice.Name</strong><br /><span style="color: gray; font-size: 0.85em;">↳ @(context.CurrentUnit?.Name)</span></MudText>
                             }
                             else if (context.NextOffice != null)
                             {

@@ -23,7 +23,13 @@
         <div class="d-flex align-center mb-6">
             <MudIcon Icon="@Icons.Material.Filled.Business" Size="Size.Large" Class="mr-3" Color="Color.Primary" />
             <div>
-                <MudText Typo="Typo.h4" Class="font-weight-bold">@myOffice.Name</MudText>
+                @if (myUnitId.HasValue){
+                <MudText Typo="Typo.h4" Class="font-weight-bold">@myUnitName</MudText>
+                }
+                else
+                {
+                <MudText Typo="Typo.h4" Class="font-weight-bold">@myOffice?.Name</MudText>
+                }
                 <MudText Typo="Typo.body2" Style="color: var(--mud-palette-text-secondary);">Office Desk</MudText>
             </div>
         </div>
@@ -475,11 +481,13 @@
 @code {
     private Office? myOffice;
     private int? myUnitId;
+    private bool isOfficeHead = false;
     private List<Office> allOffices = new();
     private List<Document> incomingDocs = new();
     private List<Document> deskDocs = new();
     private List<Document> outgoingDocs = new();
     private string userEmail = "";
+    private string? myUnitName;
     private bool isLoadingInitial = true;
     private bool isLoading = false;
     private bool isDialogVisible;
@@ -503,6 +511,8 @@
             {
                 userEmail = profile.Email ?? "Unknown";
                 myUnitId = profile.UnitId;
+                myUnitName = profile.Unit?.Name;
+                isOfficeHead = myUnitId == null;
 
                 var officeId = profile.Unit?.OfficeId ?? profile.OfficeId;
 
@@ -541,7 +551,7 @@
             deskDocs = allDocs.Where(d =>
                 d.CurrentOfficeId == myOffice.Id &&
                 d.Status == "Received" &&
-                (myUnitId.HasValue ? (d.CurrentUnitId == null || d.CurrentUnitId == myUnitId) : d.CurrentUnitId == null)
+                (isOfficeHead ? true: (myUnitId.HasValue ? (d.CurrentUnitId == null || d.CurrentUnitId == myUnitId) : d.CurrentUnitId == null))
             ).ToList();
 
             outgoingDocs = await DocService.GetOutgoingAsync(userEmail);

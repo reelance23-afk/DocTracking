@@ -3,9 +3,11 @@ using DocTracking.Client.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Cryptography;
+using Microsoft.AspNetCore.Authorization;
 
 namespace DocTracking.Controllers
 {
+    [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class UnitsController : ControllerBase
@@ -32,7 +34,7 @@ namespace DocTracking.Controllers
             var exists = await _context.Units.AnyAsync(u => u.Name == unit.Name && u.OfficeId == unit.OfficeId);
             if (exists) return Conflict("A unit with this name already exists in this office");
 
-            _context.Add(unit);
+            _context.Units.Add(unit);
             await _context.SaveChangesAsync();
             return Ok(unit);
         }

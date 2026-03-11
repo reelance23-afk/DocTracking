@@ -20,7 +20,13 @@
         <div class="d-flex align-center mb-6">
             <MudIcon Icon="@Icons.Material.Filled.Business" Size="Size.Large" Color="Color.Primary" Class="mr-3" />
             <div>
-                <MudText Typo="Typo.h4" Class="font-weight-bold">@myOffice?.Name</MudText>
+                @if(myUnitId.HasValue){
+                <MudText Typo="Typo.h4" Class="font-weight-bold">@myUnitName</MudText>
+                }       
+                else
+                 {
+               <MudText Typo="Typo.h4" Class="font-weight-bold">@myOffice?.Name</MudText>
+                 }
                 <MudText Typo="Typo.body2" Class="mud-text-secondary">Office Dashboard</MudText>
             </div>
         </div>
@@ -181,6 +187,9 @@
     private string userEmail = "";
     private bool isLoadingInitial = true;
 
+    private string? myUnitName;
+
+
     protected override async Task OnInitializedAsync()
     {
         try
@@ -190,7 +199,7 @@
             {
                 userEmail = profile.Email ?? "";
                 myUnitId = profile.UnitId;
-
+                myUnitName = profile.Unit?.Name;
 
                 var officeId = profile.Unit?.OfficeId ?? profile.OfficeId;
 

@@ -155,7 +155,7 @@
         </DialogContent>
         <DialogActions>
             <MudButton OnClick="CloseAddOfficeDialog" Class="mr-2">Cancel</MudButton>
-            <MudButton Color="Color.Primary" Variant="Variant.Filled" Disabled="@(!success || isSubmitting)" OnClick="SubmitUnit">
+            <MudButton Color="Color.Primary" Variant="Variant.Filled" Disabled="@(!success || isSubmitting)" OnClick="SubmitOffice">
                 @(isSubmitting ? "Saving..." : "Save Office")
             </MudButton>
         </DialogActions>
@@ -410,18 +410,18 @@
     private async Task SubmitEditUnit()
     {
         if (editingUnit == null || string.IsNullOrWhiteSpace(editUnitName)) return;
-        isSubmitting = true;
+        isSubmittingUnit = true;
         try
         {
             var (ok, error) = await DocService.UpdateUnitAsync(new Unit {Id = editingUnit.Id, Name = editUnitName, OfficeId = editingUnit.OfficeId });
             if (!ok) { Snackbar.Add(error ?? "Error updating unit.", Severity.Error); return; }
-            Snackbar.Add("Unit update.", Severity.Success);
-            isEditOfficeDialogOpen = false;
+            Snackbar.Add("Unit updated.", Severity.Success);
+            isEditUnitDialogOpen = false;
             await LoadOffices();
         }
         finally
         {
-            isSubmitting = false;
+            isSubmittingUnit = false;
         }
     }
 

@@ -1,6 +1,5 @@
 ﻿@using DocTracking.Client.Models
 @using DocTracking.Client.Services
-@using Microsoft.AspNetCore.Components.Authorization
 @inject NotificationService NotifService
 @inject DocumentService DocService
 @implements IAsyncDisposable
@@ -8,8 +7,9 @@
 <MudMenu AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" Dense="true">
     <ActivatorContent>
         <MudBadge Content="@NotifService.UnreadCount" Visible="@(NotifService.UnreadCount > 0)"
-                  Color="Color.Error" Overlap="true" Class="mr-2">
-            <MudIconButton Icon="@Icons.Material.Filled.Notifications" Color="Color.Inherit" />
+                  Color="Color.Error" Overlap="true" Class="mr-2" Style="position: relative;" BadgeClass="z-10">
+            <MudIconButton Icon="@Icons.Material.Filled.Notifications" Size="Size.Small"
+                           Color="Color.Inherit" OnClick="OnBellClick" />
         </MudBadge>
     </ActivatorContent>
     <ChildContent>
@@ -18,7 +18,7 @@
                 <MudText Typo="Typo.subtitle1" Class="font-weight-bold">Notifications</MudText>
                 @if (NotifService.UnreadCount > 0)
                 {
-                    <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="NotifService.MarkAllRead">Mark all read</MudButton>
+                    <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="NotifService.MarkAllReadAsync">Mark all read</MudButton>
                 }
             </div>
             <MudDivider />
@@ -53,20 +53,47 @@
 </MudMenu>
 
 @code {
-    protected override async Task OnInitializedAsync()
+    private MudMenu _menu = default;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        var profile = await DocService.GetProfileAsync();
-        if (profile != null)
+        if (NotifService.IsConnected) return;
+
+        try
         {
-            var group = profile.UnitId.HasValue ? $"unit-{profile.UnitId}" : $"office-{profile.OfficeId}";
-            await NotifService.StartAsync(group);
+            var profile = await DocService.GetProfileAsync();
+
+            if (profile == null) return;
+
+            string? secondGroup = null;
+            if (profile.UnitId.HasValue)
+                secondGroup = $"unit-{profile.UnitId}";
+            else if (profile.IsOfficeHead && profile.OfficeId.HasValue)
+                secondGroup = $"office-head-{profile.OfficeId}";
+            else if (profile.OfficeId.HasValue)
+                secondGroup = $"office-{profile.OfficeId}";
+
+            await NotifService.ConnectAsync($"user-{profile.Id}", secondGroup);
+
+
+            NotifService.OnChange -= StateHasChanged;
+            NotifService.OnChange += StateHasChanged;
         }
-        NotifService.OnChange += StateHasChanged;
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Bell] ERROR: {ex.Message}");
+        }
     }
 
     public ValueTask DisposeAsync()
     {
         NotifService.OnChange -= StateHasChanged;
         return ValueTask.CompletedTask;
+    }
+
+    public async Task OnBellClick()
+    {
+        if (NotifService.UnreadCount > 0)
+            await NotifService.MarkAllReadAsync();
     }
 }
