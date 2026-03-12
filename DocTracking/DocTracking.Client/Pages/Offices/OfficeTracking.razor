@@ -93,7 +93,6 @@
                 }
             </MudHidden>
 
-            @* Desktop *@
             <MudHidden Breakpoint="Breakpoint.SmAndDown">
                 <MudTimeline TimelinePosition="TimelinePosition.Start" Class="w-100">
                     @for (int i = 0; i < documentLogs.Count; i++)
@@ -190,8 +189,8 @@
             int? myOfficeId = profile?.Unit?.OfficeId ?? profile?.OfficeId;
             documentLogs = await DocService.GetDocumentLogsAsync(DocumentId);
             isAuthorized = (myUnitId.HasValue && documentLogs.Any(log => log.UnitId == myUnitId)) ||
-                           (myOfficeId.HasValue && documentLogs.Any(log => log.Office != null &&
-                            documentLogs.Any(l => l.AppUser?.Unit?.OfficeId == myOfficeId)));
+               (myOfficeId.HasValue && documentLogs.Any(log => log.OfficeId == myOfficeId));
+
         }
         catch (Exception ex)
         {

@@ -1,0 +1,248 @@
+﻿@using DocTracking.Client.Models
+@using DocTracking.Client.Services
+@inject DocumentService DocService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@rendermode InteractiveAuto
+
+<MudDialog>
+    <TitleContent>
+        <div class="d-flex align-center gap-2">
+            <MudIcon Icon="@Icons.Material.Filled.Description" Color="Color.Primary" />
+            <MudText Typo="Typo.h6" Class="font-weight-bold">@Doc.Name</MudText>
+            <MudChip T="string" Color="@GetPriorityColor(Doc.Priority)" Size="Size.Small" Variant="Variant.Filled">@Doc.Priority</MudChip>
+        </div>
+    </TitleContent>
+    <DialogContent>
+        <MudGrid Spacing="3">
+            <MudItem xs="12" sm="6">
+                <MudText Typo="Typo.caption" Color="Color.Secondary">Type</MudText>
+                <MudText Typo="Typo.body1">@Doc.Type</MudText>
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudText Typo="Typo.caption" Color="Color.Secondary">Status</MudText>
+                <MudChip T="string" Color="@GetStatusColor(Doc.Status)" Size="Size.Small">@Doc.Status</MudChip>
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudText Typo="Typo.caption" Color="Color.Secondary">Sender</MudText>
+                <MudText Typo="Typo.body1">@(Doc.Creator?.Name ?? "—")</MudText>
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudText Typo="Typo.caption" Color="Color.Secondary">Created On</MudText>
+                <MudText Typo="Typo.body2">@Doc.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy hh:mm tt")</MudText>
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudText Typo="Typo.caption" Color="Color.Secondary">Current Location</MudText>
+                @if (Doc.CurrentOffice != null)
+                {
+                    <MudText Typo="Typo.body1" Class="font-weight-bold">@Doc.CurrentOffice.Name</MudText>
+                    @if (Doc.CurrentUnit != null)
+                    {
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary">↳ @Doc.CurrentUnit.Name</MudText>
+                    }
+                }
+                else
+                {
+                    <MudText Typo="Typo.body2"><em>None</em></MudText>
+                }
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudText Typo="Typo.caption" Color="Color.Secondary">Next Destination</MudText>
+                @if (Doc.NextOffice != null)
+                {
+                    <MudText Typo="Typo.body1" Class="font-weight-bold">@Doc.NextOffice.Name</MudText>
+                    @if (Doc.NextUnit != null)
+                    {
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary">↳ @Doc.NextUnit.Name</MudText>
+                    }
+                }
+                else
+                {
+                    <MudText Typo="Typo.body2"><em>None</em></MudText>
+                }
+            </MudItem>
+            @if (!string.IsNullOrEmpty(Doc.Description))
+            {
+                <MudItem xs="12">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Description</MudText>
+                    <MudPaper Elevation="0" Class="pa-3 mt-1 mud-background-gray rounded">
+                        <MudText Typo="Typo.body2">@Doc.Description</MudText>
+                    </MudPaper>
+                </MudItem>
+            }
+            @if (!string.IsNullOrEmpty(Doc.FileName))
+            {
+                <MudItem xs="12">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Attached File</MudText>
+                    <div class="d-flex align-center mt-1 gap-2">
+                        <MudIcon Icon="@Icons.Material.Filled.AttachFile" Size="Size.Small" />
+                        <MudText Typo="Typo.body2">@Doc.FileName</MudText>
+                        <MudButton Href="@Doc.FilePath" Target="_blank" Variant="Variant.Outlined"
+                                   Size="Size.Small" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Download">
+                            Download
+                        </MudButton>
+                    </div>
+                </MudItem>
+            }
+
+            @if (Tab == DeskTab.Incoming)
+            {
+                <MudItem xs="12">
+                    <MudDivider Class="my-2" />
+                    <MudButton Color="Color.Success" Variant="Variant.Filled" FullWidth="true"
+                               StartIcon="@Icons.Material.Filled.Inbox" OnClick="ReceiveAsync" Disabled="busy">
+                        Receive Document
+                    </MudButton>
+                </MudItem>
+            }
+
+            @if (Tab == DeskTab.OnDesk)
+            {
+                <MudItem xs="12">
+                    <MudDivider Class="my-2" />
+                    <MudText Typo="Typo.subtitle2" Class="mb-2 font-weight-bold">Route To</MudText>
+                    <MudSelect T="int?" Value="selectedOfficeId" ValueChanged="OnOfficeSelected"
+                               Variant="Variant.Outlined" Label="Select Office" Class="mb-3" FullWidth="true">
+                        <MudSelectItem T="int?" Value="@((int?)null)">None</MudSelectItem>
+                        @foreach (var off in AllOffices.Where(o => o.Id != Doc.CurrentOfficeId))
+                        {
+                            <MudSelectItem T="int?" Value="@((int?)off.Id)">@off.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                    @if (selectedOfficeId.HasValue && availableUnits.Any())
+                    {
+                        <MudSelect T="int?" @bind-Value="selectedUnitId"
+                                   Variant="Variant.Outlined" Label="Select Unit" Class="mb-3" FullWidth="true">
+                            @foreach (var unit in availableUnits)
+                            {
+                                <MudSelectItem T="int?" Value="@((int?)unit.Id)">@unit.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+                    }
+                    <MudGrid>
+                        <MudItem xs="6">
+                            <MudButton Color="Color.Primary" Variant="Variant.Filled" FullWidth="true"
+                                       Disabled="@(selectedOfficeId == null || busy)"
+                                       StartIcon="@Icons.Material.Filled.Send" OnClick="ForwardAsync">
+                                Forward
+                            </MudButton>
+                        </MudItem>
+                        <MudItem xs="6">
+                            <MudButton Color="Color.Success" Variant="Variant.Filled" FullWidth="true"
+                                       Disabled="@(selectedOfficeId != null || busy)"
+                                       StartIcon="@Icons.Material.Filled.Done" OnClick="FinishAsync">
+                                Finish
+                            </MudButton>
+                        </MudItem>
+                    </MudGrid>
+                </MudItem>
+            }
+        </MudGrid>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => MudDialog.Cancel())" Variant="Variant.Text">Close</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    public enum DeskTab { Incoming, OnDesk, Outgoing }
+
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public Document Doc { get; set; } = new();
+    [Parameter] public DeskTab Tab { get; set; }
+    [Parameter] public List<Office> AllOffices { get; set; } = new();
+
+    private int? selectedOfficeId;
+    private int? selectedUnitId;
+    private bool busy;
+
+    private IEnumerable<Unit> availableUnits => selectedOfficeId.HasValue
+        ? AllOffices.FirstOrDefault(o => o.Id == selectedOfficeId)?.Units ?? new List<Unit>()
+        : new List<Unit>();
+
+    private void OnOfficeSelected(int? officeId)
+    {
+        selectedOfficeId = officeId;
+        selectedUnitId = null;
+    }
+
+    private async Task ReceiveAsync()
+    {
+        var parameters = new DialogParameters
+    {
+        { "Message", "Accept this document onto your desk?" },
+        { "YesText", "Receive" },
+        { "CancelText", "Cancel" }
+    };
+        var dialog = await DialogService.ShowAsync<MudMessageBox>("Confirm Receive", parameters);
+        var result = await dialog.Result;
+        if (result.Canceled) return;
+        busy = true;
+        var success = await DocService.ReceivedDocumentAsync(Doc.Id);
+        busy = false;
+        Snackbar.Add(success ? "Document received!" : "This document was already received by another worker",
+                     success ? Severity.Success : Severity.Warning);
+        MudDialog.Close(DialogResult.Ok(true));
+    }
+
+    private async Task ForwardAsync()
+    {
+        if (!selectedOfficeId.HasValue) return;
+        if (Doc.CurrentOfficeId == selectedOfficeId && Doc.CurrentUnitId == selectedUnitId)
+        {
+            Snackbar.Add("Cannot forward to the same office and unit", Severity.Warning);
+            return;
+        }
+        var dest = AllOffices.FirstOrDefault(o => o.Id == selectedOfficeId)?.Name;
+        var parameters = new DialogParameters
+    {
+        { "Message", $"Forward this document to {dest}?" },
+        { "YesText", "Forward" },
+        { "CancelText", "Cancel" }
+    };
+        var dialog = await DialogService.ShowAsync<MudMessageBox>("Confirm Forward", parameters);
+        var result = await dialog.Result;
+        if (result.Canceled) return;
+        busy = true;
+        await DocService.ForwardDocumentAsync(Doc.Id, selectedOfficeId.Value, selectedUnitId);
+        busy = false;
+        Snackbar.Add("Document forwarded successfully!", Severity.Success);
+        MudDialog.Close(DialogResult.Ok(true));
+    }
+
+    private async Task FinishAsync()
+    {
+        var parameters = new DialogParameters
+    {
+        { "Message", "Mark this document as completed? This cannot be undone." },
+        { "YesText", "Finish" },
+        { "CancelText", "Cancel" }
+    };
+        var options = new DialogOptions { MaxWidth = MaxWidth.ExtraSmall };
+        var dialog = await DialogService.ShowAsync<MudMessageBox>("Confirm Finish", parameters, options);
+        var result = await dialog.Result;
+        if (result.Canceled) return;
+        busy = true;
+        await DocService.FinishDocumentAsync(Doc.Id);
+        busy = false;
+        Snackbar.Add("Document marked as completed!", Severity.Success);
+        MudDialog.Close(DialogResult.Ok(true));
+    }
+
+    private Color GetPriorityColor(string? p) => p switch
+    {
+        "Emergency" => Color.Error,
+        "Urgent" => Color.Warning,
+        "Medium" => Color.Info,
+        "Low" => Color.Success,
+        _ => Color.Default
+    };
+
+    private Color GetStatusColor(string? s) => s switch
+    {
+        "Completed" => Color.Success,
+        "Received" => Color.Info,
+        "In Motion" => Color.Warning,
+        _ => Color.Default
+    };
+}

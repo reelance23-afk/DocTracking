@@ -1,0 +1,28 @@
+﻿@inherits MudComponentBase
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @bind-IsValid="isValid" @ref="form" Class="mt-2">
+            <MudTextField @bind-Value="OfficeName" Label="Office Name" Variant="Variant.Outlined"
+                          Required="true" RequiredError="Office name is required!" AutoFocus="true" />
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => MudDialog.Cancel())">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" Disabled="@(!isValid)" OnClick="Submit">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public string OfficeName { get; set; } = "";
+
+    private bool isValid;
+    private MudForm? form;
+
+    private async Task Submit()
+    {
+        await form!.ValidateAsync();
+        if (isValid) MudDialog.Close(DialogResult.Ok(OfficeName));
+    }
+}

@@ -13,7 +13,6 @@
 
 <MudNavMenu Class="d-flex flex-column" Style="height: 100%;">
 
-    <!-- Dashboard Section -->
     <div class="nav-section">
         <MudNavLink Href="/"
                     Match="NavLinkMatch.All"
@@ -27,7 +26,6 @@
         </MudNavLink>
     </div>
 
-    <!-- Role-based Navigation -->
     <AuthorizeView>
         <Authorized>
             @if (!context.User.IsInRole("Admin") && !context.User.IsInRole("Office"))
@@ -71,6 +69,22 @@
                             <MudText Typo="Typo.body2">Document History</MudText>
                         }
                     </MudNavLink>
+                    <MudNavLink Href="/create-document"
+                                Icon="@Icons.Material.Filled.NoteAdd"
+                                IconColor="Color.Success">
+                        @if (ShowText)
+                        {
+                            <MudText Typo="Typo.body2">Create Document</MudText>
+                        }
+                    </MudNavLink>
+                    <MudNavLink Href="/my-tracking"
+                                Icon="@Icons.Material.Filled.History"
+                                IconColor="Color.Info">
+                        @if (ShowText)
+                        {
+                            <MudText Typo="Typo.body2">My Tracking</MudText>
+                        }
+                    </MudNavLink>
                 </div>
             }
 
@@ -101,12 +115,27 @@
                             <MudText Typo="Typo.body2">Document Tracking</MudText>
                         }
                     </MudNavLink>
+                    <MudNavLink Href="/create-document"
+                                Icon="@Icons.Material.Filled.NoteAdd"
+                                IconColor="Color.Success">
+                        @if (ShowText)
+                        {
+                            <MudText Typo="Typo.body2">Create Document</MudText>
+                        }
+                    </MudNavLink>
+                    <MudNavLink Href="/my-tracking"
+                                Icon="@Icons.Material.Filled.History"
+                                IconColor="Color.Info">
+                        @if (ShowText)
+                        {
+                            <MudText Typo="Typo.body2">My Tracking</MudText>
+                        }
+                    </MudNavLink>
                 </div>
             }
         </Authorized>
     </AuthorizeView>
 
-    <!-- Logout Section -->
     <div class="mt-auto">
         <AuthorizeView>
             <Authorized>

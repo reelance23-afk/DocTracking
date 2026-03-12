@@ -10,6 +10,7 @@ namespace DocTracking.Client.Services
         private HubConnection? _hub;
         private readonly NavigationManager _navigation;
         private readonly HttpClient _http;
+        private bool _historyLoaded = false;
 
         public List<AppNotification> Notifications { get; } = new();
         public int UnreadCount => Notifications.Count(n => !n.IsRead);
@@ -22,10 +23,8 @@ namespace DocTracking.Client.Services
             _http = http;
         }
 
-        public async Task ConnectAsync(string userGroup, string? secondGroup = null)
+        public async Task ConnectAsync(string userGroup, IEnumerable<string>? additionalGroups = null)
         {
-            if (IsConnected) return;
-
             if (_hub == null)
             {
                 _hub = new HubConnectionBuilder()
@@ -35,22 +34,44 @@ namespace DocTracking.Client.Services
 
                 _hub.On<string, string>("ReceiveNotification", (message, docName) =>
                 {
-                    Notifications.Insert(0, new AppNotification { Message = message, DocumentName = docName });
+                    Notifications.Insert(0, new AppNotification
+                    {
+                        Message = message,
+                        DocumentName = docName,
+                        Time = DateTime.UtcNow
+                    });
                     OnChange?.Invoke();
                 });
+
+                _hub.Reconnected += async _ =>
+                {
+                    await _hub.InvokeAsync("JoinGroup", userGroup);
+                    if (additionalGroups != null)
+                        foreach (var g in additionalGroups)
+                            await _hub.InvokeAsync("JoinGroup", g);
+                };
             }
 
-            await _hub.StartAsync();
-            await _hub.InvokeAsync("JoinGroup", userGroup);
-            if (secondGroup != null)
-                await _hub.InvokeAsync("JoinGroup", secondGroup);
-
-            var history = await _http.GetFromJsonAsync<List<AppNotification>>("api/notifications");
-            if (history != null)
+            if (_hub.State == HubConnectionState.Disconnected)
             {
-                Notifications.Clear();
-                Notifications.AddRange(history);
+                await _hub.StartAsync();
+                await _hub.InvokeAsync("JoinGroup", userGroup);
+                if (additionalGroups != null)
+                    foreach (var group in additionalGroups)
+                        await _hub.InvokeAsync("JoinGroup", group);
             }
+
+            if (!_historyLoaded)
+            {
+                var history = await _http.GetFromJsonAsync<List<AppNotification>>("api/notifications");
+                if (history != null)
+                {
+                    Notifications.Clear();
+                    Notifications.AddRange(history);
+                }
+                _historyLoaded = true;
+            }
+
             OnChange?.Invoke();
         }
 

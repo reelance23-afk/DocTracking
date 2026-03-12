@@ -10,7 +10,7 @@ namespace DocTracking.Client.Models
         public int AppUserId { get; set; }
         public string Message { get; set; } = "";
         public string DocumentName { get; set; } = "";
-        public DateTime Time { get; set; } = DateTime.Now;
+        public DateTime Time { get; set; } = DateTime.UtcNow;
         public bool IsRead { get; set; } = false;
     }
 }

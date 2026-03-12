@@ -3,22 +3,25 @@
 @inject NotificationService NotifService
 @inject DocumentService DocService
 @implements IAsyncDisposable
+@rendermode InteractiveAuto
 
-<MudMenu AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight" Dense="true">
-    <ActivatorContent>
-        <MudBadge Content="@NotifService.UnreadCount" Visible="@(NotifService.UnreadCount > 0)"
-                  Color="Color.Error" Overlap="true" Class="mr-2" Style="position: relative;" BadgeClass="z-10">
-            <MudIconButton Icon="@Icons.Material.Filled.Notifications" Size="Size.Small"
-                           Color="Color.Inherit" OnClick="OnBellClick" />
-        </MudBadge>
-    </ActivatorContent>
-    <ChildContent>
+<div style="position: relative; display: inline-block;">
+    <MudBadge Content="@NotifService.UnreadCount" Visible="@(NotifService.UnreadCount > 0)"
+              Color="Color.Error" Overlap="true" BadgeClass="z-10">
+        <MudIconButton Icon="@Icons.Material.Filled.Notifications"
+                       Size="Size.Small"
+                       Color="Color.Inherit"
+                       OnClick="ToggleMenu" />
+    </MudBadge>
+
+    <MudPopover Open="_menuOpen" AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight"
+                Paper="true" Elevation="8" Style="z-index: 1300;">
         <MudPaper MinWidth="300px" MaxWidth="360px" Elevation="0">
             <div class="d-flex align-center justify-space-between pa-3 pb-1">
                 <MudText Typo="Typo.subtitle1" Class="font-weight-bold">Notifications</MudText>
                 @if (NotifService.UnreadCount > 0)
                 {
-                    <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="NotifService.MarkAllReadAsync">Mark all read</MudButton>
+                    <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="MarkAllRead">Mark all read</MudButton>
                 }
             </div>
             <MudDivider />
@@ -31,11 +34,11 @@
             }
             else
             {
-                <MudList T="AppNotification" Dense="true" Style="max-height: 360px; overflow-y: auto;">
+                <div style="max-height: 360px; overflow-y: auto;">
                     @foreach (var notif in NotifService.Notifications.Take(20))
                     {
-                        <MudListItem T="AppNotification" Style="@(!notif.IsRead ? "background: rgba(var(--mud-palette-primary-rgb), 0.06);" : "")">
-                            <div class="d-flex align-start gap-2">
+                        <MudListItem T="string" Style="@(!notif.IsRead ? "background: rgba(var(--mud-palette-primary-rgb), 0.06);" : "")">
+                            <div class="d-flex align-start gap-2 py-1">
                                 <MudIcon Icon="@Icons.Material.Filled.Description" Color="Color.Primary" Size="Size.Small" Class="mt-1" />
                                 <div>
                                     <MudText Typo="Typo.body2" Class="font-weight-bold">@notif.DocumentName</MudText>
@@ -46,38 +49,47 @@
                         </MudListItem>
                         <MudDivider />
                     }
-                </MudList>
+                </div>
             }
+            <MudDivider />
+            <div class="pa-2 d-flex justify-end">
+                <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="ToggleMenu">Close</MudButton>
+            </div>
         </MudPaper>
-    </ChildContent>
-</MudMenu>
+    </MudPopover>
+</div>
+
+@if (_menuOpen)
+{
+    <MudOverlay Visible="_menuOpen" OnClick="ToggleMenu" ZIndex="1299" DarkBackground="false" />
+}
 
 @code {
-    private MudMenu _menu = default;
+    private bool _menuOpen = false;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (NotifService.IsConnected) return;
+        if (!firstRender) return;
+
+        NotifService.OnChange += StateHasChanged;
 
         try
         {
             var profile = await DocService.GetProfileAsync();
-
             if (profile == null) return;
 
-            string? secondGroup = null;
+            var groups = new List<string>();
+            var resolvedOfficeId = profile.OfficeId ?? profile.Unit?.OfficeId;
+
             if (profile.UnitId.HasValue)
-                secondGroup = $"unit-{profile.UnitId}";
-            else if (profile.IsOfficeHead && profile.OfficeId.HasValue)
-                secondGroup = $"office-head-{profile.OfficeId}";
-            else if (profile.OfficeId.HasValue)
-                secondGroup = $"office-{profile.OfficeId}";
+                groups.Add($"unit-{profile.UnitId}");
 
-            await NotifService.ConnectAsync($"user-{profile.Id}", secondGroup);
+            if (profile.IsOfficeHead && resolvedOfficeId.HasValue)
+                groups.Add($"office-head-{resolvedOfficeId}");
+            else if (!profile.IsOfficeHead && resolvedOfficeId.HasValue && !profile.UnitId.HasValue)
+                groups.Add($"office-{resolvedOfficeId}");
 
-
-            NotifService.OnChange -= StateHasChanged;
-            NotifService.OnChange += StateHasChanged;
+            await NotifService.ConnectAsync($"user-{profile.Id}", groups);
         }
         catch (Exception ex)
         {
@@ -85,15 +97,21 @@
         }
     }
 
+    private async Task ToggleMenu()
+    {
+        _menuOpen = !_menuOpen;
+        if (_menuOpen && NotifService.UnreadCount > 0)
+            await NotifService.MarkAllReadAsync();
+    }
+
+    private async Task MarkAllRead()
+    {
+        await NotifService.MarkAllReadAsync();
+    }
+
     public ValueTask DisposeAsync()
     {
         NotifService.OnChange -= StateHasChanged;
         return ValueTask.CompletedTask;
-    }
-
-    public async Task OnBellClick()
-    {
-        if (NotifService.UnreadCount > 0)
-            await NotifService.MarkAllReadAsync();
     }
 }

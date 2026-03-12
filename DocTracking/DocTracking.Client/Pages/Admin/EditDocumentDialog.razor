@@ -74,41 +74,9 @@
             <MudItem xs="12">
                 <MudPaper Elevation="2" Class="pa-4" Style="border-top: 4px solid var(--mud-palette-success);">
                     <MudText Typo="Typo.subtitle1" Class="font-weight-bold mb-4">Attachment</MudText>
-
-                    <div style="position: relative; width: 100%;">
-                        <MudFileUpload T="IBrowserFile" FilesChanged="OnFileSelected"
-                                       Accept=".pdf,.doc,.docx,.jpg,.png" Hidden="false"
-                                       InputClass="absolute mud-width-full mud-height-full overflow-hidden"
-                                       InputStyle="opacity: 0; z-index: 20; top: 0; left: 0; bottom: 0; right: 0; cursor: pointer; position: absolute;">
-                            <ActivatorContent>
-                                <MudPaper Elevation="0" Class="pa-6 text-center d-flex flex-column align-center justify-center"
-                                          Style="border: 2px dashed var(--mud-palette-primary); background: rgba(33,150,243,0.04); min-height: 140px; position: relative; z-index: 10;">
-                                    <MudIcon Icon="@Icons.Material.Filled.CloudUpload" Size="Size.Large" Color="Color.Primary" Class="mb-2" />
-                                    <MudText Typo="Typo.body1" Color="Color.Primary" Class="font-weight-medium">
-                                        @(selectedFile == null ? "Click or drag to replace file" : "Click or drag to change file")
-                                    </MudText>
-                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">PDF, DOC, DOCX, JPG, PNG</MudText>
-                                </MudPaper>
-                            </ActivatorContent>
-                        </MudFileUpload>
-                    </div>
-
-                    @if (selectedFile != null)
-                    {
-                        <MudPaper Elevation="0" Class="pa-3 mt-3" Style="border-left: 4px solid var(--mud-palette-success); background: rgba(76,175,80,0.06);">
-                            <div class="d-flex align-center justify-space-between">
-                                <div class="d-flex align-center">
-                                    <MudIcon Icon="@Icons.Material.Filled.AttachFile" Color="Color.Success" Class="mr-2" />
-                                    <div>
-                                        <MudText Typo="Typo.body2" Class="font-weight-medium">@selectedFile.Name</MudText>
-                                        <MudText Typo="Typo.caption" Color="Color.Success">@(selectedFile.Size / 1024) KB — new file selected</MudText>
-                                    </div>
-                                </div>
-                                <MudIconButton Icon="@Icons.Material.Filled.Close" Color="Color.Error" Size="Size.Small" OnClick="RemoveFile" />
-                            </div>
-                        </MudPaper>
-                    }
-                    else if (!string.IsNullOrEmpty(Doc.FilePath))
+                    <MudFileUpload T="IBrowserFile" FilesChanged="OnFileSelected"
+                                   Accept=".pdf,.doc,.docx,.jpg,.png" DragAndDrop="true" />
+                    @if (!string.IsNullOrEmpty(Doc.FilePath) && selectedFile == null)
                     {
                         <MudPaper Elevation="0" Class="pa-3 mt-3" Style="border-left: 4px solid var(--mud-palette-info); background: rgba(33,150,243,0.06);">
                             <div class="d-flex align-center justify-space-between">
@@ -161,7 +129,7 @@
         Doc.FileName = string.Empty;
     }
 
-    private async void Submit()
+    private async Task Submit()
     {
         if (selectedFile != null)
         {

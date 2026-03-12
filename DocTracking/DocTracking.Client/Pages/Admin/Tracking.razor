@@ -1,6 +1,7 @@
 @page "/document-tracking"
 @attribute [Authorize(Roles = "Admin")]
 @using DocTracking.Client.Models
+@using DocTracking.Client.Pages
 @using DocTracking.Client.Services
 @inject DocumentService DocumentService
 @inject IDialogService DialogService
@@ -98,9 +99,9 @@
                         </MudTd>
                         <MudTd DataLabel="Date">@context.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")</MudTd>
                         <MudTd DataLabel="Actions">
-                            <MudButton Href="@($"/admin-track-document/{context.Id}")" Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Timeline" Class="mr-1">Track</MudButton>
-                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Warning" OnClick="@(async () => await OpenEditDialog(context))" />
-                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(() => DeleteDocument(context))" />
+                            <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary"
+                                       StartIcon="@Icons.Material.Filled.Visibility"
+                                       OnClick="@(async () => await OpenViewDialog(context))">View</MudButton>
                         </MudTd>
                     </RowTemplate>
                     <NoRecordsContent>
@@ -155,10 +156,10 @@
                                     @doc.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")
                                 </MudText>
                             </MudCardContent>
-                            <MudCardActions Class="pa-4 pt-0 d-flex gap-2">
-                                <MudButton Href="@($"/admin-track-document/{doc.Id}")" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Timeline" FullWidth="true">Track</MudButton>
-                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Warning" OnClick="@(async () => await OpenEditDialog(doc))" />
-                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => DeleteDocument(doc))" />
+                            <MudCardActions Class="pa-4 pt-0">
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                           StartIcon="@Icons.Material.Filled.Visibility" FullWidth="true"
+                                           OnClick="@(async () => await OpenViewDialog(doc))">View</MudButton>
                             </MudCardActions>
                         </MudCard>
                     }
@@ -214,14 +215,17 @@
 
     private async Task DeleteDocument(Document doc)
     {
-        var confirmed = await DialogService.ShowMessageBox("Delete Document",
-            $"Are you sure you want to delete \"{doc.Name}\"? This cannot be undone.",
-            yesText: "Delete", cancelText: "Cancel");
-        if (confirmed == true)
-        {
-            var (success, _) = await DocumentService.DeleteDocumentAsync(doc.Id);
-            if (success) allDocuments.Remove(doc);
-        }
+        var parameters = new DialogParameters
+    {
+        { "Message", $"Are you sure you want to delete \"{doc.Name}\"? This cannot be undone." },
+        { "YesText", "Delete" },
+        { "CancelText", "Cancel" }
+    };
+        var dialog = await DialogService.ShowAsync<MudMessageBox>("Delete Document", parameters);
+        var result = await dialog.Result;
+        if (result.Canceled) return;
+        var (success, _) = await DocumentService.DeleteDocumentAsync(doc.Id);
+        if (success) allDocuments.Remove(doc);
     }
 
     private bool FilterFunc(Document element)
@@ -245,4 +249,15 @@
         "Archived" => Color.Dark,
         _ => Color.Default
     };
+
+    private async Task OpenViewDialog(Document doc)
+    {
+        var parameters = new DialogParameters<DocumentViewDialog>
+    {
+        { x => x.Doc, doc },
+        { x => x.TrackingRoute, $"/admin-track-document/{doc.Id}" }
+    };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
+        await DialogService.ShowAsync<DocumentViewDialog>("Document Details", parameters, options);
+    }
 }

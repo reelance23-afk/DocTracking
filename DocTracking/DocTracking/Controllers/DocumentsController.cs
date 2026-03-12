@@ -1,11 +1,13 @@
-using DocTracking.Data;
+using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
 using DocTracking.Client.Models;
+using DocTracking.Data;
 using DocTracking.Hubs;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authorization;
-using System.Security.Claims;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace DocTracking.Controllers
 {
@@ -18,7 +20,8 @@ namespace DocTracking.Controllers
         private readonly IWebHostEnvironment _env;
         private readonly IHubContext<NotificationHub> _hub;
 
-        public DocumentsController(ApplicationDbContext context, IWebHostEnvironment env, IHubContext<NotificationHub> hub)
+        public DocumentsController(ApplicationDbContext context, IWebHostEnvironment env,
+            IHubContext<NotificationHub> hub)
         {
             _context = context;
             _env = env;
@@ -80,19 +83,21 @@ namespace DocTracking.Controllers
 
             await _context.SaveChangesAsync();
 
+            var creatorName = appuser?.Name ?? "Someone";
+
             if (appuser != null)
                 await Notify($"user-{appuser.Id}", "You created a new document.", doc.Name ?? "");
 
             if (doc.NextUnitId.HasValue)
             {
-                await Notify($"unit-{doc.NextUnitId}", $"A document from {doc.Name} is incoming to your unit", doc.Name ?? "");
-                await Notify($"office-head-{doc.NextUnitId}", $"A document from {doc.Name} incoming to one of your units", doc.Name ?? "");
+                await Notify($"unit-{doc.NextUnitId}", $"A document from {creatorName} is incoming to your unit", doc.Name ?? "");
+                await Notify($"office-head-{doc.NextOfficeId}", $"A document from {creatorName} incoming to one of your units", doc.Name ?? "");
                    
             }
             else if (doc.NextOfficeId.HasValue)
             {
-                await Notify($"office-{doc.NextOfficeId}", $"A document from {doc.Name} incoming to your office", doc.Name ?? "");
-                await Notify($"office-head-{doc.NextOfficeId}", $"A document from {doc.Name} incoming to your office", doc.Name ?? "");
+                await Notify($"office-{doc.NextOfficeId}", $"A document from {creatorName} incoming to your office", doc.Name ?? "");
+                await Notify($"office-head-{doc.NextOfficeId}", $"A document from {creatorName} incoming to your office", doc.Name ?? "");
             }
 
 
@@ -105,21 +110,16 @@ namespace DocTracking.Controllers
             if (file == null) return BadRequest("No File Uploaded");
 
             var uploadsFolder = Path.Combine(_env.WebRootPath, "uploads");
-            if (!System.IO.Directory.Exists(uploadsFolder)) System.IO.Directory.CreateDirectory(uploadsFolder);
-
+            if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
             var uniqueFileName = Guid.NewGuid().ToString() + "_" + file.FileName;
             var filePath = Path.Combine(uploadsFolder, uniqueFileName);
-
-            using (var stream = new FileStream(filePath, FileMode.Create))
-            {
-                await file.CopyToAsync(stream);
-            }
-
+            using var stream = new FileStream(filePath, FileMode.Create);
+            await file.CopyToAsync(stream);
             return Ok(new { FilePath = $"/uploads/{uniqueFileName}" });
         }
 
         [HttpDelete("upload")]
-        public IActionResult DeleteUpload([FromQuery] string path)
+        public async Task<IActionResult> DeleteUpload([FromQuery] string path)
         {
             var fullPath = Path.Combine(_env.WebRootPath, path.TrimStart('/'));
             if (System.IO.File.Exists(fullPath))
@@ -172,7 +172,7 @@ namespace DocTracking.Controllers
         {
             var email = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email);
             var appUser = await _context.AppUsers.Include(u => u.Unit).FirstOrDefaultAsync(u => u.Email == email);
-            bool isOfficeHead = appUser?.UnitId == null & appUser?.OfficeId == officeId;
+            bool isOfficeHead = appUser?.UnitId == null && appUser?.OfficeId == officeId;
 
             var query = _context.Documents
                 .Include(d => d.Creator)
@@ -206,6 +206,8 @@ namespace DocTracking.Controllers
 
             var receivedOfficeId = doc.NextOfficeId;
             var receivedUnitId = doc.NextUnitId;
+            var receivedOfficeName = doc.NextOffice?.Name;
+            var receivedUnitName = doc.NextUnit?.Name;
 
             doc.Status = "Received";
             doc.LastActionDate = DateTime.UtcNow;
@@ -232,20 +234,20 @@ namespace DocTracking.Controllers
             if (doc.CreatorId.HasValue)
             {
                 if (receivedUnitId.HasValue)
-                    await Notify($"user-{doc.CreatorId}", $"Your document has been received by {receivedBy} in {doc.NextUnit?.Name} of {doc.NextOffice?.Name}.", docName);
+                    await Notify($"user-{doc.CreatorId}", $"Your document has been received by {receivedBy} in {receivedUnitName} of {receivedOfficeName}.", docName);
                 else if (receivedOfficeId.HasValue)
-                    await Notify($"user-{doc.CreatorId}", $"Your document has been received by {receivedBy} in {doc.NextOffice?.Name}.", docName);
+                    await Notify($"user-{doc.CreatorId}", $"Your document has been received by {receivedBy} in {receivedOfficeName}.", docName);
             }
 
             if (receivedUnitId.HasValue)
             {
                 await Notify($"unit-{receivedUnitId}", $"{receivedBy} received a document in your unit.", docName);
-                await Notify($"office-head-{receivedOfficeId}", $"{receivedBy} received a document in {doc.NextUnit?.Name} of {doc.NextOffice?.Name}.", docName);
+                await Notify($"office-head-{receivedOfficeId}", $"{receivedBy} received a document in {receivedUnitName} of {receivedOfficeName}.", docName);
             }
             else if (receivedOfficeId.HasValue)
             {
                 await Notify($"office-{receivedOfficeId}", $"{receivedBy} received a document.", docName);
-                await Notify($"office-head-{receivedOfficeId}", $"{receivedBy} received a document in {doc.NextUnit?.Name}.", docName);
+                await Notify($"office-head-{receivedOfficeId}", $"{receivedBy} received a document in {receivedOfficeName}.", docName);
             }
 
 
@@ -270,6 +272,8 @@ namespace DocTracking.Controllers
 
             var fromOfficeId = doc.CurrentOfficeId;
             var fromUnitId = doc.CurrentUnitId;
+            var fromOfficeName = doc.CurrentOffice?.Name ?? "an office";
+            var fromUnitName = doc.CurrentUnit?.Name;
 
             var nextOffice = await _context.Offices.FindAsync(request.NextOfficeId);
             var nextUnit = request.NextUnitId.HasValue ? await _context.Units.FindAsync(request.NextUnitId) : null;
@@ -296,8 +300,6 @@ namespace DocTracking.Controllers
 
             var docName = doc.Name ?? "";
             var forwardedBy = appUser?.Name ?? "Someone";
-            var fromOfficeName = doc.CurrentOffice?.Name ?? "an office";
-            var fromUnitName = doc.CurrentUnit?.Name;
 
             if (doc.CreatorId.HasValue)
             {
@@ -350,6 +352,8 @@ namespace DocTracking.Controllers
 
             var finishedAtOffice = doc.CurrentOfficeId;
             var finishedAtUnit = doc.CurrentUnitId;
+            var finishedOfficeName = doc.CurrentOffice?.Name;
+            var finishedUnitName = doc.CurrentUnit?.Name;
 
             doc.CurrentOffice = null;
             doc.CurrentUnit = null;
@@ -374,8 +378,6 @@ namespace DocTracking.Controllers
 
             var docName = doc.Name ?? "";
             var finishedBy = appUser?.Name ?? "Someone";
-            var finishedOfficeName = doc.CurrentOffice?.Name;
-            var finishedUnitName = doc.CurrentUnit?.Name;
 
             if (doc.CreatorId.HasValue)
                 await Notify($"user-{doc.CreatorId}", $"Your document has been completed by {finishedBy}.", docName);

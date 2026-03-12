@@ -6,6 +6,7 @@
 @using System.Security.Claims
 @inject DocumentService DocService
 @inject AuthenticationStateProvider AuthStateProvider
+@inject IDialogService DialogService
 @rendermode InteractiveAuto
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
@@ -77,12 +78,12 @@
             </div>
 
             <MudHidden Breakpoint="Breakpoint.SmAndDown">
-                <MudTable Items="@filteredDocuments" Hover="true" T="Document" OnRowClick="RowClicked" RowClass="cursor-pointer" SortLabel="Sort By">
+                <MudTable Items="@filteredDocuments" Hover="true" T="Document" SortLabel="Sort By">
                     <HeaderContent>
                         <MudTh><MudTableSortLabel SortBy="new Func<Document, object>(x => x.Name)">Document</MudTableSortLabel></MudTh>
                         <MudTh>
                             <MudButton Variant="Variant.Text"
-                                       Onclick="CycleTypeFilter"
+                                       OnClick="CycleTypeFilter"
                                        Class="pa-2"
                                        Style="text-transform: none">
                                 Type
@@ -163,9 +164,9 @@
                         </MudTd>
                         <MudTd DataLabel="Action">
                             <div @onclick:stopPropagation="true">
-                                <MudButton Href="@($"/track-document/{context.Id}")" Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Visibility">
-                                    Track
-                                </MudButton>
+                                <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary"
+                                           StartIcon="@Icons.Material.Filled.Visibility"
+                                           OnClick="@(async () => await OpenViewDialog(context))">View</MudButton>
                             </div>
                         </MudTd>
                     </RowTemplate>
@@ -210,7 +211,7 @@
                 {
                     @foreach (var doc in filteredDocuments)
                     {
-                        <MudCard Elevation="2" Class="mb-3" @onclick="@(() => { selectedDocument = doc; isDialogVisible = true; })">
+                        <MudCard Elevation="2" Class="mb-3">
                             <MudCardContent Class="pa-4">
                                 <div class="d-flex justify-space-between align-start mb-2">
                                     <MudText Typo="Typo.subtitle1" Class="font-weight-bold">@doc.Name</MudText>
@@ -241,15 +242,10 @@
                                 </MudText>
                             </MudCardContent>
                             <MudCardActions Class="pa-4 pt-0">
-                                <div @onclick:stopPropagation="true">
-                                    <MudButton Href="@($"/track-document/{doc.Id}")"
-                                               Color="Color.Primary"
-                                               Variant="Variant.Filled"
-                                               FullWidth="true"
-                                               Size="Size.Large"
-                                               StartIcon="@Icons.Material.Filled.Visibility">
-                                        Track Document
-                                    </MudButton>
+                                <div @onclick:stopPropagation="true" style="width:100%">
+                                    <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
+                                               StartIcon="@Icons.Material.Filled.Visibility"
+                                               OnClick="@(async () => await OpenViewDialog(doc))">View</MudButton>
                                 </div>
                             </MudCardActions>
                         </MudCard>
@@ -265,121 +261,12 @@
             }
         </MudPaper>
     }
-
-    <MudDialog @bind-Visible="isDialogVisible" Options="dialogOptions">
-        <TitleContent>
-            <MudText Typo="Typo.h6">
-                <MudIcon Icon="@Icons.Material.Filled.Description" Class="mr-2 mb-n1" /> Document Details
-            </MudText>
-        </TitleContent>
-        <DialogContent>
-            @if (selectedDocument != null)
-            {
-                <MudGrid>
-                    <MudItem xs="12" sm="6">
-                        <MudText Typo="Typo.caption" Color="Color.Secondary">Document Title</MudText>
-                        <MudText Typo="Typo.body1" Class="font-weight-bold">@selectedDocument.Name</MudText>
-                    </MudItem>
-
-                    <MudItem xs="12" sm="6">
-                        <MudText Typo="Typo.caption" Color="Color.Secondary">Document Type</MudText>
-                        <MudText Typo="Typo.body1">@selectedDocument.Type</MudText>
-                    </MudItem>
-
-                    <MudItem xs="12" sm="6">
-                        <MudText Typo="Typo.caption" Color="Color.Secondary">Status</MudText>
-                        <div>
-                            <MudChip T="string" Color="@(selectedDocument.Status == "Received" ? Color.Success : Color.Warning)" Size="Size.Small">
-                                @selectedDocument.Status
-                            </MudChip>
-                        </div>
-                    </MudItem>
-
-                    <MudItem xs="12" sm="6">
-                        <MudText Typo="Typo.caption" Color="Color.Secondary">Priority</MudText>
-                        <div>
-                            <MudChip T="string" Color="@GetPriorityColor(selectedDocument.Priority)" Size="Size.Small">
-                                @selectedDocument.Priority
-                            </MudChip>
-                        </div>
-                    </MudItem>
-
-                    <MudItem xs="12" sm="6">
-                        <MudText Typo="Typo.caption" Color="Color.Secondary">Created On</MudText>
-                        <MudText Typo="Typo.body2">@selectedDocument.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy hh:mm tt")</MudText>
-                    </MudItem>
-
-                    <MudItem xs="12" sm="6">
-                        <MudText Typo="Typo.caption" Color="Color.Secondary">Current Location</MudText>
-                        @if (selectedDocument.CurrentOffice != null)
-                        {
-                            <MudText Typo="Typo.body1" Class="font-weight-bold">@selectedDocument.CurrentOffice.Name</MudText>
-                            <MudText Typo="Typo.body2" Class="mud-text-secondary">↳ @selectedDocument.CurrentUnit?.Name</MudText>
-                        }
-                        else
-                        {
-                            <MudText Typo="Typo.body1" Color="Color.Default"><em>None</em></MudText>
-                        }
-                    </MudItem>
-
-                    <MudItem xs="12" sm="6">
-                        <MudText Typo="Typo.caption" Color="Color.Secondary">Next Destination</MudText>
-                        @if (selectedDocument.NextOffice != null)
-                        {
-                            <MudText Typo="Typo.body1" Class="font-weight-bold">@selectedDocument.NextOffice.Name</MudText>
-                            <MudText Typo="Typo.body2" Class="mud-text-secondary">↳ @selectedDocument.NextUnit?.Name</MudText>
-                        }
-                        else
-                        {
-                            <MudText Typo="Typo.body1" Color="Color.Default"><em>None</em></MudText>
-                        }
-                    </MudItem>
-
-                    @if (!string.IsNullOrEmpty(selectedDocument.Description))
-                    {
-                        <MudItem xs="12">
-                            <MudText Typo="Typo.caption" Color="Color.Secondary">Description / Notes</MudText>
-                            <MudPaper Elevation="0" Class="pa-3 mt-1 mud-background-gray rounded">
-                                <MudText Typo="Typo.body2">@selectedDocument.Description</MudText>
-                            </MudPaper>
-                        </MudItem>
-                    }
-
-                    @if (!string.IsNullOrEmpty(selectedDocument.FileName))
-                    {
-                        <MudItem xs="12">
-                            <MudText Typo="Typo.caption" Color="Color.Secondary">Attached File</MudText>
-                            <div class="d-flex align-center mt-1">
-                                <MudIcon Icon="@Icons.Material.Filled.AttachFile" Size="Size.Small" Class="mr-2" />
-                                <MudText Typo="Typo.body2" Class="mr-4">@selectedDocument.FileName</MudText>
-
-                                <MudButton Href="@selectedDocument.FilePath"
-                                           Target="_blank"
-                                           Variant="Variant.Outlined"
-                                           Size="Size.Small"
-                                           Color="Color.Primary"
-                                           StartIcon="@Icons.Material.Filled.Download">
-                                    Download
-                                </MudButton>
-                            </div>
-                        </MudItem>
-                    }
-                </MudGrid>
-            }
-        </DialogContent>
-        <DialogActions>
-            <MudButton Color="Color.Primary" OnClick="CloseDialog">Close</MudButton>
-        </DialogActions>
-    </MudDialog>
 </MudContainer>
 
 @code {
     private List<Document> myDocuments = new();
     private bool isLoading = true;
     private string? errorMessage;
-    private bool isDialogVisible;
-    private Document? selectedDocument;
-    private DialogOptions dialogOptions = new() { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
     private string searchString = "";
     private string priorityFilter = "";
     private readonly string[] priorityFilters = {"","Emergency","Urgent","Medium","Low"};
@@ -433,17 +320,6 @@
         }
     }
 
-    private void RowClicked(TableRowClickEventArgs<Document> args)
-    {
-        selectedDocument = args.Item;
-        isDialogVisible = true;
-    }
-
-    private void CloseDialog()
-    {
-        isDialogVisible = false;
-    }
-
     private Color GetPriorityColor(string? priority) => priority switch
     {
         "Emergency" => Color.Error,
@@ -475,5 +351,16 @@
     {
         statusFilterIndex = (statusFilterIndex + 1) % statusFilters.Length;
         statusFilter = statusFilters[statusFilterIndex];
+    }
+
+    private async Task OpenViewDialog(Document doc)
+    {
+        var parameters = new DialogParameters<DocumentViewDialog>
+    {
+        { x => x.Doc, doc },
+        { x => x.TrackingRoute, $"/track-document/{doc.Id}?ReturnUrl=my-tracking" }
+    };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
+        await DialogService.ShowAsync<DocumentViewDialog>("Document Details", parameters, options);
     }
 }

@@ -4,6 +4,7 @@
 @using DocTracking.Client.Services
 @using Microsoft.AspNetCore.Components.Authorization
 @inject DocumentService DocService
+@inject IDialogService DialogService
 @inject NavigationManager Navigation
 @inject IJSRuntime JSRuntime
 @rendermode @(new InteractiveAutoRenderMode(prerender: false))
@@ -78,7 +79,7 @@
                         <MudTh>Status</MudTh>
                         <MudTh><MudTableSortLabel SortBy="new Func<Document, object>(x => x.CreatedAt)">Created On</MudTableSortLabel></MudTh>
                         <MudTh>Current Location</MudTh>
-                        <MudTh>Action</MudTh>
+                        <MudTh></MudTh>
                     </HeaderContent>
                     <RowTemplate>
                         <MudTd DataLabel="Document Title"><strong>@context.Name</strong></MudTd>
@@ -105,7 +106,9 @@
                             }
                         </MudTd>
                         <MudTd DataLabel="Action">
-                            <MudButton Href="@($"/office-track-document/{context.Id}?ReturnUrl=unit-history")" Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Timeline">Track</MudButton>
+                            <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary"
+                                       StartIcon="@Icons.Material.Filled.Visibility"
+                                       OnClick="@(async () => await OpenViewDialog(context))">View</MudButton>
                         </MudTd>
                     </RowTemplate>
                     <NoRecordsContent>
@@ -166,7 +169,9 @@
                                 }
                             </MudCardContent>
                             <MudCardActions Class="pa-4 pt-0">
-                                <MudButton Href="@($"/office-track-document/{doc.Id}?ReturnUrl=unit-history")" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Timeline" FullWidth="true" Size="Size.Large">Track Document</MudButton>
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Visibility"
+                                           FullWidth="true" Size="Size.Large"
+                                           OnClick="@(async () => await OpenViewDialog(doc))">View</MudButton>
                             </MudCardActions>
                         </MudCard>
                     }
@@ -219,4 +224,15 @@
         "Low" => Color.Success,
         _ => Color.Default
     };
+
+    private async Task OpenViewDialog(Document doc)
+    {
+        var parameters = new DialogParameters<DocumentViewDialog>
+    {
+        { x => x.Doc, doc },
+        { x => x.TrackingRoute, $"/office-track-document/{doc.Id}?ReturnUrl=unit-history" }
+    };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
+        await DialogService.ShowAsync<DocumentViewDialog>("Document Details", parameters, options);
+    }
 }
