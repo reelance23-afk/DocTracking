@@ -502,6 +502,20 @@ namespace DocTracking.Controllers
             return Ok();
         }
 
+        [HttpGet("{id}/qrcode")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetDocumentQRCode(int id)
+        {
+            var doc = await _context.Documents.FindAsync(id);
+            if (doc == null || string.IsNullOrEmpty(doc.ReferenceNumber)) return NotFound();
+
+            using var qrGenerator = new QRCoder.QRCodeGenerator();
+            using var qrCodeData = qrGenerator.CreateQrCode(doc.ReferenceNumber, QRCoder.QRCodeGenerator.ECCLevel.Q);
+            using var qrCode = new QRCoder.PngByteQRCode(qrCodeData);
+            var qrCodeBytes = qrCode.GetGraphic(20);
+
+            return File(qrCodeBytes, "image/png");
+        }
 
     }
 

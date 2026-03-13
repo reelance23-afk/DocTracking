@@ -67,8 +67,11 @@ namespace DocTracking.Client.Services
             return JsonSerializer.Deserialize<AppUser>(content, _jsonOptions);
         }
 
-        public async Task CreateDocumentAsync(Document doc) =>
-            await _http.PostAsJsonAsync("api/documents", doc);
+        public async Task<bool> CreateDocumentAsync(Document doc)
+        {
+            var response = await _http.PostAsJsonAsync("api/documents", doc);
+            return response.IsSuccessStatusCode;
+        }
 
         public async Task<string?> UploadFileAsync(IBrowserFile file)
         {
@@ -159,6 +162,8 @@ namespace DocTracking.Client.Services
             if (response.IsSuccessStatusCode) return (true, null);
             return (false, await response.Content.ReadAsStringAsync());
         }
+
+        public string GetQRCodeUrl(int documentId) => $"{_http.BaseAddress}api/documents/{documentId}/qrcode";
     }
 
     public class UploadResponse

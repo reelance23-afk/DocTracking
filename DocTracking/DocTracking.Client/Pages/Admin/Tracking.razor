@@ -99,9 +99,15 @@
                         </MudTd>
                         <MudTd DataLabel="Date">@context.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")</MudTd>
                         <MudTd DataLabel="Actions">
-                            <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary"
-                                       StartIcon="@Icons.Material.Filled.Visibility"
-                                       OnClick="@(async () => await OpenViewDialog(context))">View</MudButton>
+                            <div class="d-flex gap-2">
+                                <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary"
+                                           StartIcon="@Icons.Material.Filled.Visibility"
+                                           OnClick="@(async () => await OpenViewDialog(context))">View</MudButton>
+                                <MudIconButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Secondary"
+                                               Icon="@Icons.Material.Filled.QrCode"
+                                               OnClick="@(async () => await OpenQRDialog(context))" />
+
+                            </div>
                         </MudTd>
                     </RowTemplate>
                     <NoRecordsContent>
@@ -157,10 +163,17 @@
                                 </MudText>
                             </MudCardContent>
                             <MudCardActions Class="pa-4 pt-0">
-                                <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                                           StartIcon="@Icons.Material.Filled.Visibility" FullWidth="true"
-                                           OnClick="@(async () => await OpenViewDialog(doc))">View</MudButton>
+                                <div class="d-flex gap-2" style="width:100%">
+                                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Style="flex:1"
+                                               StartIcon="@Icons.Material.Filled.Visibility" FullWidth="true"
+                                               OnClick="@(async () => await OpenViewDialog(doc))">View</MudButton>
+                                    <MudIconButton Variant="Variant.Outlined" Color="Color.Secondary"
+                                                   Icon="@Icons.Material.Filled.QrCode"
+                                                   OnClick="@(async () => await OpenQRDialog(doc))" />
+
+                                </div>
                             </MudCardActions>
+
                         </MudCard>
                     }
                 }
@@ -180,6 +193,18 @@
         catch (Exception ex) { Console.WriteLine(ex.Message); }
         finally { loading = false; }
     }
+
+    private async Task OpenQRDialog(Document doc)
+    {
+        var parameters = new DialogParameters<QRCodeDialog>
+    {
+        { x => x.DocumentId, doc.Id },
+        { x => x.ReferenceNumber, doc.ReferenceNumber }
+    };
+        var options = new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true, CloseButton = true };
+        await DialogService.ShowAsync<QRCodeDialog>("QR Code", parameters, options);
+    }
+
 
     private async Task OpenEditDialog(Document doc)
     {
@@ -213,21 +238,6 @@
         }
     }
 
-    private async Task DeleteDocument(Document doc)
-    {
-        var parameters = new DialogParameters
-    {
-        { "Message", $"Are you sure you want to delete \"{doc.Name}\"? This cannot be undone." },
-        { "YesText", "Delete" },
-        { "CancelText", "Cancel" }
-    };
-        var dialog = await DialogService.ShowAsync<MudMessageBox>("Delete Document", parameters);
-        var result = await dialog.Result;
-        if (result.Canceled) return;
-        var (success, _) = await DocumentService.DeleteDocumentAsync(doc.Id);
-        if (success) allDocuments.Remove(doc);
-    }
-
     private bool FilterFunc(Document element)
     {
         if (string.IsNullOrWhiteSpace(searchString)) return true;
@@ -258,6 +268,17 @@
         { x => x.TrackingRoute, $"/admin-track-document/{doc.Id}" }
     };
         var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
-        await DialogService.ShowAsync<DocumentViewDialog>("Document Details", parameters, options);
+        var dialog = await DialogService.ShowAsync<DocumentViewDialog>("Document Details", parameters, options);
+
+        var result = await dialog.Result;
+        if (!result!.Canceled && result.Data != null)
+        {
+            if (result.Data.ToString() == "deleted")
+            {
+                allDocuments.RemoveAll(d => d.Id == doc.Id);
+                StateHasChanged();
+            }
+        }
     }
+
 }

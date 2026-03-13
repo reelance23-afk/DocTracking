@@ -65,23 +65,26 @@
 </style>
 
 <MudLayout>
-    <MudDrawer Open="_drawerOpen"
-               OpenChanged="HandleDrawerStateChange"
+    <MudAppBar Elevation="0" Style="background: transparent; box-shadow: none;">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu"
+                       Color="Color.Primary"
+                       Edge="Edge.Start"
+                       OnClick="@(() => _drawerOpen = !_drawerOpen)" />
+        <MudText Typo="Typo.h6">DocTracking</MudText>
+        <MudSpacer />
+        <NotificationBell />
+    </MudAppBar>
+
+    <MudDrawer @bind-Open="_drawerOpen"
                Elevation="2"
-               Variant="@(_isMobile ? DrawerVariant.Temporary : DrawerVariant.Mini)"
-               @onclick="OpenDrawerOnClickInside"
-               Overlay="@_isMobile"
-               ClipMode="@(_isMobile ? DrawerClipMode.Always : DrawerClipMode.Never)">
+               Variant="DrawerVariant.Responsive"
+               ClipMode="DrawerClipMode.Never">
 
         <MudDrawerHeader Class="pt-4 px-2">
             <AuthorizeView>
                 <Authorized>
                     <div class="d-flex flex-column align-center pa-3 mb-4 rounded-lg position-relative"
                          style="@($"width: 100%; transition: all 0.3s ease; height: 110px; background: {(_drawerOpen ? "linear-gradient(145deg, #f0f2f5 0%, #e8eaf0 100%)" : "transparent")}; border: {(_drawerOpen ? "1px solid rgba(0,0,0,0.08)" : "none")};")">
-
-                        <div style="position: absolute; top: 4px; right: 4px; @(_showText ? "" : "visibility: hidden;")" @onclick:stopPropagation="true">
-                            <NotificationBell />
-                        </div>
 
                         <div @onclick="@(() => HandleDrawerStateChange(!_drawerOpen))"
                              @onclick:stopPropagation="true"
@@ -109,21 +112,13 @@
             </AuthorizeView>
         </MudDrawerHeader>
 
-
         <CascadingValue Value="_showText">
             <NavMenu />
         </CascadingValue>
     </MudDrawer>
 
-    <MudMainContent @onclick="CloseDrawerOnClickOutside" Class="pt-4">
-        @if (_isMobile)
-        {
-            <MudAppBar Elevation="1" Class="d-flex d-md-none">
-                <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@(() => HandleDrawerStateChange(!_drawerOpen))" />
-                <MudText Typo="Typo.h6">DocTracking</MudText>
-            </MudAppBar>
-        }
-        <MudContainer MaxWidth="MaxWidth.False" Class="@($"{(_isMobile ? "mt-16" : "")} h-100")">
+    <MudMainContent>
+        <MudContainer MaxWidth="MaxWidth.False" Class="h-100 pb-8">
             @Body
         </MudContainer>
     </MudMainContent>
@@ -132,22 +127,8 @@
 @code {
     bool _drawerOpen = true;
     bool _showText = true;
-    bool _isMobile = false;
     private MudTheme CurrentTheme = new();
     private string? displayName;
-    private string? photoUrl;
-
-    protected override async Task OnInitializedAsync()
-    {
-        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        var user = authState.User;
-
-        if (user.Identity?.IsAuthenticated == true)
-        {
-            if (!user.Claims.Any(c => c.Type == ClaimTypes.Role))
-                Navigation.NavigateTo(Navigation.Uri, forceLoad: true);
-        }
-    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -156,23 +137,12 @@
             await ThemeService.LoadAsync();
             ThemeService.OnChange += () => { CurrentTheme = BuildTheme(); StateHasChanged(); };
             CurrentTheme = BuildTheme();
-            await CheckIfMobile();
             await JSRuntime.InvokeVoidAsync("eval", "document.getElementById('app-loading')?.remove()");
 
             var profile = await DocService.GetProfileAsync();
             displayName = profile?.Name;
             StateHasChanged();
         }
-    }
-
-    private async Task CheckIfMobile()
-    {
-        try
-        {
-            _isMobile = await JSRuntime.InvokeAsync<bool>("eval", "window.innerWidth <= 768");
-            if (_isMobile) { _drawerOpen = false; _showText = false; }
-        }
-        catch { _isMobile = false; }
     }
 
     async Task HandleDrawerStateChange(bool isOpen)
@@ -192,25 +162,6 @@
             await Task.Delay(50);
             _drawerOpen = false;
         }
-    }
-
-    async Task CloseDrawerOnClickOutside()
-    {
-        if (_drawerOpen && _isMobile) await HandleDrawerStateChange(false);
-    }
-
-    async Task OpenDrawerOnClickInside()
-    {
-        if (!_drawerOpen) await HandleDrawerStateChange(true);
-    }
-
-    private string GetRoleIcon()
-    {
-        var authState = AuthStateProvider.GetAuthenticationStateAsync().Result;
-        var user = authState.User;
-        if (user.IsInRole("Admin")) return Icons.Material.Filled.AdminPanelSettings;
-        if (user.IsInRole("Office")) return Icons.Material.Filled.Business;
-        return Icons.Material.Filled.Person;
     }
 
     private MudTheme BuildTheme() => ThemeService.SelectedTheme switch

@@ -5,7 +5,27 @@
 @inject DocumentService DocService
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
+@inject IJSRuntime JSRuntime
 @rendermode InteractiveAuto
+
+<style>
+    @@media (max-width: 599px) {
+        .desktop-table {
+            display: none !important;
+        }
+        .mobile-units {
+            display: block !important;
+        }
+    }
+    @@media (min-width: 600px) {
+        .desktop-table {
+            display: block !important;
+        }
+        .mobile-units {
+            display: none !important;
+        }
+    }
+</style>
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-6 mb-8">
 
@@ -14,8 +34,9 @@
             <MudText Typo="Typo.h4" Class="font-weight-bold">Office Management</MudText>
             <MudText Typo="Typo.body2" Class="mud-text-secondary">Manage offices and their respective units.</MudText>
         </div>
+        <!-- Desktop Add Button -->
         <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
-                   OnClick="OpenAddOfficeDialog">
+                   OnClick="OpenAddOfficeDialog" Class="d-none d-md-flex">
             Add Office
         </MudButton>
     </div>
@@ -49,7 +70,7 @@
                                     </MudText>
                                 </div>
                             </div>
-                            <div class="d-flex align-center gap-1" @onclick:stopPropagation="true">
+                            <div class="d-flex align-center gap-1" @onclick:stopPropagation>
                                 <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
                                                Color="Color.Warning" OnClick="@(() => OpenEditOfficeDialog(office))" />
                                 <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
@@ -62,25 +83,26 @@
                         <div class="pa-4">
                             <MudPaper Elevation="0" Class="pa-3 mb-4 rounded-lg mud-background-gray">
                                 <MudText Typo="Typo.subtitle2" Class="mb-2 font-weight-bold">Add New Unit</MudText>
-                                <MudForm @bind-IsValid="@unitSuccess" @ref="unitForm">
-                                    <div class="d-flex gap-2 align-center">
-                                        <MudTextField @bind-Value="newUnitName" Label="Unit Name"
-                                                      Variant="Variant.Outlined" Required="true"
-                                                      RequiredError="Unit name required" Margin="Margin.Dense"
-                                                      Style="flex:1" />
-                                        <MudButton Variant="Variant.Filled" Color="Color.Secondary"
-                                                   Disabled="@(!unitSuccess || isSubmittingUnit)"
-                                                   OnClick="@(() => { selectedOffice = office; _ = SubmitUnit(); })">
-                                            @(isSubmittingUnit ? "Adding..." : "Add Unit")
-                                        </MudButton>
-                                    </div>
-                                </MudForm>
+                                <div class="d-flex gap-2 align-center">
+                                    <input type="text"
+                                           value="@GetUnitName(office.Id)"
+                                           @oninput="@(e => SetUnitName(office.Id, e.Value?.ToString() ?? ""))"
+                                           placeholder="Unit Name"
+                                           class="mud-input-root mud-input-root-outlined mud-input-root-margin-dense"
+                                           style="flex:1; padding: 8px 12px; border: 1px solid #d0d7de; border-radius: 4px;" />
+                                    <MudButton Variant="Variant.Filled" Color="Color.Secondary"
+                                               Disabled="@(string.IsNullOrWhiteSpace(GetUnitName(office.Id)) || isSubmittingUnit)"
+                                               OnClick="@(() => SubmitUnit(office))">
+                                        @(isSubmittingUnit ? "Adding..." : "Add Unit")
+                                    </MudButton>
+                                </div>
                             </MudPaper>
 
                             @if (office.Units != null && office.Units.Any())
                             {
+                                <!-- Desktop Table -->
                                 <MudTable Items="office.Units" Hover="true" Dense="true" Elevation="0"
-                                          Class="rounded-lg overflow-hidden" T="Unit">
+                                          Class="rounded-lg overflow-hidden desktop-table" T="Unit">
                                     <HeaderContent>
                                         <MudTh>Unit</MudTh>
                                         <MudTh>Workers</MudTh>
@@ -114,7 +136,7 @@
                                             }
                                             else
                                             {
-                                                <MudText Typo="Typo.caption" Class="mud-text-secondary font-italic">No workers</MudText>        
+                                                <MudText Typo="Typo.caption" Class="mud-text-secondary font-italic">No workers</MudText>
                                             }
                                         </MudTd>
                                         <MudTd Style="text-align:right">
@@ -125,6 +147,50 @@
                                         </MudTd>
                                     </RowTemplate>
                                 </MudTable>
+
+                                <!-- Mobile Cards -->
+                                <div class="mobile-units">
+                                    @foreach (var unit in office.Units)
+                                    {
+                                        var unitWorkers = allUsers.Where(u => u.UnitId == unit.Id).ToList();
+                                        <MudPaper Elevation="1" Class="pa-3 mb-3 rounded-lg">
+                                            <div class="d-flex justify-space-between align-start mb-2">
+                                                <div class="d-flex align-center gap-2">
+                                                    <MudIcon Icon="@Icons.Material.Filled.AccountTree"
+                                                             Size="Size.Small" Color="Color.Primary" />
+                                                    <MudText Typo="Typo.body1" Class="font-weight-bold">@unit.Name</MudText>
+                                                </div>
+                                                <div class="d-flex gap-1">
+                                                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                                                                   Color="Color.Warning" OnClick="@(() => OpenEditUnitDialog(unit))" />
+                                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
+                                                                   Color="Color.Error" OnClick="@(() => DeleteUnit(unit))" />
+                                                </div>
+                                            </div>
+                                            
+                                            <MudDivider Class="my-2" />
+                                            
+                                            <div>
+                                                <MudText Typo="Typo.caption" Class="mud-text-secondary mb-1">Workers:</MudText>
+                                                @if (unitWorkers.Any())
+                                                {
+                                                    <div class="d-flex align-center gap-1 flex-wrap">
+                                                        @foreach (var worker in unitWorkers)
+                                                        {
+                                                            <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Filled">
+                                                                @worker.Name
+                                                            </MudChip>
+                                                        }
+                                                    </div>
+                                                }
+                                                else
+                                                {
+                                                    <MudText Typo="Typo.caption" Class="mud-text-secondary font-italic">No workers assigned</MudText>
+                                                }
+                                            </div>
+                                        </MudPaper>
+                                    }
+                                </div>
                             }
                             else
                             {
@@ -147,17 +213,21 @@
 
 </MudContainer>
 
+<!-- Mobile FAB - Shows only on small screens -->
+<MudFab Color="Color.Primary" 
+       StartIcon="@Icons.Material.Filled.Add" 
+       OnClick="OpenAddOfficeDialog"
+       Class="d-md-none"
+       Style="position: fixed; bottom: 24px; right: 24px; z-index: 1000;" />
+
 @code {
     private List<Office> offices = new();
     private List<AppUser> allUsers = new();
     private bool loading = true;
-    private string searchString = "";
+    private string searchString { get; set; } = "";
 
-    private Office? selectedOffice;
-    private string newUnitName = "";
-    private bool unitSuccess;
+    private Dictionary<int, string> unitNames = new();
     private bool isSubmittingUnit;
-    private MudForm? unitForm;
 
     private bool isSubmitting;
     private DialogOptions dialogOptions = new() { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
@@ -167,6 +237,16 @@
         : offices.Where(o => o.Name?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true);
 
     protected override async Task OnInitializedAsync() => await LoadOffices();
+
+    private string GetUnitName(int officeId)
+    {
+        return unitNames.TryGetValue(officeId, out var name) ? name : "";
+    }
+
+    private void SetUnitName(int officeId, string value)
+    {
+        unitNames[officeId] = value;
+    }
 
     private async Task LoadOffices(bool showSpinner = true)
     {
@@ -187,8 +267,8 @@
                     var existing = offices.FirstOrDefault(o => o.Id == updatedOffice.Id);
                     if (existing != null)
                     {
-                        existing.Name = updatedOffice.Name;
-                        existing.Units = updatedOffice.Units;
+                        var index = offices.IndexOf(existing);
+                        offices[index] = updatedOffice;
                     }
                     else
                     {
@@ -197,16 +277,12 @@
                 }
                 offices.RemoveAll(o => !updated.Any(u => u.Id == o.Id));
             }
-
-            if (selectedOffice != null)
-                selectedOffice = offices.FirstOrDefault(o => o.Id == selectedOffice.Id);
         }
         finally
         {
             if (showSpinner) loading = false;
         }
     }
-
 
     private async Task OpenAddOfficeDialog()
     {
@@ -268,11 +344,11 @@
     private async Task DeleteOffice(Office office)
     {
         var parameters = new DialogParameters
-    {
-        { "Message", $"Delete '{office.Name}'? This cannot be undone." },
-        { "YesText", "Delete" },
-        { "CancelText", "Cancel" }
-    };
+        {
+            { "Message", $"Delete '{office.Name}'? This cannot be undone." },
+            { "YesText", "Delete" },
+            { "CancelText", "Cancel" }
+        };
         var dialog = await DialogService.ShowAsync<MudMessageBox>("Delete Office", parameters);
         var result = await dialog.Result;
         if (result.Canceled) return;
@@ -285,11 +361,11 @@
     private async Task DeleteUnit(Unit unit)
     {
         var parameters = new DialogParameters
-    {
-        { "Message", $"Delete '{unit.Name}'? This cannot be undone." },
-        { "YesText", "Delete" },
-        { "CancelText", "Cancel" }
-    };
+        {
+            { "Message", $"Delete '{unit.Name}'? This cannot be undone." },
+            { "YesText", "Delete" },
+            { "CancelText", "Cancel" }
+        };
         var dialog = await DialogService.ShowAsync<MudMessageBox>("Delete Unit", parameters);
         var result = await dialog.Result;
         if (result.Canceled) return;
@@ -299,17 +375,18 @@
         await LoadOffices(showSpinner: false);
     }
 
-    private async Task SubmitUnit()
+    private async Task SubmitUnit(Office office)
     {
-        if (string.IsNullOrWhiteSpace(newUnitName) || selectedOffice == null) return;
+        if (string.IsNullOrWhiteSpace(GetUnitName(office.Id))) return;
+
         isSubmittingUnit = true;
         try
         {
-            var (ok, error) = await DocService.AddUnitAsync(new Unit { Name = newUnitName, OfficeId = selectedOffice.Id });
+            var unitName = unitNames[office.Id];
+            var (ok, error) = await DocService.AddUnitAsync(new Unit { Name = unitName, OfficeId = office.Id });
             if (!ok) { Snackbar.Add(error ?? "Error adding unit.", Severity.Error); return; }
-            Snackbar.Add($"Unit '{newUnitName}' added to {selectedOffice.Name}!", Severity.Success);
-            newUnitName = "";
-            unitForm?.ResetAsync();
+            Snackbar.Add($"Unit '{unitName}' added to {office.Name}!", Severity.Success);
+            unitNames[office.Id] = "";
             await LoadOffices(showSpinner: false);
         }
         finally { isSubmittingUnit = false; }

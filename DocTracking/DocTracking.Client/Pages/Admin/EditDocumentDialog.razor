@@ -3,6 +3,7 @@
 @using Microsoft.AspNetCore.Components.Forms
 @inject DocumentService DocService
 @inject ISnackbar Snackbar
+@inject IDialogService DialogService
 @rendermode InteractiveAuto
 
 <MudDialog>
@@ -99,6 +100,9 @@
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="Cancel" Variant="Variant.Text">Cancel</MudButton>
+        <MudSpacer />
+        <MudButton Color="Color.Error" Variant="Variant.Outlined"
+                   StartIcon="@Icons.Material.Filled.Delete" OnClick="DeleteDocument">Delete</MudButton>
         <MudButton Color="Color.Primary" Variant="Variant.Filled"
                    StartIcon="@Icons.Material.Filled.Save" OnClick="Submit">Save Changes</MudButton>
     </DialogActions>
@@ -141,4 +145,28 @@
     }
 
     private void Cancel() => MudDialog.Cancel();
+
+    private async Task DeleteDocument()
+    {
+        var parameters = new DialogParameters
+        {
+            { "Message", $"Are you sure you want to delete '{Doc.Name}'? This action cannot be undone." },
+            { "YesText", "Delete" },
+            { "CancelText", "Cancel" }
+        };
+        var dialog = await DialogService.ShowAsync<MudMessageBox>("Confirm Delete", parameters);
+        var result = await dialog.Result;
+        if (result.Canceled) return;
+
+        var (success, error) = await DocService.DeleteDocumentAsync(Doc.Id);
+        if (success)
+        {
+            Snackbar.Add("Document deleted successfully!", Severity.Success);
+            MudDialog.Close(DialogResult.Ok("deleted"));
+        }
+        else
+        {
+            Snackbar.Add($"Failed to delete document: {error}", Severity.Error);
+        }
+    }
 }

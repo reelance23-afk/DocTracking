@@ -198,7 +198,7 @@
 @code {
     private Document newDocument = new();
     private List<Office> offices = new();
-    private bool success;
+    private bool success = true;
     private bool isSaving;
     private bool isLoadingOffices = true;
     private IBrowserFile? selectedFile;
@@ -259,11 +259,11 @@
     public async Task SubmitDocument()
     {
         var parameters = new DialogParameters
-        {
-            { "Message", "Submit and route this document? This cannot be edited after submission." },
-            { "YesText", "Submit" },
-            { "CancelText", "Cancel" }
-        };
+    {
+        { "Message", "Submit and route this document? This cannot be edited after submission." },
+        { "YesText", "Submit" },
+        { "CancelText", "Cancel" }
+    };
         var dialog = await DialogService.ShowAsync<MudMessageBox>("Confirm Submit", parameters);
         var result = await dialog.Result;
         if (result.Canceled) return;
@@ -280,9 +280,16 @@
                 else Snackbar.Add("File upload failed, saving anyway.", Severity.Warning);
             }
 
-            await DocService.CreateDocumentAsync(newDocument);
-            Snackbar.Add("Document created & routed successfully!", Severity.Success);
-            Navigation.NavigateTo(isOfficeRole ? "/office-desk" : "/my-tracking");
+            var success = await DocService.CreateDocumentAsync(newDocument);
+            if (success)
+            {
+                Snackbar.Add("Document created & routed successfully!", Severity.Success);
+                Navigation.NavigateTo(isOfficeRole ? "/office-desk" : "/my-tracking");
+            }
+            else
+            {
+                Snackbar.Add("Failed to create document. Please try again.", Severity.Error);
+            }
         }
         catch (Exception ex)
         {
@@ -293,6 +300,7 @@
         }
         finally { isSaving = false; }
     }
+
 
     private void RemoveFile()
     {

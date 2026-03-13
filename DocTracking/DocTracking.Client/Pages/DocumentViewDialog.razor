@@ -1,6 +1,9 @@
-﻿@using DocTracking.Client.Models
+﻿@using Microsoft.AspNetCore.Components.Authorization
+@using DocTracking.Client.Models
 @using DocTracking.Client.Services
 @inject DocumentService DocService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IDialogService DialogService
 @rendermode InteractiveAuto
 
 <MudDialog>
@@ -126,22 +129,27 @@
                                             </div>
                                             <div class="d-flex align-center mb-1">
                                                 <MudIcon Icon="@Icons.Material.Filled.AccountCircle" Size="Size.Small" Class="mr-2 mud-text-secondary" />
-                                                <MudText Typo="Typo.body2"><span class="mud-text-secondary">By:</span> <strong>@(log.AppUser?.Name ?? "System")</strong></MudText>
+                                                <MudText Typo="Typo.body2"><span class="mud-text-secondary">By:</span> <strong>@(log.AppUser?.Name ?? log.UserName ?? "System")</strong></MudText>
                                             </div>
-                                            @if (log.Office != null)
+                                            @if (log.Office != null || !string.IsNullOrEmpty(log.OfficeName))
                                             {
                                                 <div class="d-flex align-center">
                                                     <MudIcon Icon="@Icons.Material.Filled.LocationOn" Size="Size.Small" Class="mr-2 mud-text-secondary" />
                                                     <MudText Typo="Typo.body2">
                                                         <span class="mud-text-secondary">@GetLocationLabel(log.Action):</span>
-                                                        <strong> @log.Office.Name</strong>
-                                                        @if (log.Unit != null)
+                                                        <strong> @(log.Office?.Name ?? log.OfficeName)</strong>
+                                                        @if (log.Unit != null || !string.IsNullOrEmpty(log.UnitName))
                                                         {
-                                                            <span class="mud-text-secondary"> ↳ @log.Unit.Name</span>
+                                                            <span class="mud-text-secondary"> ↳ @(log.Unit?.Name ?? log.UnitName)</span>
+                                                        }
+                                                        @if (log.Office == null && !string.IsNullOrEmpty(log.OfficeName))
+                                                        {
+                                                            <span class="mud-text-secondary" style="font-style: italic;"> (deleted)</span>
                                                         }
                                                     </MudText>
                                                 </div>
                                             }
+
                                         </MudCardContent>
                                     </MudCard>
                                 </ItemContent>
@@ -165,6 +173,13 @@
             <MudButton Href="@TrackingRoute" Variant="Variant.Outlined" Color="Color.Primary"
                        StartIcon="@Icons.Material.Filled.OpenInFull">View Full Timeline</MudButton>
         }
+        <MudSpacer />
+        <AuthorizeView Roles="Admin">
+            <Authorized>
+                <MudButton Color="Color.Secondary" Variant="Variant.Outlined"
+                           StartIcon="@Icons.Material.Filled.Edit" OnClick="EditDocument">Edit</MudButton>
+            </Authorized>
+        </AuthorizeView>
         <MudButton OnClick="@(() => MudDialog.Cancel())" Variant="Variant.Text">Close</MudButton>
     </DialogActions>
 </MudDialog>
@@ -220,4 +235,18 @@
         "Archived" => Color.Dark,
         _ => Color.Default
     };
+
+    private async Task EditDocument()
+    {
+        var parameters = new DialogParameters<EditDocumentDialog> { { x => x.Doc, Doc } };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
+        var dialog = await DialogService.ShowAsync<EditDocumentDialog>("Edit Document", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+           
+            MudDialog.Close(DialogResult.Ok(result.Data));
+        }
+    }
 }

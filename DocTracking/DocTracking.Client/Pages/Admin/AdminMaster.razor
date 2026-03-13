@@ -25,7 +25,7 @@
     else
     {
         <MudGrid Class="mb-6">
-            <MudItem xs="12" sm="4">
+            <MudItem xs="12" sm="6" md="4">
                 <MudPaper Elevation="2" Class="pa-4" Style="border-top: 4px solid var(--mud-palette-info);">
                     <div class="d-flex justify-space-between align-center">
                         <div>
@@ -36,7 +36,7 @@
                     </div>
                 </MudPaper>
             </MudItem>
-            <MudItem xs="12" sm="4">
+            <MudItem xs="12" sm="6" md="4">
                 <MudPaper Elevation="2" Class="pa-4" Style="border-top: 4px solid var(--mud-palette-warning);">
                     <div class="d-flex justify-space-between align-center">
                         <div>
@@ -47,7 +47,7 @@
                     </div>
                 </MudPaper>
             </MudItem>
-            <MudItem xs="12" sm="4">
+            <MudItem xs="12" sm="12" md="4">
                 <MudPaper Elevation="2" Class="pa-4" Style="border-top: 4px solid var(--mud-palette-success);">
                     <div class="d-flex justify-space-between align-center">
                         <div>
@@ -61,8 +61,7 @@
         </MudGrid>
 
         <MudGrid Class="mb-6">
-
-            <MudItem xs="12" md="7">
+            <MudItem xs="12" lg="8">
                 <MudPaper Elevation="2" Class="pa-4" Style="height: 100%;">
                     <div class="d-flex align-center justify-space-between mb-4">
                         <div class="d-flex align-center">
@@ -74,7 +73,7 @@
                         </MudButton>
                     </div>
                     <MudGrid>
-                        <MudItem xs="6">
+                        <MudItem xs="12" sm="6">
                             <MudPaper Elevation="0" Class="pa-3" Style="background: rgba(var(--mud-palette-warning-rgb), 0.08); border-radius: 8px; min-height: 200px;">
                                 <MudText Typo="Typo.subtitle2" Color="Color.Warning" Class="mb-3 font-weight-bold">In Motion</MudText>
                                 @foreach (var doc in inMotionDocs.Take(5))
@@ -93,7 +92,7 @@
                                 }
                             </MudPaper>
                         </MudItem>
-                        <MudItem xs="6">
+                        <MudItem xs="12" sm="6">
                             <MudPaper Elevation="0" Class="pa-3" Style="background: rgba(var(--mud-palette-info-rgb), 0.08); border-radius: 8px; min-height: 200px;">
                                 <MudText Typo="Typo.subtitle2" Color="Color.Info" Class="mb-3 font-weight-bold">Office Workload</MudText>
                                 @foreach (var workload in officeWorkLoads.Take(5))
@@ -116,7 +115,7 @@
                 </MudPaper>
             </MudItem>
 
-            <MudItem xs="12" md="5">
+            <MudItem xs="12" lg="4">
                 <MudPaper Elevation="2" Class="pa-4" Style="height: 100%;">
                     <div class="d-flex align-center mb-4">
                         <MudIcon Icon="@Icons.Material.Filled.Timeline" Class="mr-2" Color="Color.Primary" />

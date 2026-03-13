@@ -163,10 +163,14 @@
                             }
                         </MudTd>
                         <MudTd DataLabel="Action">
-                            <div @onclick:stopPropagation="true">
+                            <div @onclick:stopPropagation="true" class="d-flex gap-2">
                                 <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary"
                                            StartIcon="@Icons.Material.Filled.Visibility"
                                            OnClick="@(async () => await OpenViewDialog(context))">View</MudButton>
+                                <MudIconButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Secondary"
+                                               Icon="@Icons.Material.Filled.QrCode"
+                                               OnClick="@(async () => await OpenQRDialog(context))" />
+
                             </div>
                         </MudTd>
                     </RowTemplate>
@@ -242,10 +246,14 @@
                                 </MudText>
                             </MudCardContent>
                             <MudCardActions Class="pa-4 pt-0">
-                                <div @onclick:stopPropagation="true" style="width:100%">
-                                    <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
+                                <div @onclick:stopPropagation="true" style="width:100%" class="d-flex gap-2">
+                                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Style="flex:1"
                                                StartIcon="@Icons.Material.Filled.Visibility"
                                                OnClick="@(async () => await OpenViewDialog(doc))">View</MudButton>
+                                    <MudIconButton Variant="Variant.Outlined" Color="Color.Secondary"
+                                                   Icon="@Icons.Material.Filled.QrCode"
+                                                   OnClick="@(async () => await OpenQRDialog(doc))" />
+
                                 </div>
                             </MudCardActions>
                         </MudCard>
@@ -363,4 +371,16 @@
         var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
         await DialogService.ShowAsync<DocumentViewDialog>("Document Details", parameters, options);
     }
+
+    private async Task OpenQRDialog(Document doc)
+    {
+        var parameters = new DialogParameters<QRCodeDialog>
+    {
+        { x => x.DocumentId, doc.Id },
+        { x => x.ReferenceNumber, doc.ReferenceNumber }
+    };
+        var options = new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true, CloseButton = true };
+        await DialogService.ShowAsync<QRCodeDialog>("QR Code", parameters, options);
+    }
+
 }

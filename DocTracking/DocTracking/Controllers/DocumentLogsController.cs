@@ -1,5 +1,6 @@
-using DocTracking.Data;
 using DocTracking.Client.Models;
+using DocTracking.Data;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -7,6 +8,7 @@ namespace DocTracking.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class DocumentLogsController : ControllerBase
     {
         private readonly ApplicationDbContext _context;

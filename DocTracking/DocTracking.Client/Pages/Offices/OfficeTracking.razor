@@ -69,17 +69,30 @@
                             </MudText>
                             <div class="d-flex align-center mb-1">
                                 <MudIcon Icon="@Icons.Material.Filled.AccountCircle" Size="Size.Small" Class="mr-2 mud-text-secondary" />
-                                <MudText Typo="Typo.body2"><span class="mud-text-secondary">By:</span> <strong>@(log.AppUser?.Name ?? "System")</strong></MudText>
+                                <MudText Typo="Typo.body2"><span class="mud-text-secondary">By:</span> <strong>@(log.AppUser?.Name ?? log.UserName ?? "System")</strong></MudText>
                             </div>
-                            @if (log.Office != null)
+                            @if (log.Office != null || !string.IsNullOrEmpty(log.OfficeName))
                             {
                                 <div class="d-flex align-center">
                                     <MudIcon Icon="@GetLocationIcon(log.Action)" Size="Size.Small" Color="@GetLocationColor(log.Action)" Class="mr-2" />
                                     <div>
-                                        <MudText Typo="Typo.body2"><span class="mud-text-secondary">@GetLocationLabel(log.Action):</span> <strong>@log.Office.Name</strong></MudText>
-                                        @if (log.Unit != null)
+                                        <MudText Typo="Typo.body2">
+                                            <span class="mud-text-secondary">@GetLocationLabel(log.Action):</span>
+                                            <strong>@(log.Office?.Name ?? log.OfficeName)</strong>
+                                            @if (log.Office == null && !string.IsNullOrEmpty(log.OfficeName))
+                                            {
+                                                <span class="mud-text-secondary" style="font-style: italic;"> (deleted)</span>
+                                            }
+                                        </MudText>
+                                        @if (log.Unit != null || !string.IsNullOrEmpty(log.UnitName))
                                         {
-                                            <MudText Typo="Typo.caption" Class="mud-text-secondary">@log.Unit.Name</MudText>
+                                            <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                                                @(log.Unit?.Name ?? log.UnitName)
+                                                @if (log.Unit == null && !string.IsNullOrEmpty(log.UnitName))
+                                                {
+                                                    <span style="font-style: italic;"> (deleted)</span>
+                                                }
+                                            </MudText>
                                         }
                                     </div>
                                 </div>
@@ -129,19 +142,32 @@
                                             <MudItem xs="12" sm="6">
                                                 <div class="d-flex align-center mb-2">
                                                     <MudIcon Icon="@Icons.Material.Filled.AccountCircle" Size="Size.Small" Class="mr-2 mud-text-secondary" />
-                                                    <MudText Typo="Typo.body2"><span class="mud-text-secondary">By:</span> <strong>@(log.AppUser?.Name ?? "System")</strong></MudText>
+                                                    <MudText Typo="Typo.body2"><span class="mud-text-secondary">By:</span> <strong>@(log.AppUser?.Name ?? log.UserName ?? "System")</strong></MudText>
                                                 </div>
                                             </MudItem>
-                                            @if (log.Office != null)
+                                            @if (log.Office != null || !string.IsNullOrEmpty(log.OfficeName))
                                             {
                                                 <MudItem xs="12" sm="6">
                                                     <div class="d-flex align-center mb-2">
                                                         <MudIcon Icon="@GetLocationIcon(log.Action)" Size="Size.Small" Color="@GetLocationColor(log.Action)" Class="mr-2" />
                                                         <div>
-                                                            <MudText Typo="Typo.body2"><span class="mud-text-secondary">@GetLocationLabel(log.Action):</span> <strong>@log.Office.Name</strong></MudText>
-                                                            @if (log.Unit != null)
+                                                            <MudText Typo="Typo.body2">
+                                                                <span class="mud-text-secondary">@GetLocationLabel(log.Action):</span>
+                                                                <strong>@(log.Office?.Name ?? log.OfficeName)</strong>
+                                                                @if (log.Office == null && !string.IsNullOrEmpty(log.OfficeName))
+                                                                {
+                                                                    <span class="mud-text-secondary" style="font-style: italic;"> (deleted)</span>
+                                                                }
+                                                            </MudText>
+                                                            @if (log.Unit != null || !string.IsNullOrEmpty(log.UnitName))
                                                             {
-                                                                <MudText Typo="Typo.caption" Class="mud-text-secondary">@log.Unit.Name</MudText>
+                                                                <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                                                                    @(log.Unit?.Name ?? log.UnitName)
+                                                                    @if (log.Unit == null && !string.IsNullOrEmpty(log.UnitName))
+                                                                    {
+                                                                        <span style="font-style: italic;"> (deleted)</span>
+                                                                    }
+                                                                </MudText>
                                                             }
                                                         </div>
                                                     </div>

@@ -52,9 +52,47 @@ namespace DocTracking.Controllers
             var user = await _context.AppUsers.FindAsync(id);
             if (user == null) return NotFound();
 
+
+            var hasCreatedDocuments = await _context.Documents.AnyAsync(d => d.CreatorId == id);
+            if (hasCreatedDocuments)
+            {
+   
+                var documentsToUpdate = await _context.Documents
+                    .Where(d => d.CreatorId == id)
+                    .ToListAsync();
+
+                foreach (var doc in documentsToUpdate)
+                {
+                    doc.CreatorId = null;
+                }
+            }
+
+            var userLogsToUpdate = await _context.DocumentLogs
+                .Where(dl => dl.AppUserId == id)
+                .ToListAsync();
+
+            foreach (var log in userLogsToUpdate)
+            {
+                if (string.IsNullOrEmpty(log.UserName))
+                {
+                    log.UserName = user.Name;
+                }
+                log.AppUserId = null;
+            }
+
+            var userNotifications = await _context.AppNotifications
+                .Where(n => n.AppUserId == id)
+                .ToListAsync();
+
+            if (userNotifications.Any())
+            {
+                _context.AppNotifications.RemoveRange(userNotifications);
+            }
+
             _context.AppUsers.Remove(user);
             await _context.SaveChangesAsync();
             return Ok();
         }
+
     }
 }

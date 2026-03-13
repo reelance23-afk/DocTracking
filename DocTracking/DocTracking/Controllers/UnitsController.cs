@@ -45,7 +45,7 @@ namespace DocTracking.Controllers
             var existing = await _context.Units.FindAsync(id);
             if (existing == null) return NotFound();
 
-            var duplicate = await _context.Units.AnyAsync(o => o.Name == unit.Name && o.Id != id);
+            var duplicate = await _context.Units.AnyAsync(o => o.Name == unit.Name && o.OfficeId == unit.OfficeId && o.Id != id);
             if (duplicate) return Conflict("An Unit with this name already exists");
             existing.Name = unit.Name;
             await _context.SaveChangesAsync();
@@ -53,13 +53,36 @@ namespace DocTracking.Controllers
         }
 
         [HttpDelete("{id}")]
-        public async Task <IActionResult> DeleteUnit(int id)
+        public async Task<IActionResult> DeleteUnit(int id)
         {
-            var existing = await _context.Units.FindAsync(id);
+            var existing = await _context.Units
+                .Include(u => u.Office)
+                .FirstOrDefaultAsync(u => u.Id == id);
             if (existing == null) return NotFound();
+
+            var hasUsers = await _context.AppUsers.AnyAsync(u => u.UnitId == id);
+            if (hasUsers)
+            {
+                return BadRequest("Cannot delete unit that has users assigned. Please reassign users first.");
+            }
+
+            var hasActiveDocuments = await _context.Documents.AnyAsync(d =>
+                d.CurrentUnitId == id || d.NextUnitId == id);
+            if (hasActiveDocuments)
+            {
+                return BadRequest("Cannot delete unit that has active documents assigned. Please reassign documents first.");
+            }
+
+            await _context.DocumentLogs
+                .Where(dl => dl.UnitId == id && string.IsNullOrEmpty(dl.UnitName))
+                .ExecuteUpdateAsync(dl => dl
+                    .SetProperty(x => x.UnitId, (int?)null)
+                    .SetProperty(x => x.UnitName, existing.Name)
+                    .SetProperty(x => x.OfficeName, existing.Office!.Name));
+
             _context.Units.Remove(existing);
             await _context.SaveChangesAsync();
             return Ok();
-        }
+        }  
     }
 }

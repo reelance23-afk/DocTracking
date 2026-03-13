@@ -14,7 +14,7 @@ namespace DocTracking.Client.Models
         [Required]
         public string Type { get; set; }
 
-        public string Description { get; set; }
+        public string? Description { get; set; }
 
         public string Status { get; set; } = "In Progress";
 

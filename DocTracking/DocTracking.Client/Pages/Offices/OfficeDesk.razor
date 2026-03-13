@@ -96,12 +96,19 @@
                             <MudTd DataLabel="Sender">@context.Creator?.Name</MudTd>
                             <MudTd DataLabel="Date">@context.CreatedAt.ToLocalTime().ToString("MMM dd, hh:mm tt")</MudTd>
                             <MudTd DataLabel="Actions">
-                                <MudButton Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small"
-                                           StartIcon="@Icons.Material.Filled.Visibility"
-                                           OnClick="@(async () => await OpenDeskDialog(context, OfficeDeskViewDialog.DeskTab.Incoming))">
-                                    View Details
-                                </MudButton>
+                                <div class="d-flex gap-2">
+                                    <MudButton Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small"
+                                               StartIcon="@Icons.Material.Filled.Visibility"
+                                               OnClick="@(async () => await OpenDeskDialog(context, OfficeDeskViewDialog.DeskTab.Incoming))">
+                                        View Details
+                                    </MudButton>
+                                    <MudIconButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Secondary"
+                                                   Icon="@Icons.Material.Filled.QrCode"
+                                                   OnClick="@(async () => await OpenQRDialog(context))" />
+
+                                </div>
                             </MudTd>
+
                         </RowTemplate>
                         <NoRecordsContent>
                             <div class="pa-8 text-center">
@@ -145,11 +152,17 @@
                                     </MudText>
                                 </MudCardContent>
                                 <MudCardActions Class="pa-4 pt-0">
-                                    <MudButton Color="Color.Primary" Variant="Variant.Filled" FullWidth="true" Size="Size.Large"
-                                               StartIcon="@Icons.Material.Filled.Visibility"
-                                               OnClick="@(async () => await OpenDeskDialog(doc, OfficeDeskViewDialog.DeskTab.Incoming))">
-                                        View Details
-                                    </MudButton>
+                                    <div class="d-flex gap-2" style="width:100%">
+                                        <MudButton Color="Color.Primary" Variant="Variant.Filled" Style="flex:1" Size="Size.Large"
+                                                   StartIcon="@Icons.Material.Filled.Visibility"
+                                                   OnClick="@(async () => await OpenDeskDialog(doc, OfficeDeskViewDialog.DeskTab.Incoming))">
+                                            View Details
+                                        </MudButton>
+                                        <MudIconButton Variant="Variant.Outlined" Color="Color.Secondary"
+                                                       Icon="@Icons.Material.Filled.QrCode"
+                                                       OnClick="@(async () => await OpenQRDialog(doc))" />
+
+                                    </div>
                                 </MudCardActions>
                             </MudCard>
                         }
@@ -175,11 +188,17 @@
                                 <MudChip T="string" Color="@GetPriorityColor(context.Priority)" Size="Size.Small" Variant="Variant.Filled">@context.Priority</MudChip>
                             </MudTd>
                             <MudTd DataLabel="Actions">
-                                <MudButton Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small"
-                                           StartIcon="@Icons.Material.Filled.Visibility"
-                                           OnClick="@(async () => await OpenDeskDialog(context, OfficeDeskViewDialog.DeskTab.OnDesk))">
-                                    View Details
-                                </MudButton>
+                                <div class="d-flex gap-2">
+                                    <MudButton Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small"
+                                               StartIcon="@Icons.Material.Filled.Visibility"
+                                               OnClick="@(async () => await OpenDeskDialog(context, OfficeDeskViewDialog.DeskTab.OnDesk))">
+                                        View Details
+                                    </MudButton>
+                                    <MudIconButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Secondary"
+                                                   Icon="@Icons.Material.Filled.QrCode"
+                                                   OnClick="@(async () => await OpenQRDialog(context))" />
+
+                                </div>
                             </MudTd>
                         </RowTemplate>
                         <NoRecordsContent>
@@ -216,11 +235,17 @@
                                     <MudChip T="string" Color="Color.Info" Size="Size.Small" Variant="Variant.Outlined">@doc.Type</MudChip>
                                 </MudCardContent>
                                 <MudCardActions Class="pa-4 pt-0">
-                                    <MudButton Color="Color.Primary" Variant="Variant.Filled" FullWidth="true" Size="Size.Large"
-                                               StartIcon="@Icons.Material.Filled.Visibility"
-                                               OnClick="@(async () => await OpenDeskDialog(doc, OfficeDeskViewDialog.DeskTab.OnDesk))">
-                                        View Details
-                                    </MudButton>
+                                    <div class="d-flex gap-2" style="width:100%">
+                                        <MudButton Color="Color.Primary" Variant="Variant.Filled" Style="flex:1" Size="Size.Large"
+                                                   StartIcon="@Icons.Material.Filled.Visibility"
+                                                   OnClick="@(async () => await OpenDeskDialog(doc, OfficeDeskViewDialog.DeskTab.OnDesk))">
+                                            View Details
+                                        </MudButton>
+                                        <MudIconButton Variant="Variant.Outlined" Color="Color.Secondary"
+                                                       Icon="@Icons.Material.Filled.QrCode"
+                                                       OnClick="@(async () => await OpenQRDialog(doc))" />
+
+                                    </div>
                                 </MudCardActions>
                             </MudCard>
                         }
@@ -368,6 +393,18 @@
             isLoadingInitial = false;
         }
     }
+
+    private async Task OpenQRDialog(Document doc)
+    {
+        var parameters = new DialogParameters<QRCodeDialog>
+    {
+        { x => x.DocumentId, doc.Id },
+        { x => x.ReferenceNumber, doc.ReferenceNumber }
+    };
+        var options = new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true, CloseButton = true };
+        await DialogService.ShowAsync<QRCodeDialog>("QR Code", parameters, options);
+    }
+
 
     private async Task RefreshQueues()
     {

@@ -1,0 +1,44 @@
+﻿@using DocTracking.Client.Services
+@inject DocumentService DocService
+@inject IDialogService DialogService
+
+<MudDialog>
+    <DialogContent>
+        <div class="d-flex flex-column align-center pa-4">
+            <MudText Typo="Typo.caption" Class="mud-text-secondary mb-1">Reference Number</MudText>
+            <MudText Typo="Typo.subtitle1" Class="font-weight-bold mb-4">@ReferenceNumber</MudText>
+            @if (_loading)
+            {
+                <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+            }
+            else
+            {
+                <img src="@_qrUrl" alt="QR Code" style="width: 220px; height: 220px; border: 1px solid #e0e0e0; border-radius: 8px;" />
+            }
+            <MudText Typo="Typo.caption" Class="mud-text-secondary mt-3">Scan to verify document</MudText>
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Outlined" OnClick="Close">Close</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.Download"
+                   Href="@_qrUrl" Target="_blank">Download</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public int DocumentId { get; set; }
+    [Parameter] public string? ReferenceNumber { get; set; }
+
+    private string _qrUrl = "";
+    private bool _loading = true;
+
+    protected override void OnParametersSet()
+    {
+        _qrUrl = DocService.GetQRCodeUrl(DocumentId);
+        _loading = false;
+    }
+
+    void Close() => MudDialog.Close();
+}

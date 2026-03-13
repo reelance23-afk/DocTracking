@@ -4,6 +4,7 @@ using DocTracking.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DocTracking.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260312235309_updateDescription")]
+    partial class updateDescription
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -183,20 +186,11 @@ namespace DocTracking.Migrations
                     b.Property<int?>("OfficeId")
                         .HasColumnType("int");
 
-                    b.Property<string>("OfficeName")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<DateTime>("TimeStamp")
                         .HasColumnType("datetime2");
 
                     b.Property<int?>("UnitId")
                         .HasColumnType("int");
-
-                    b.Property<string>("UnitName")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("UserName")
-                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 
