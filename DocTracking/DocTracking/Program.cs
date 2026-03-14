@@ -146,7 +146,7 @@ app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()
     .AddInteractiveWebAssemblyRenderMode()
     .AddAdditionalAssemblies(typeof(DocTracking.Client._Imports).Assembly);
-
+pp.MapGet("/health", () => Results.Ok());
 app.MapControllers();
 app.MapHub<DocTracking.Hubs.NotificationHub>("/hubs/notifications");
 
