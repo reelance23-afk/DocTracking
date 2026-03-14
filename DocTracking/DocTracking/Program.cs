@@ -106,12 +106,21 @@ else
     app.UseHsts();
 }
 
-app.UseHttpsRedirection();
-app.Use(async (context, next) =>
+app.UseForwardedHeaders(new ForwardedHeadersOptions
 {
-    context.Request.Scheme = "https";
-    await next();
+    ForwardedHeaders = Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedFor |
+                       Microsoft.AspNetCore.HttpOverrides.ForwardedHeaders.XForwardedProto
 });
+
+if (!app.Environment.IsDevelopment())
+{
+    app.Use(async (context, next) =>
+    {
+        context.Request.Scheme = "https";
+        await next();
+    });
+}
+
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
