@@ -19,5 +19,6 @@ builder.Services.AddScoped<DocumentService>();
 builder.Services.AddScoped<ThemeService>();
 builder.Services.AddScoped<NotificationService>();
 builder.Services.AddMudServices();
+builder.Services.AddMudPopoverService();
 
 await builder.Build().RunAsync();
