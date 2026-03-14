@@ -286,8 +286,7 @@
                             if (doc == null) { isLoading = false; return; }
                             bool isOnDesk = doc.CurrentOfficeId == myOfficeId &&
                                             (isOfficeHead || !doc.CurrentUnitId.HasValue || doc.CurrentUnitId == myUnitId);
-                            string tab = isOnDesk ? "OnDesk" : "Outgoing";
-                            Navigation.NavigateTo($"/office-desk?ref={ReferenceNumber}&tab={tab}");
+                            Navigation.NavigateTo($"/office-desk?ref={ReferenceNumber}&tab={(isOnDesk ? "OnDesk" : "Outgoing")}");
                             return;
                         }
                     }
@@ -304,8 +303,7 @@
 
                 if (isSender || isOnDesk2)
                 {
-                    string tab = isOnDesk2 ? "OnDesk" : "Outgoing";
-                    Navigation.NavigateTo($"/office-desk?ref={ReferenceNumber}&tab={tab}");
+                    Navigation.NavigateTo($"/office-desk?ref={ReferenceNumber}&tab={(isOnDesk2 ? "OnDesk" : "Outgoing")}");
                     return;
                 }
 
@@ -319,47 +317,6 @@
 
         logs = await DocService.GetDocumentLogsAsync(doc.Id);
         isLoading = false;
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (autoReceiveDone || doc == null) return;
-
-        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        var user = authState.User;
-
-        if (user.Identity?.IsAuthenticated != true) return;
-
-        var officeIdClaim = user.FindFirst("OfficeId")?.Value;
-        var unitIdClaim = user.FindFirst("UnitId")?.Value;
-        bool isOfficeHead = user.FindFirst("IsOfficeHead")?.Value == "True";
-        int.TryParse(officeIdClaim, out var myOfficeId);
-        int.TryParse(unitIdClaim, out var myUnitId);
-
-        if (doc.Status == "In Motion" &&
-            !isOfficeHead &&
-            myOfficeId != 0 &&
-            doc.NextOfficeId == myOfficeId)
-        {
-            bool unitMatch = string.IsNullOrEmpty(unitIdClaim)
-                ? !doc.NextUnitId.HasValue
-                : !doc.NextUnitId.HasValue || doc.NextUnitId == myUnitId;
-
-            if (unitMatch)
-            {
-                autoReceiveDone = true;
-                var received = await DocService.ReceivedDocumentAsync(doc.Id);
-                if (received)
-                {
-                    doc = await DocService.GetDocumentByRefAsync(ReferenceNumber);
-                    if (doc == null) { isLoading = false; return; }
-                    bool isOnDesk = doc.CurrentOfficeId == myOfficeId &&
-                                    (isOfficeHead || !doc.CurrentUnitId.HasValue || doc.CurrentUnitId == myUnitId);
-                    string tab = isOnDesk ? "OnDesk" : "Outgoing";
-                    Navigation.NavigateTo($"/office-desk?ref={ReferenceNumber}&tab={tab}");
-                }
-            }
-        }
     }
 
     private string GetIconForAction(string? action) => action switch
