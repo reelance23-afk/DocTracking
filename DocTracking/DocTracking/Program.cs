@@ -102,6 +102,11 @@ else
 }
 
 app.UseHttpsRedirection();
+app.Use(async (context, next) =>
+{
+    context.Request.Scheme = "https";
+    await next();
+});
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
