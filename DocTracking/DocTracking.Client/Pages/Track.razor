@@ -9,7 +9,7 @@
 @inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager Navigation
 @inject IDialogService DialogService
-@rendermode @(new InteractiveServerRenderMode(prerender: false))
+@attribute [StreamRendering]
 
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-4 mb-8">
