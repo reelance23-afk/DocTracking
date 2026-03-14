@@ -76,10 +76,12 @@ builder.Services.ConfigureApplicationCookie(options =>
 });
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddScoped<AuthenticationStateProvider, DocTracking.Services.PersistingServerAuthenticationStateProvider>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddTransient<CookieHandler>();
 builder.Services.AddHttpClient<DocumentService>(client =>
 {
     client.BaseAddress = new Uri(builder.Configuration["BaseAddress"] ?? "https://localhost:7221/");
-});
+}).AddHttpMessageHandler<CookieHandler>();
 
 builder.Services.AddScoped<ThemeService>();
 builder.Services.AddScoped<NotificationService>();
