@@ -85,6 +85,7 @@ builder.Services.AddHttpClient<DocumentService>(client =>
 
 builder.Services.AddScoped<ThemeService>();
 builder.Services.AddScoped<NotificationService>();
+builder.Services.AddRazorPages();
 builder.Services.AddMudServices();         
 builder.Services.AddMudPopoverService();
 builder.Services.AddSignalR();
@@ -144,6 +145,7 @@ app.Use(async (context, next) =>
         context.Response.Headers["Expires"] = "0";
     }
 });
+app.MapRazorPages();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()
     .AddInteractiveWebAssemblyRenderMode()
@@ -151,6 +153,7 @@ app.MapRazorComponents<App>()
 app.MapGet("/health", () => Results.Ok());
 app.MapControllers();
 app.MapHub<DocTracking.Hubs.NotificationHub>("/hubs/notifications");
+
 
 using (var scope = app.Services.CreateScope())
 {
