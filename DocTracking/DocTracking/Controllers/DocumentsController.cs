@@ -71,16 +71,17 @@ namespace DocTracking.Controllers
             _context.Documents.Add(doc);
             await _context.SaveChangesAsync();
 
-            _context.DocumentLogs.Add(new DocumentLog
+            var docLogs = (new DocumentLog
             {
                 DocumentId = doc.Id,
                 Action = "Created",
                 TimeStamp = DateTime.UtcNow,
-                OfficeId = doc.NextOfficeId,
                 UnitId = doc.NextUnitId,
+                OfficeId = doc.NextOfficeId,
                 AppUserId = appuser?.Id
             });
 
+            _context.DocumentLogs.Add(docLogs);
             await _context.SaveChangesAsync();
 
             var creatorName = appuser?.Name ?? "Someone";
@@ -509,13 +510,33 @@ namespace DocTracking.Controllers
             var doc = await _context.Documents.FindAsync(id);
             if (doc == null || string.IsNullOrEmpty(doc.ReferenceNumber)) return NotFound();
 
+            var request = HttpContext.Request;
+            var baseUrl = $"{request.Scheme}://{request.Host}";
+            var trackUrl = $"{baseUrl}/track/{doc.ReferenceNumber}";
+
             using var qrGenerator = new QRCoder.QRCodeGenerator();
-            using var qrCodeData = qrGenerator.CreateQrCode(doc.ReferenceNumber, QRCoder.QRCodeGenerator.ECCLevel.Q);
+            using var qrCodeData = qrGenerator.CreateQrCode(trackUrl, QRCoder.QRCodeGenerator.ECCLevel.Q);
             using var qrCode = new QRCoder.PngByteQRCode(qrCodeData);
             var qrCodeBytes = qrCode.GetGraphic(20);
 
             return File(qrCodeBytes, "image/png");
         }
+
+
+        [HttpGet("by-ref/{referenceNumber}")]
+        [AllowAnonymous]
+        public async Task<ActionResult<Document>> GetByReferenceNumber(string referenceNumber)
+        {
+            var doc = await _context.Documents
+                .Include(d => d.Creator)
+                .Include(d => d.NextOffice)
+                .Include(d => d.CurrentOffice)
+                .Include(d => d.NextUnit)
+                .Include(d => d.CurrentUnit)
+                .FirstOrDefaultAsync(d => d.ReferenceNumber == referenceNumber);
+            return doc == null ? NotFound() : Ok(doc);
+        }
+
 
     }
 

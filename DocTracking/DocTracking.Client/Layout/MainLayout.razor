@@ -70,7 +70,6 @@
                        Color="Color.Primary"
                        Edge="Edge.Start"
                        OnClick="@(() => _drawerOpen = !_drawerOpen)" />
-        <MudText Typo="Typo.h6">DocTracking</MudText>
         <MudSpacer />
         <NotificationBell />
     </MudAppBar>
@@ -86,10 +85,8 @@
                     <div class="d-flex flex-column align-center pa-3 mb-4 rounded-lg position-relative"
                          style="@($"width: 100%; transition: all 0.3s ease; height: 110px; background: {(_drawerOpen ? "linear-gradient(145deg, #f0f2f5 0%, #e8eaf0 100%)" : "transparent")}; border: {(_drawerOpen ? "1px solid rgba(0,0,0,0.08)" : "none")};")">
 
-                        <div @onclick="@(() => HandleDrawerStateChange(!_drawerOpen))"
-                             @onclick:stopPropagation="true"
-                             class="position-relative"
-                             style="cursor: pointer; margin-top: 8px;">
+                        <div class="position-relative"
+                             style="margin-top: 8px;">
 
                             <MudAvatar Size="@(_drawerOpen? Size.Large: Size.Medium)"
                                        Style="@($"transition: all 0.3s ease; {(_drawerOpen ? "box-shadow: 0 4px 12px rgba(0,0,0,0.15);" : "")}")">

@@ -1,0 +1,404 @@
+﻿@page "/track/{referenceNumber}"
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+@using DocTracking.Client.Models
+@using DocTracking.Client.Services
+@using DocTracking.Client.Pages.Shared
+@using DocTracking.Client.Pages.Offices
+@inject DocumentService DocService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Navigation
+@inject IDialogService DialogService
+@rendermode @(new InteractiveAutoRenderMode(prerender: false))
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4 mb-8">
+    @if (isLoading)
+    {
+        <div class="d-flex flex-column align-center mt-10">
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" Class="mb-4" />
+            <MudText>Loading document...</MudText>
+        </div>
+    }
+    else if (doc == null)
+    {
+        <MudPaper Elevation="3" Class="pa-8 text-center rounded-xl mt-8">
+            <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Large" Style="opacity:0.4; font-size:4rem;" Class="mb-4" />
+            <MudText Typo="Typo.h5" Class="mud-text-secondary">Document not found</MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary mt-2">Reference: @ReferenceNumber</MudText>
+        </MudPaper>
+    }
+    else
+    {
+        <div class="d-flex align-center mb-4 gap-3">
+            <MudIcon Icon="@Icons.Material.Filled.QrCodeScanner" Size="Size.Large" Color="Color.Primary" />
+            <div>
+                <MudText Typo="Typo.h5" Class="font-weight-bold">@doc.Name</MudText>
+                <MudChip T="string" Color="Color.Primary" Variant="Variant.Outlined" Size="Size.Small">@doc.ReferenceNumber</MudChip>
+            </div>
+            <MudSpacer />
+            <MudChip T="string" Color="@GetStatusColor(doc.Status)" Variant="Variant.Filled">@doc.Status</MudChip>
+        </div>
+
+        <MudGrid Spacing="3" Class="mb-4">
+            <MudItem xs="6" sm="3">
+                <MudText Typo="Typo.caption" Color="Color.Secondary">Type</MudText>
+                <MudText Typo="Typo.body1">@doc.Type</MudText>
+            </MudItem>
+            <MudItem xs="6" sm="3">
+                <MudText Typo="Typo.caption" Color="Color.Secondary">Priority</MudText>
+                <MudChip T="string" Color="@GetPriorityColor(doc.Priority)" Size="Size.Small">@doc.Priority</MudChip>
+            </MudItem>
+            <MudItem xs="6" sm="3">
+                <MudText Typo="Typo.caption" Color="Color.Secondary">Current Location</MudText>
+                @if (doc.CurrentOffice != null)
+                {
+                    <MudText Typo="Typo.body2"><strong>@doc.CurrentOffice.Name</strong></MudText>
+                    @if (doc.CurrentUnit != null)
+                    {
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">↳ @doc.CurrentUnit.Name</MudText>
+                    }
+                }
+                else
+                {
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary"><em>None</em></MudText>
+                }
+            </MudItem>
+            <MudItem xs="6" sm="3">
+                <MudText Typo="Typo.caption" Color="Color.Secondary">Next Destination</MudText>
+                @if (doc.NextOffice != null)
+                {
+                    <MudText Typo="Typo.body2"><strong>@doc.NextOffice.Name</strong></MudText>
+                    @if (doc.NextUnit != null)
+                    {
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">↳ @doc.NextUnit.Name</MudText>
+                    }
+                }
+                else
+                {
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary"><em>None</em></MudText>
+                }
+            </MudItem>
+        </MudGrid>
+
+        <MudDivider Class="mb-4" />
+
+        <MudText Typo="Typo.h6" Class="font-weight-bold mb-3">
+            <MudIcon Icon="@Icons.Material.Filled.Timeline" Size="Size.Small" Class="mr-1" />
+            Tracking Timeline
+        </MudText>
+
+        @if (logs.Count == 0)
+        {
+            <MudPaper Elevation="0" Class="pa-8 text-center mud-background-gray rounded-xl">
+                <MudText Typo="Typo.body1" Class="mud-text-secondary">No tracking history yet.</MudText>
+            </MudPaper>
+        }
+        else
+        {
+            <MudPaper Elevation="3" Class="pa-4 rounded-xl">
+                <MudHidden Breakpoint="Breakpoint.MdAndUp">
+                    @for (int i = 0; i < logs.Count; i++)
+                    {
+                        var log = logs[i];
+                        bool isCurrent = (i == 0);
+                        bool isCompleted = log.Action == "Completed";
+                        <MudCard Elevation="@(isCurrent ? 4 : 1)" Class="@($"mb-3 {(isCurrent ? "border-solid border-l-4 mud-border-primary" : "")}")">
+                            <MudCardHeader Class="pb-1">
+                                <CardHeaderContent>
+                                    <div class="d-flex justify-space-between align-center">
+                                        <div class="d-flex align-center gap-2">
+                                            <MudIcon Icon="@GetIconForAction(log.Action)" Color="@GetActionColor(log.Action)" Size="Size.Small" />
+                                            <MudText Typo="Typo.subtitle1" Class="font-weight-bold">@log.Action</MudText>
+                                            @if (isCurrent && !isCompleted)
+                                            {
+                                                <MudChip T="string" Color="Color.Primary" Size="Size.Small" Variant="Variant.Filled">CURRENT</MudChip>
+                                            }
+                                        </div>
+                                        <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                                            @log.TimeStamp.ToLocalTime().ToString("MMM dd • hh:mm tt")
+                                        </MudText>
+                                    </div>
+                                </CardHeaderContent>
+                            </MudCardHeader>
+                            <MudCardContent Class="pt-0">
+                                <MudText Typo="Typo.body2" Class="mb-1">
+                                    <MudIcon Icon="@Icons.Material.Filled.AccountCircle" Size="Size.Small" Class="mr-1 mud-text-secondary" />
+                                    <span class="mud-text-secondary">By:</span> <strong>@(log.AppUser?.Name ?? log.UserName ?? "System")</strong>
+                                </MudText>
+                                @if (log.Office != null || !string.IsNullOrEmpty(log.OfficeName))
+                                {
+                                    <MudText Typo="Typo.body2">
+                                        <MudIcon Icon="@GetLocationIcon(log.Action)" Size="Size.Small" Color="@GetLocationColor(log.Action)" Class="mr-1" />
+                                        <span class="mud-text-secondary">@GetLocationLabel(log.Action):</span>
+                                        <strong>@(log.Office?.Name ?? log.OfficeName)</strong>
+                                        @if (log.Office == null && !string.IsNullOrEmpty(log.OfficeName))
+                                        {
+                                            <span class="mud-text-secondary" style="font-style:italic;"> (deleted)</span>
+                                        }
+                                    </MudText>
+                                    @if (log.Unit != null || !string.IsNullOrEmpty(log.UnitName))
+                                    {
+                                        <MudText Typo="Typo.caption" Class="mud-text-secondary ml-5">
+                                            ↳ @(log.Unit?.Name ?? log.UnitName)
+                                        </MudText>
+                                    }
+                                }
+                            </MudCardContent>
+                        </MudCard>
+                    }
+                </MudHidden>
+
+                <MudHidden Breakpoint="Breakpoint.SmAndDown">
+                    <MudTimeline TimelinePosition="TimelinePosition.Start" Class="w-100">
+                        @for (int i = 0; i < logs.Count; i++)
+                        {
+                            var log = logs[i];
+                            bool isCurrent = (i == 0);
+                            bool isCompleted = log.Action == "Completed";
+                            <MudTimelineItem Color="@GetTimelineColor(log.Action, isCurrent)"
+                                             Size="Size.Large" Variant="Variant.Filled"
+                                             Icon="@GetIconForAction(log.Action)">
+                                <ItemContent>
+                                    <MudCard Elevation="@(isCurrent ? 8 : 2)" Class="mb-4">
+                                        <MudCardHeader Class="pb-2">
+                                            <CardHeaderContent>
+                                                <div class="d-flex justify-space-between align-center">
+                                                    <div class="d-flex align-center gap-2">
+                                                        <MudIcon Icon="@GetIconForAction(log.Action)" Color="@GetActionColor(log.Action)" Size="Size.Medium" />
+                                                        <MudText Typo="Typo.h6" Class="font-weight-bold">@log.Action</MudText>
+                                                        @if (isCurrent && !isCompleted)
+                                                        {
+                                                            <MudChip T="string" Color="Color.Primary" Size="Size.Small" Variant="Variant.Filled">CURRENT</MudChip>
+                                                        }
+                                                    </div>
+                                                    <MudText Typo="Typo.caption" Class="mud-text-secondary font-weight-medium">
+                                                        @log.TimeStamp.ToLocalTime().ToString("MMM dd • hh:mm tt")
+                                                    </MudText>
+                                                </div>
+                                            </CardHeaderContent>
+                                        </MudCardHeader>
+                                        <MudCardContent Class="pt-0">
+                                            <MudGrid>
+                                                <MudItem xs="12" sm="6">
+                                                    <div class="d-flex align-center mb-2">
+                                                        <MudIcon Icon="@Icons.Material.Filled.AccountCircle" Size="Size.Small" Class="mr-2 mud-text-secondary" />
+                                                        <MudText Typo="Typo.body2">
+                                                            <span class="mud-text-secondary">By:</span> <strong>@(log.AppUser?.Name ?? log.UserName ?? "System")</strong>
+                                                        </MudText>
+                                                    </div>
+                                                </MudItem>
+                                                @if (log.Office != null || !string.IsNullOrEmpty(log.OfficeName))
+                                                {
+                                                    <MudItem xs="12" sm="6">
+                                                        <div class="d-flex align-center mb-2">
+                                                            <MudIcon Icon="@GetLocationIcon(log.Action)" Size="Size.Small" Color="@GetLocationColor(log.Action)" Class="mr-2" />
+                                                            <div>
+                                                                <MudText Typo="Typo.body2">
+                                                                    <span class="mud-text-secondary">@GetLocationLabel(log.Action):</span>
+                                                                    <strong>@(log.Office?.Name ?? log.OfficeName)</strong>
+                                                                    @if (log.Office == null && !string.IsNullOrEmpty(log.OfficeName))
+                                                                    {
+                                                                        <span class="mud-text-secondary" style="font-style:italic;"> (deleted)</span>
+                                                                    }
+                                                                </MudText>
+                                                                @if (log.Unit != null || !string.IsNullOrEmpty(log.UnitName))
+                                                                {
+                                                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                                                                        ↳ @(log.Unit?.Name ?? log.UnitName)
+                                                                    </MudText>
+                                                                }
+                                                            </div>
+                                                        </div>
+                                                    </MudItem>
+                                                }
+                                            </MudGrid>
+                                            @if (isCompleted)
+                                            {
+                                                <MudText Typo="Typo.body2" Color="Color.Success" Class="font-weight-medium mt-2">Document processing completed successfully</MudText>
+                                            }
+                                        </MudCardContent>
+                                    </MudCard>
+                                </ItemContent>
+                            </MudTimelineItem>
+                        }
+                    </MudTimeline>
+                </MudHidden>
+            </MudPaper>
+        }
+    }
+</MudContainer>
+
+@code {
+    [Parameter] public string ReferenceNumber { get; set; } = "";
+
+    private Document? doc;
+    private List<DocumentLog> logs = new();
+    private bool isLoading = true;
+    private bool autoReceiveDone = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        doc = await DocService.GetDocumentByRefAsync(ReferenceNumber);
+        if (doc == null) { isLoading = false; return; }
+
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            var email = user.FindFirst(ClaimTypes.Email)?.Value ?? user.FindFirst("email")?.Value;
+            var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var officeIdClaim = user.FindFirst("OfficeId")?.Value;
+            var unitIdClaim = user.FindFirst("UnitId")?.Value;
+            bool isAdmin = user.IsInRole("Admin");
+            bool isOfficeHead = user.FindFirst("IsOfficeHead")?.Value == "True";
+            int.TryParse(officeIdClaim, out var myOfficeId);
+            int.TryParse(unitIdClaim, out var myUnitId);
+
+            if (doc.Creator?.Email == email || (int.TryParse(userId, out var creatorId) && doc.CreatorId == creatorId))
+            {
+                Navigation.NavigateTo($"/my-tracking?ref={ReferenceNumber}");
+                return;
+            }
+            else if (isAdmin)
+            {
+                Navigation.NavigateTo($"/document-tracking?ref={ReferenceNumber}");
+                return;
+            }
+            else if (myOfficeId != 0)
+            {
+                var logs2 = await DocService.GetDocumentLogsAsync(doc.Id);
+                var lastForward = logs2.FirstOrDefault(l => l.Action == "Forwarded");
+
+                bool isRecipient = doc.NextOfficeId == myOfficeId &&
+                                   (isOfficeHead || !doc.NextUnitId.HasValue || doc.NextUnitId == myUnitId);
+
+                bool isSender = lastForward?.OfficeId == myOfficeId;
+
+                bool isOnDesk = doc.CurrentOfficeId == myOfficeId &&
+                                (isOfficeHead || !doc.CurrentUnitId.HasValue || doc.CurrentUnitId == myUnitId);
+
+                if (isRecipient)
+                {
+                    isLoading = false;
+                    return;
+                }
+
+                if (isSender || isOnDesk)
+                {
+                    string tab = isOnDesk ? "OnDesk" : "Outgoing";
+                    Navigation.NavigateTo($"/office-desk?ref={ReferenceNumber}&tab={tab}");
+                    return;
+                }
+
+                if (logs2.Any(l => l.OfficeId == myOfficeId))
+                {
+                    Navigation.NavigateTo($"/unit-history?ref={ReferenceNumber}");
+                    return;
+                }
+            }
+        }
+
+        logs = await DocService.GetDocumentLogsAsync(doc.Id);
+        isLoading = false;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (autoReceiveDone || doc == null) return;
+
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity?.IsAuthenticated != true) return;
+
+        var officeIdClaim = user.FindFirst("OfficeId")?.Value;
+        var unitIdClaim = user.FindFirst("UnitId")?.Value;
+        bool isOfficeHead = user.FindFirst("IsOfficeHead")?.Value == "True";
+        int.TryParse(officeIdClaim, out var myOfficeId);
+        int.TryParse(unitIdClaim, out var myUnitId);
+
+        if (doc.Status == "In Motion" &&
+            !isOfficeHead &&
+            myOfficeId != 0 &&
+            doc.NextOfficeId == myOfficeId)
+        {
+            bool unitMatch = string.IsNullOrEmpty(unitIdClaim)
+                ? !doc.NextUnitId.HasValue
+                : !doc.NextUnitId.HasValue || doc.NextUnitId == myUnitId;
+
+            if (unitMatch)
+            {
+                autoReceiveDone = true;
+                var received = await DocService.ReceivedDocumentAsync(doc.Id);
+                if (received)
+                {
+                    doc = await DocService.GetDocumentByRefAsync(ReferenceNumber);
+                    if (doc == null) { isLoading = false; return; }
+                    bool isOnDesk = doc.CurrentOfficeId == myOfficeId &&
+                                    (isOfficeHead || !doc.CurrentUnitId.HasValue || doc.CurrentUnitId == myUnitId);
+                    string tab = isOnDesk ? "OnDesk" : "Outgoing";
+                    Navigation.NavigateTo($"/office-desk?ref={ReferenceNumber}&tab={tab}");
+                }
+            }
+        }
+    }
+
+    private string GetIconForAction(string? action) => action switch
+    {
+        "Created" => Icons.Material.Filled.NoteAdd,
+        "Forwarded" => Icons.Material.Filled.DirectionsWalk,
+        "Received" => Icons.Material.Filled.Inbox,
+        "Completed" => Icons.Material.Filled.CheckCircle,
+        _ => Icons.Material.Filled.Circle
+    };
+
+    private Color GetTimelineColor(string? action, bool isCurrent) => action switch
+    {
+        "Created" when isCurrent => Color.Info,
+        "Forwarded" when isCurrent => Color.Warning,
+        "Received" when isCurrent => Color.Primary,
+        "Completed" => Color.Success,
+        _ => Color.Default
+    };
+
+    private Color GetActionColor(string? action) => action switch
+    {
+        "Created" => Color.Info,
+        "Forwarded" => Color.Warning,
+        "Received" => Color.Primary,
+        "Completed" => Color.Success,
+        _ => Color.Default
+    };
+
+    private Color GetLocationColor(string? action) => action switch
+    {
+        "Created" or "Forwarded" => Color.Warning,
+        _ => Color.Success
+    };
+
+    private string GetLocationIcon(string? action) => action switch
+    {
+        "Created" or "Forwarded" => Icons.Material.Filled.Send,
+        _ => Icons.Material.Filled.LocationOn
+    };
+
+    private string GetLocationLabel(string? action) => action is "Created" or "Forwarded" ? "Sent to" : "Location";
+
+    private Color GetPriorityColor(string? p) => p switch
+    {
+        "Emergency" => Color.Error,
+        "Urgent" => Color.Warning,
+        "Medium" => Color.Info,
+        "Low" => Color.Success,
+        _ => Color.Default
+    };
+
+    private Color GetStatusColor(string? s) => s switch
+    {
+        "Completed" => Color.Success,
+        "Received" => Color.Info,
+        "In Motion" => Color.Warning,
+        _ => Color.Default
+    };
+}

@@ -183,9 +183,12 @@
 </MudContainer>
 
 @code {
+    [SupplyParameterFromQuery(Name = "ref")] public string? RefParam { get; set; }
+
     private List<Document> allDocuments = new();
     private bool loading = true;
     private string searchString = "";
+    private bool dialogOpened = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -194,17 +197,30 @@
         finally { loading = false; }
     }
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!dialogOpened && !loading && !string.IsNullOrEmpty(RefParam))
+        {
+            var doc = allDocuments.FirstOrDefault(d => d.ReferenceNumber == RefParam);
+            if (doc != null)
+            {
+                dialogOpened = true;
+                await OpenViewDialog(doc);
+            }
+        }
+    }
+
+
     private async Task OpenQRDialog(Document doc)
     {
         var parameters = new DialogParameters<QRCodeDialog>
-    {
-        { x => x.DocumentId, doc.Id },
-        { x => x.ReferenceNumber, doc.ReferenceNumber }
-    };
+        {
+            { x => x.DocumentId, doc.Id },
+            { x => x.ReferenceNumber, doc.ReferenceNumber }
+        };
         var options = new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true, CloseButton = true };
         await DialogService.ShowAsync<QRCodeDialog>("QR Code", parameters, options);
     }
-
 
     private async Task OpenEditDialog(Document doc)
     {
@@ -263,13 +279,11 @@
     private async Task OpenViewDialog(Document doc)
     {
         var parameters = new DialogParameters<DocumentViewDialog>
-    {
-        { x => x.Doc, doc },
-        { x => x.TrackingRoute, $"/admin-track-document/{doc.Id}" }
-    };
+        {
+            { x => x.Doc, doc }
+        };
         var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
         var dialog = await DialogService.ShowAsync<DocumentViewDialog>("Document Details", parameters, options);
-
         var result = await dialog.Result;
         if (!result!.Canceled && result.Data != null)
         {
@@ -280,5 +294,5 @@
             }
         }
     }
-
 }
+

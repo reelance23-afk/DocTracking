@@ -194,11 +194,15 @@
 </MudContainer>
 
 @code {
+    [SupplyParameterFromQuery(Name = "ref")] public string? RefParam { get; set; }
+
     private List<Document> historyDocs = new();
     private bool isLoading = true;
     private string myUnitName = "Unit";
     private bool isOfficeHead = false;
     private string searchString = "";
+    private bool dialogOpened = false;
+    private List<Office> allOffices = new();
 
     private IEnumerable<Document> filteredDocs => historyDocs.Where(d =>
         string.IsNullOrWhiteSpace(searchString) ||
@@ -223,10 +227,39 @@
                 myUnitName = profile.Office?.Name ?? "Office";
                 historyDocs = await DocService.GetOfficeHistoryAsync(profile.OfficeId.Value);
             }
+
+            if (!string.IsNullOrEmpty(RefParam))
+                allOffices = await DocService.GetOfficesAsync();
         }
         catch (Exception ex) { Console.WriteLine($"Error loading history: {ex.Message}"); }
         finally { isLoading = false; StateHasChanged(); }
     }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!dialogOpened && !isLoading && !string.IsNullOrEmpty(RefParam))
+        {
+            var doc = historyDocs.FirstOrDefault(d => d.ReferenceNumber == RefParam);
+            if (doc != null)
+            {
+                dialogOpened = true;
+
+                var tab = doc.Status == "Received" || (doc.Status == "In Motion" && doc.CurrentOfficeId != null)
+                    ? OfficeDeskViewDialog.DeskTab.OnDesk
+                    : OfficeDeskViewDialog.DeskTab.Outgoing;
+
+                var parameters = new DialogParameters<OfficeDeskViewDialog>
+            {
+                { x => x.Doc, doc },
+                { x => x.Tab, tab },
+                { x => x.AllOffices, allOffices }
+            };
+                var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
+                await DialogService.ShowAsync<OfficeDeskViewDialog>(doc.Name ?? "Document Details", parameters, options);
+            }
+        }
+    }
+
 
     private Color GetPriorityColor(string? priority) => priority switch
     {
@@ -240,10 +273,9 @@
     private async Task OpenViewDialog(Document doc)
     {
         var parameters = new DialogParameters<DocumentViewDialog>
-    {
-        { x => x.Doc, doc },
-        { x => x.TrackingRoute, $"/office-track-document/{doc.Id}?ReturnUrl=unit-history" }
-    };
+        {
+            { x => x.Doc, doc }
+        };
         var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
         await DialogService.ShowAsync<DocumentViewDialog>("Document Details", parameters, options);
     }
@@ -251,12 +283,11 @@
     private async Task OpenQRDialog(Document doc)
     {
         var parameters = new DialogParameters<QRCodeDialog>
-    {
-        { x => x.DocumentId, doc.Id },
-        { x => x.ReferenceNumber, doc.ReferenceNumber }
-    };
+        {
+            { x => x.DocumentId, doc.Id },
+            { x => x.ReferenceNumber, doc.ReferenceNumber }
+        };
         var options = new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true, CloseButton = true };
         await DialogService.ShowAsync<QRCodeDialog>("QR Code", parameters, options);
     }
-
 }

@@ -61,6 +61,7 @@ namespace DocTracking.Security
 
                 identity.AddClaim(new Claim(ClaimTypes.Role, dbUser.Role ?? "User"));
                 identity.AddClaim(new Claim("roles", dbUser.Role ?? "User"));
+                identity.AddClaim(new Claim("IsOfficeHead", dbUser.IsOfficeHead.ToString()));
 
                 if (dbUser.UnitId.HasValue)
                 {

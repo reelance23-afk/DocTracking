@@ -272,32 +272,22 @@
 </MudContainer>
 
 @code {
+    [SupplyParameterFromQuery(Name = "ref")] public string? RefParam { get; set; }
+
     private List<Document> myDocuments = new();
     private bool isLoading = true;
     private string? errorMessage;
     private string searchString = "";
     private string priorityFilter = "";
-    private readonly string[] priorityFilters = {"","Emergency","Urgent","Medium","Low"};
+    private readonly string[] priorityFilters = { "", "Emergency", "Urgent", "Medium", "Low" };
     private int priorityFilterIndex = 0;
     private string typeFilter = "";
-    private readonly string[] typeFilters = {"","Memo","Letter","Notice","Voucher","Report","Other"};
+    private readonly string[] typeFilters = { "", "Memo", "Letter", "Notice", "Voucher", "Report", "Other" };
     private int typeFilterIndex = 0;
     private string statusFilter = "";
-    private readonly string[] statusFilters = {"","In Motion","Received", "Completed"};
+    private readonly string[] statusFilters = { "", "In Motion", "Received", "Completed" };
     private int statusFilterIndex = 0;
-
-    private bool FilterFunc(Document document)
-    {
-        if (string.IsNullOrWhiteSpace(searchString))
-            return true;
-
-        return document.Name?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true ||
-               document.Type?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true ||
-               document.Status?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true ||
-               document.Priority?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true ||
-               document.CurrentOffice?.Name?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true ||
-               document.NextOffice?.Name?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true;
-    }
+    private bool dialogOpened = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -305,16 +295,11 @@
         {
             var authState = await AuthStateProvider.GetAuthenticationStateAsync();
             var user = authState.User;
-
             string email = user.FindFirst(ClaimTypes.Email)?.Value ?? user.Identity?.Name ?? "";
             if (!string.IsNullOrEmpty(email))
-            {
                 myDocuments = await DocService.GetUserDocumentsAsync(email);
-            }
             else
-            {
                 errorMessage = "Could not find your user email to load documents.";
-            }
         }
         catch (Exception ex)
         {
@@ -326,6 +311,31 @@
             isLoading = false;
             StateHasChanged();
         }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!dialogOpened && !isLoading && !string.IsNullOrEmpty(RefParam))
+        {
+            var doc = myDocuments.FirstOrDefault(d => d.ReferenceNumber == RefParam);
+            if (doc != null)
+            {
+                dialogOpened = true;
+                await OpenViewDialog(doc);
+            }
+        }
+    }
+
+
+    private bool FilterFunc(Document document)
+    {
+        if (string.IsNullOrWhiteSpace(searchString)) return true;
+        return document.Name?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true ||
+               document.Type?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true ||
+               document.Status?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true ||
+               document.Priority?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true ||
+               document.CurrentOffice?.Name?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true ||
+               document.NextOffice?.Name?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true;
     }
 
     private Color GetPriorityColor(string? priority) => priority switch
@@ -364,10 +374,9 @@
     private async Task OpenViewDialog(Document doc)
     {
         var parameters = new DialogParameters<DocumentViewDialog>
-    {
-        { x => x.Doc, doc },
-        { x => x.TrackingRoute, $"/track-document/{doc.Id}?ReturnUrl=my-tracking" }
-    };
+        {
+            { x => x.Doc, doc }
+        };
         var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
         await DialogService.ShowAsync<DocumentViewDialog>("Document Details", parameters, options);
     }
@@ -375,12 +384,12 @@
     private async Task OpenQRDialog(Document doc)
     {
         var parameters = new DialogParameters<QRCodeDialog>
-    {
-        { x => x.DocumentId, doc.Id },
-        { x => x.ReferenceNumber, doc.ReferenceNumber }
-    };
+        {
+            { x => x.DocumentId, doc.Id },
+            { x => x.ReferenceNumber, doc.ReferenceNumber }
+        };
         var options = new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true, CloseButton = true };
         await DialogService.ShowAsync<QRCodeDialog>("QR Code", parameters, options);
     }
-
 }
+

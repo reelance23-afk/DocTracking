@@ -37,6 +37,7 @@ namespace DocTracking.Client
                     claims.Add(new Claim("OfficeId", userInfo.OfficeId.ToString()));
                 }
 
+
                 _authenticationStateTask = Task.FromResult(
                     new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity(claims, "authentication"))));
             }

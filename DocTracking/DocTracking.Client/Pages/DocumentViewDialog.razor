@@ -1,6 +1,7 @@
 ﻿@using Microsoft.AspNetCore.Components.Authorization
 @using DocTracking.Client.Models
 @using DocTracking.Client.Services
+@using DocTracking.Client.Pages.Shared
 @inject DocumentService DocService
 @inject AuthenticationStateProvider AuthStateProvider
 @inject IDialogService DialogService
@@ -84,14 +85,12 @@
                     </div>
                 </MudItem>
             }
-
             <MudItem xs="12">
                 <MudDivider Class="my-2" />
                 <MudText Typo="Typo.subtitle1" Class="font-weight-bold mb-3">
                     <MudIcon Icon="@Icons.Material.Filled.Timeline" Size="Size.Small" Class="mr-1" />
                     Tracking Timeline
                 </MudText>
-
                 @if (logsLoading)
                 {
                     <div class="d-flex justify-center pa-4">
@@ -149,7 +148,6 @@
                                                     </MudText>
                                                 </div>
                                             }
-
                                         </MudCardContent>
                                     </MudCard>
                                 </ItemContent>
@@ -162,17 +160,13 @@
                             +@(logs.Count - 2) more — click View Full Timeline to see all
                         </MudText>
                     }
-
                 }
             </MudItem>
         </MudGrid>
     </DialogContent>
     <DialogActions>
-        @if (!string.IsNullOrEmpty(TrackingRoute))
-        {
-            <MudButton Href="@TrackingRoute" Variant="Variant.Outlined" Color="Color.Primary"
-                       StartIcon="@Icons.Material.Filled.OpenInFull">View Full Timeline</MudButton>
-        }
+        <MudButton OnClick="OpenFullTimeline" Variant="Variant.Outlined" Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.OpenInFull">View Full Timeline</MudButton>
         <MudSpacer />
         <AuthorizeView Roles="Admin">
             <Authorized>
@@ -187,7 +181,6 @@
 @code {
     [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
     [Parameter] public Document Doc { get; set; } = new();
-    [Parameter] public string? TrackingRoute { get; set; }
 
     private List<DocumentLog> logs = new();
     private bool logsLoading = true;
@@ -196,6 +189,24 @@
     {
         logs = await DocService.GetDocumentLogsAsync(Doc.Id);
         logsLoading = false;
+    }
+
+    private async Task OpenFullTimeline()
+    {
+        var parameters = new DialogParameters { ["Doc"] = Doc };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true, CloseButton = true };
+        await DialogService.ShowAsync(typeof(FullTimelineDialog), Doc.Name ?? "Timeline", parameters, options);
+    }
+
+
+    private async Task EditDocument()
+    {
+        var parameters = new DialogParameters<EditDocumentDialog> { { x => x.Doc, Doc } };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
+        var dialog = await DialogService.ShowAsync<EditDocumentDialog>("Edit Document", parameters, options);
+        var result = await dialog.Result;
+        if (!result.Canceled)
+            MudDialog.Close(DialogResult.Ok(result.Data));
     }
 
     private string GetIconForAction(string? action) => action switch
@@ -235,18 +246,4 @@
         "Archived" => Color.Dark,
         _ => Color.Default
     };
-
-    private async Task EditDocument()
-    {
-        var parameters = new DialogParameters<EditDocumentDialog> { { x => x.Doc, Doc } };
-        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
-        var dialog = await DialogService.ShowAsync<EditDocumentDialog>("Edit Document", parameters, options);
-        var result = await dialog.Result;
-
-        if (!result.Canceled)
-        {
-           
-            MudDialog.Close(DialogResult.Ok(result.Data));
-        }
-    }
 }

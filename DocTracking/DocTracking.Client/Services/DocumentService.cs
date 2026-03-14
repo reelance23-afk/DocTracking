@@ -164,6 +164,16 @@ namespace DocTracking.Client.Services
         }
 
         public string GetQRCodeUrl(int documentId) => $"{_http.BaseAddress}api/documents/{documentId}/qrcode";
+
+        public async Task<Document?> GetDocumentByRefAsync(string referenceNumber)
+        {
+            var response = await _http.GetAsync($"api/documents/by-ref/{referenceNumber}");
+            if (!response.IsSuccessStatusCode) return null;
+            var content = await response.Content.ReadAsStringAsync();
+            if (content.TrimStart().StartsWith('<')) return null;
+            return JsonSerializer.Deserialize<Document>(content, _jsonOptions);
+        }
+
     }
 
     public class UploadResponse
