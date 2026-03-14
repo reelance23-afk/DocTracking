@@ -5,8 +5,7 @@ EXPOSE 8080
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src
 COPY . .
-RUN find . -name "*.csproj"
-RUN dotnet publish DocTracking/DocTracking.csproj -c Release -o /app/publish
+RUN dotnet publish DocTracking/DocTracking/DocTracking.csproj -c Release -o /app/publish
 
 FROM base AS final
 WORKDIR /app
