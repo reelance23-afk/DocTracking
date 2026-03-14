@@ -83,6 +83,8 @@ builder.Services.AddHttpClient<DocumentService>(client =>
 
 builder.Services.AddScoped<ThemeService>();
 builder.Services.AddScoped<NotificationService>();
+builder.Services.AddMudServices();         
+builder.Services.AddMudPopoverService();
 builder.Services.AddSignalR();
 builder.Services.AddTransient<IClaimsTransformation, UserClaimsTransformation>();
 builder.Services.AddControllers()
