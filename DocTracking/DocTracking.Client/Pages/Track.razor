@@ -9,7 +9,8 @@
 @inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager Navigation
 @inject IDialogService DialogService
-@rendermode @(new InteractiveAutoRenderMode(prerender: false))
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-4 mb-8">
     @if (isLoading)
