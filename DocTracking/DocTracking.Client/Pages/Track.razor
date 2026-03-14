@@ -235,7 +235,6 @@
     private Document? doc;
     private List<DocumentLog> logs = new();
     private bool isLoading = true;
-    private bool autoReceiveDone = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -269,25 +268,43 @@
             else if (myOfficeId != 0)
             {
                 var logs2 = await DocService.GetDocumentLogsAsync(doc.Id);
-                var lastForward = logs2.FirstOrDefault(l => l.Action == "Forwarded");
 
-                bool isRecipient = doc.NextOfficeId == myOfficeId &&
-                                   (isOfficeHead || !doc.NextUnitId.HasValue || doc.NextUnitId == myUnitId);
-
-                bool isSender = lastForward?.OfficeId == myOfficeId;
-
-                bool isOnDesk = doc.CurrentOfficeId == myOfficeId &&
-                                (isOfficeHead || !doc.CurrentUnitId.HasValue || doc.CurrentUnitId == myUnitId);
-
-                if (isRecipient)
+                if (doc.Status == "In Motion" &&
+                    !isOfficeHead &&
+                    doc.NextOfficeId == myOfficeId)
                 {
-                    isLoading = false;
-                    return;
+                    bool unitMatch = string.IsNullOrEmpty(unitIdClaim)
+                        ? !doc.NextUnitId.HasValue
+                        : !doc.NextUnitId.HasValue || doc.NextUnitId == myUnitId;
+
+                    if (unitMatch)
+                    {
+                        var received = await DocService.ReceivedDocumentAsync(doc.Id);
+                        if (received)
+                        {
+                            doc = await DocService.GetDocumentByRefAsync(ReferenceNumber);
+                            if (doc == null) { isLoading = false; return; }
+                            bool isOnDesk = doc.CurrentOfficeId == myOfficeId &&
+                                            (isOfficeHead || !doc.CurrentUnitId.HasValue || doc.CurrentUnitId == myUnitId);
+                            string tab = isOnDesk ? "OnDesk" : "Outgoing";
+                            Navigation.NavigateTo($"/office-desk?ref={ReferenceNumber}&tab={tab}");
+                            return;
+                        }
+                    }
                 }
 
-                if (isSender || isOnDesk)
+                var lastForward = logs2.FirstOrDefault(l => l.Action == "Forwarded");
+                bool isRecipient = doc.NextOfficeId == myOfficeId &&
+                                   (isOfficeHead || !doc.NextUnitId.HasValue || doc.NextUnitId == myUnitId);
+                bool isSender = lastForward?.OfficeId == myOfficeId;
+                bool isOnDesk2 = doc.CurrentOfficeId == myOfficeId &&
+                                 (isOfficeHead || !doc.CurrentUnitId.HasValue || doc.CurrentUnitId == myUnitId);
+
+                if (isRecipient) { isLoading = false; return; }
+
+                if (isSender || isOnDesk2)
                 {
-                    string tab = isOnDesk ? "OnDesk" : "Outgoing";
+                    string tab = isOnDesk2 ? "OnDesk" : "Outgoing";
                     Navigation.NavigateTo($"/office-desk?ref={ReferenceNumber}&tab={tab}");
                     return;
                 }
