@@ -134,10 +134,13 @@ app.UseAntiforgery();
 app.MapStaticAssets();
 app.Use(async (context, next) =>
 {
-    context.Response.Headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
-    context.Response.Headers["Pragma"] = "no-cache";
-    context.Response.Headers["Expires"] = "0";
     await next();
+    if (context.Response.ContentType?.Contains("text/html") == true)
+    {
+        context.Response.Headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
+        context.Response.Headers["Pragma"] = "no-cache";
+        context.Response.Headers["Expires"] = "0";
+    }
 });
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()
