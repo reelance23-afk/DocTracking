@@ -7,17 +7,44 @@
         <div class="d-flex flex-column align-center pa-2">
             @if (_unsupported)
             {
-                <MudAlert Severity="Severity.Warning">
+                <MudAlert Severity="Severity.Warning" Class="mb-3">
                     QR scanning is not supported in this browser.
                 </MudAlert>
             }
             else
             {
-                <video id="qr-video" autoplay playsinline muted
-                       style="width:100%; max-width:320px; border-radius:8px; background:#000;"></video>
-                <MudText Typo="Typo.caption" Class="mud-text-secondary mt-2">
-                    Point camera at a QR code
-                </MudText>
+                <MudTabs Elevation="0" Rounded="true" Centered="true" Class="mb-3" Style="width:100%">
+                    <MudTabPanel Icon="@Icons.Material.Filled.CameraAlt" Text="Camera">
+                        <div class="d-flex flex-column align-center pt-3">
+                            <video id="qr-video" autoplay playsinline muted
+                                   style="width:100%; max-width:320px; border-radius:8px; background:#000;"></video>
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary mt-2">
+                                Point camera at a QR code
+                            </MudText>
+                        </div>
+                    </MudTabPanel>
+                    <MudTabPanel Icon="@Icons.Material.Filled.Upload" Text="Upload Photo" TabPanelActivated="StopCamera">
+                        <div class="d-flex flex-column align-center pt-3" style="width:100%">
+                            <MudFileUpload T="IBrowserFile" FilesChanged="OnImageUploaded"
+                                           Accept=".png,.jpg,.jpeg" Style="width:100%">
+                                <ActivatorContent>
+                                    <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                                               StartIcon="@Icons.Material.Filled.Image" FullWidth="true">
+                                        Select QR Code Image
+                                    </MudButton>
+                                </ActivatorContent>
+                            </MudFileUpload>
+                            @if (_imagePreview != null)
+                            {
+                                <img src="@_imagePreview" style="width:100%; max-width:320px; border-radius:8px; margin-top:12px;" />
+                            }
+                            @if (_imageError != null)
+                            {
+                                <MudAlert Severity="Severity.Error" Class="mt-2">@_imageError</MudAlert>
+                            }
+                        </div>
+                    </MudTabPanel>
+                </MudTabs>
             }
         </div>
     </DialogContent>
@@ -30,6 +57,8 @@
     [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
 
     private bool _unsupported;
+    private string? _imagePreview;
+    private string? _imageError;
     private DotNetObjectReference<QRScanDialog>? _ref;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -37,6 +66,28 @@
         if (!firstRender) return;
         _ref = DotNetObjectReference.Create(this);
         await JS.InvokeVoidAsync("qrScanner.start", "qr-video", _ref);
+    }
+
+    private async Task OnImageUploaded(IBrowserFile file)
+    {
+        _imageError = null;
+        var buffer = new byte[file.Size];
+        await file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024).ReadAsync(buffer);
+        var base64 = Convert.ToBase64String(buffer);
+        _imagePreview = $"data:{file.ContentType};base64,{base64}";
+        StateHasChanged();
+
+        var result = await JS.InvokeAsync<string?>("qrScanner.decodeImage", _imagePreview, _ref);
+        if (result == null)
+        {
+            _imageError = "No QR code found in the image.";
+            StateHasChanged();
+        }
+    }
+
+    private async Task StopCamera()
+    {
+        await JS.InvokeVoidAsync("qrScanner.stop");
     }
 
     [JSInvokable]

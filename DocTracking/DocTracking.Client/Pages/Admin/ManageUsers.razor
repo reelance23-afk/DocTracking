@@ -10,58 +10,113 @@
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
     <MudText Typo="Typo.h4" Class="mb-4">Manage Users</MudText>
 
-    <MudTable Items="@FilteredUsers" Dense="true" Hover="true" Loading="@isLoading" Elevation="3">
-        <ToolBarContent>
-            <MudText Typo="Typo.h6">User Directory</MudText>
-            <MudSpacer />
-            <MudTextField @bind-Value="searchString" Placeholder="Search users..." Adornment="Adornment.Start"
-                          AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0" Immediate="true" />
-        </ToolBarContent>
-        <HeaderContent>
-            <MudTh>Name</MudTh>
-            <MudTh>Role</MudTh>
-            <MudTh>Assigned Location</MudTh>
-            <MudTh>Actions</MudTh>
-        </HeaderContent>
-        <RowTemplate>
-            <MudTd DataLabel="Name">@context.Name</MudTd>
-            <MudTd DataLabel="Role">
-                <MudChip T="string" Color="@GetRoleColor(context.Role)" Size="Size.Small">@context.Role</MudChip>
-            </MudTd>
-            <MudTd DataLabel="Location">
-                @if (context.Unit != null)
-                {
-                    <MudText Typo="Typo.body2">
-                        <strong>@context.Unit.Office?.Name</strong><br />
-                        <span style="color: gray; font-size: 0.85em;">↳ @context.Unit.Name</span>
-                    </MudText>
-                }
-                else if (context.Office != null)
-                {
-                    <MudText Typo="Typo.body2">
-                        <strong>@context.Office.Name</strong><br />
-                        <span style="color: gray; font-size: 0.85em;">↳ @(context.IsOfficeHead ? "Office Head" : "No Unit Assigned")</span>
-                    </MudText>
-                }
-                else
-                {
-                    <MudText Typo="Typo.body2" Color="Color.Default">N/A</MudText>
-                }
-            </MudTd>
+    <MudTextField @bind-Value="searchString" Placeholder="Search users..."
+                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                  Variant="Variant.Outlined" Immediate="true" Class="mb-4" />
 
-            <MudTd>
-                <div class="d-flex gap-1">
-                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Warning"
-                                   OnClick="@(() => OpenEditDialog(context))" />
-                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
-                                   OnClick="@(() => DeleteUser(context))" />
-                </div>
-            </MudTd>
-        </RowTemplate>
-        <PagerContent>
-            <MudTablePager />
-        </PagerContent>
-    </MudTable>
+    @if (isLoading)
+    {
+        <div class="d-flex justify-center mt-8">
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+        </div>
+    }
+    else
+    {
+        <MudHidden Breakpoint="Breakpoint.SmAndDown">
+            <MudTable Items="@FilteredUsers" Dense="true" Hover="true" Elevation="3">
+                <HeaderContent>
+                    <MudTh>Name</MudTh>
+                    <MudTh>Role</MudTh>
+                    <MudTh>Assigned Location</MudTh>
+                    <MudTh>Actions</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Name">@context.Name</MudTd>
+                    <MudTd DataLabel="Role">
+                        <MudChip T="string" Color="@GetRoleColor(context.Role)" Size="Size.Small">@context.Role</MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="Location">
+                        @if (context.Unit != null)
+                        {
+                            <MudText Typo="Typo.body2">
+                                <strong>@context.Unit.Office?.Name</strong><br />
+                                <span style="color: gray; font-size: 0.85em;">↳ @context.Unit.Name</span>
+                            </MudText>
+                        }
+                        else if (context.Office != null)
+                        {
+                            <MudText Typo="Typo.body2">
+                                <strong>@context.Office.Name</strong><br />
+                                <span style="color: gray; font-size: 0.85em;">↳ @(context.IsOfficeHead ? "Office Head" : "No Unit Assigned")</span>
+                            </MudText>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Default">N/A</MudText>
+                        }
+                    </MudTd>
+                    <MudTd>
+                        <div class="d-flex gap-1">
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Warning"
+                                           OnClick="@(() => OpenEditDialog(context))" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                           OnClick="@(() => DeleteUser(context))" />
+                        </div>
+                    </MudTd>
+                </RowTemplate>
+                <PagerContent>
+                    <MudTablePager />
+                </PagerContent>
+            </MudTable>
+        </MudHidden>
+
+        <MudHidden Breakpoint="Breakpoint.MdAndUp">
+            @if (!FilteredUsers.Any())
+            {
+                <MudPaper Elevation="0" Class="pa-8 text-center">
+                    <MudText Class="mud-text-secondary">No users found.</MudText>
+                </MudPaper>
+            }
+            else
+            {
+                @foreach (var user in FilteredUsers)
+                {
+                    <MudCard Elevation="2" Class="mb-3">
+                        <MudCardContent Class="pa-4">
+                            <div class="d-flex justify-space-between align-center mb-2">
+                                <MudText Typo="Typo.subtitle1" Class="font-weight-bold">@user.Name</MudText>
+                                <MudChip T="string" Color="@GetRoleColor(user.Role)" Size="Size.Small">@user.Role</MudChip>
+                            </div>
+                            @if (user.Unit != null)
+                            {
+                                <MudText Typo="Typo.body2"><strong>@user.Unit.Office?.Name</strong></MudText>
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">↳ @user.Unit.Name</MudText>
+                            }
+                            else if (user.Office != null)
+                            {
+                                <MudText Typo="Typo.body2"><strong>@user.Office.Name</strong></MudText>
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">↳ @(user.IsOfficeHead ? "Office Head" : "No Unit Assigned")</MudText>
+                            }
+                            else
+                            {
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">No location assigned</MudText>
+                            }
+                        </MudCardContent>
+                        <MudCardActions Class="pa-4 pt-0">
+                            <div class="d-flex gap-2" style="width:100%">
+                                <MudButton Variant="Variant.Outlined" Color="Color.Warning" Style="flex:1"
+                                           StartIcon="@Icons.Material.Filled.Edit"
+                                           OnClick="@(() => OpenEditDialog(user))">Edit</MudButton>
+                                <MudButton Variant="Variant.Outlined" Color="Color.Error" Style="flex:1"
+                                           StartIcon="@Icons.Material.Filled.Delete"
+                                           OnClick="@(() => DeleteUser(user))">Delete</MudButton>
+                            </div>
+                        </MudCardActions>
+                    </MudCard>
+                }
+            }
+        </MudHidden>
+    }
 </MudContainer>
 
 <MudDialog @bind-Visible="isEditDialogOpen" Options="dialogOptions">
@@ -158,9 +213,14 @@
     {
         editingUser = new AppUser
         {
-            Id = user.Id, Name = user.Name, Role = user.Role,
-            OfficeId = user.OfficeId, UnitId = user.UnitId,
-            Unit = user.Unit, Office = user.Office, Email = user.Email ,
+            Id = user.Id,
+            Name = user.Name,
+            Role = user.Role,
+            OfficeId = user.OfficeId,
+            UnitId = user.UnitId,
+            Unit = user.Unit,
+            Office = user.Office,
+            Email = user.Email,
             IsOfficeHead = user.IsOfficeHead
         };
         activeOfficeEdits.Remove(editingUser.Id);
@@ -179,7 +239,7 @@
         activeOfficeEdits[user.Id] = newOfficeId;
         user.UnitId = null;
         user.OfficeId = newOfficeId;
-        isOfficeHead = false; 
+        isOfficeHead = false;
     }
 
     private IEnumerable<Unit> GetUnitsForActiveOffice(AppUser user)
@@ -206,18 +266,14 @@
                 editingUser.UnitId = null;
                 editingUser.OfficeId = GetActiveOfficeId(editingUser);
                 editingUser.IsOfficeHead = true;
-            } 
+            }
             else
             {
                 editingUser.IsOfficeHead = false;
                 if (editingUser.UnitId != null)
-                {
-                    editingUser.OfficeId = null; 
-                }
+                    editingUser.OfficeId = null;
                 else
-                {
                     editingUser.OfficeId = GetActiveOfficeId(editingUser);
-                }
             }
             await DocService.UpdateAppUserAsync(editingUser);
             Snackbar.Add($"Updated {editingUser.Name} successfully!", Severity.Success);
@@ -232,11 +288,11 @@
     private async Task DeleteUser(AppUser user)
     {
         var parameters = new DialogParameters
-    {
-        { "Message", $"Delete '{user.Name}'? This cannot be undone." },
-        { "YesText", "Delete" },
-        { "CancelText", "Cancel" }
-    };
+        {
+            { "Message", $"Delete '{user.Name}'? This cannot be undone." },
+            { "YesText", "Delete" },
+            { "CancelText", "Cancel" }
+        };
         var dialog = await DialogService.ShowAsync<MudMessageBox>("Delete User", parameters);
         var result = await dialog.Result;
         if (result.Canceled) return;

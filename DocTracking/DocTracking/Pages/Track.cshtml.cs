@@ -78,7 +78,6 @@ namespace DocTracking.Components.Pages
                         return Redirect($"/office-desk?ref={referenceNumber}&tab=OnDesk");
                     }
 
-                    // creator check only after confirming doc is not incoming to them
                     if (Doc.Creator?.Email == email)
                         return Redirect($"/my-tracking?ref={referenceNumber}");
 
@@ -89,7 +88,7 @@ namespace DocTracking.Components.Pages
                     bool isOnDesk = Doc.CurrentOfficeId == myOfficeId &&
                                     (isOfficeHead || !Doc.CurrentUnitId.HasValue || Doc.CurrentUnitId == myUnitId);
 
-                    if (isRecipient) { /* fall through to show page */ }
+                    if (isRecipient) 
                     else if (isSender || isOnDesk)
                         return Redirect($"/office-desk?ref={referenceNumber}&tab={(isOnDesk ? "OnDesk" : "Outgoing")}");
                     else if (logs2.Any(l => l.OfficeId == myOfficeId))

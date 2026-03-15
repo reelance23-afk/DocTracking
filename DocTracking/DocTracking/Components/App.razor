@@ -204,6 +204,7 @@
                         return;
                     }
                     const video = document.getElementById(videoId);
+                    if (!video) return;
                     stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
                     video.srcObject = stream;
                     await video.play();
@@ -223,6 +224,19 @@
                         await new Promise(r => setTimeout(r, 200));
                     }
                 },
+                async decodeImage(dataUrl, dotnet) {
+                    if (!('BarcodeDetector' in window)) return null;
+                    const img = new Image();
+                    img.src = dataUrl;
+                    await new Promise(r => img.onload = r);
+                    const detector = new BarcodeDetector({ formats: ['qr_code'] });
+                    const codes = await detector.detect(img);
+                    if (codes.length > 0) {
+                        dotnet.invokeMethodAsync('OnScanned', codes[0].rawValue);
+                        return codes[0].rawValue;
+                    }
+                    return null;
+                },
                 stop() {
                     scanning = false;
                     if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
@@ -230,6 +244,7 @@
             };
         })();
     </script>
+
 </body>
 
 </html>
