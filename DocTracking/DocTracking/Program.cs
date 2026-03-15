@@ -3,20 +3,21 @@ using DocTracking.Client.Pages;
 using DocTracking.Client.Services;
 using DocTracking.Components;
 using DocTracking.Data;
-using DocTracking.Services;
 using DocTracking.Security;
-using System.Text.Json.Serialization;
+using DocTracking.Services;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Identity.Web;
 using MudBlazor.Services;
-using Swashbuckle.AspNetCore.SwaggerUI;
-using Microsoft.AspNetCore.Authentication;
 using Npgsql.EntityFrameworkCore.PostgreSQL;
+using Swashbuckle.AspNetCore.SwaggerUI;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -40,6 +41,16 @@ builder.Services.Configure<OpenIdConnectOptions>(OpenIdConnectDefaults.Authentic
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(connectionString));
 builder.Services.AddHttpClient();
+builder.Services.Configure<OpenIdConnectOptions>(OpenIdConnectDefaults.AuthenticationScheme, options =>
+{
+    options.TokenValidationParameters.RoleClaimType = "roles";
+    options.TokenValidationParameters.NameClaimType = "name";
+    options.BackchannelTimeout = TimeSpan.FromSeconds(30);
+    options.ProtocolValidator.RequireNonce = false;
+});
+builder.Services.AddDataProtection()
+    .PersistKeysToDbContext<ApplicationDbContext>();
+
 builder.Services.AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
     .AddMicrosoftIdentityWebApp(options =>
     {

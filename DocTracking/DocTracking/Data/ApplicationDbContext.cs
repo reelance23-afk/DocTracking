@@ -1,22 +1,22 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using DocTracking.Client.Models;
 
 namespace DocTracking.Data
 {
-    public class ApplicationDbContext : DbContext
+    public class ApplicationDbContext : DbContext, IDataProtectionKeyContext
     {
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
         {
         }
+
         public DbSet<Document> Documents { get; set; }
         public DbSet<Office> Offices { get; set; }
         public DbSet<DocumentLog> DocumentLogs { get; set; }
-
         public DbSet<AppUser> AppUsers { get; set; }
-
         public DbSet<Unit> Units { get; set; }
-
         public DbSet<AppNotification> AppNotifications { get; set; }
+        public DbSet<DataProtectionKey> DataProtectionKeys { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
