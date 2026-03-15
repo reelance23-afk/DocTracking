@@ -44,7 +44,7 @@
     {
         MudDialog.Close();
         var uri = new Uri(url);
-        Navigation.NavigateTo(uri.PathAndQuery);
+        Navigation.NavigateTo(uri.PathAndQuery, forceLoad: true);
     }
 
     [JSInvokable]
