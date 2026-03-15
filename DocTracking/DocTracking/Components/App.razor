@@ -192,6 +192,40 @@
         <Routes @rendermode="InteractiveAuto" />
     </CascadingAuthenticationState>
     <script src="_framework/blazor.web.js"></script>
+    <script>
+        window.qrScanner = (() => {
+            let stream = null;
+            let rafId = null;
+            return {
+                async start(videoId, dotnet) {
+                    if (!('BarcodeDetector' in window)) {
+                        dotnet.invokeMethodAsync('OnUnsupported');
+                        return;
+                    }
+                    const video = document.getElementById(videoId);
+                    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+                    video.srcObject = stream;
+                    const detector = new BarcodeDetector({ formats: ['qr_code'] });
+                    const scan = async () => {
+                        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                            const codes = await detector.detect(video);
+                            if (codes.length > 0) {
+                                window.qrScanner.stop();
+                                dotnet.invokeMethodAsync('OnScanned', codes[0].rawValue);
+                                return;
+                            }
+                        }
+                        rafId = requestAnimationFrame(scan);
+                    };
+                    rafId = requestAnimationFrame(scan);
+                },
+                stop() {
+                    if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+                    if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+                }
+            };
+        })();
+    </script>
 </body>
 
 </html>

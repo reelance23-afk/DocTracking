@@ -1,10 +1,12 @@
 ﻿@inherits LayoutComponentBase
 @using Microsoft.AspNetCore.Components.Authorization
 @using System.Security.Claims
+@using DocTracking.Client.Pages
 @inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager Navigation
 @inject ThemeService ThemeService
 @inject DocumentService DocService
+@inject IDialogService DialogService
 @inject IJSRuntime JSRuntime
 
 <MudThemeProvider Theme="CurrentTheme" IsDarkMode="ThemeService.IsDarkMode" />
@@ -66,11 +68,15 @@
 
 <MudLayout>
     <MudAppBar Elevation="0" Style="background: transparent; box-shadow: none;">
-        <MudIconButton Icon="@Icons.Material.Filled.Menu"
-                       Color="Color.Primary"
-                       Edge="Edge.Start"
-                       OnClick="@(() => _drawerOpen = !_drawerOpen)" />
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" ... />
         <MudSpacer />
+        <AuthorizeView>
+            <Authorized>
+                <MudIconButton Icon="@Icons.Material.Filled.QrCodeScanner"
+                               Color="Color.Primary"
+                               OnClick="OpenScanDialog" />
+            </Authorized>
+        </AuthorizeView>
         <NotificationBell />
     </MudAppBar>
 
@@ -119,6 +125,15 @@
             @Body
         </MudContainer>
     </MudMainContent>
+
+    <AuthorizeView>
+        <Authorized>
+            <MudFab Color="Color.Primary"
+                    StartIcon="@Icons.Material.Filled.QrCodeScanner"
+                    Style="position:fixed; bottom:24px; right:24px; z-index:1000;"
+                    OnClick="OpenScanDialog" />
+        </Authorized>
+    </AuthorizeView>
 </MudLayout>
 
 @code {
@@ -170,4 +185,10 @@
         "Rose" => new MudTheme { PaletteLight = new PaletteLight { Primary = "#BE185D", Secondary = "#F472B6" }, PaletteDark = new PaletteDark { Primary = "#BE185D", Secondary = "#F472B6" } },
         _ => new MudTheme()
     };
+
+    private async Task OpenScanDialog()
+    {
+        var options = new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true, CloseButton = true };
+        await DialogService.ShowAsync<QRScanDialog>("Scan QR Code", options);
+    }
 }

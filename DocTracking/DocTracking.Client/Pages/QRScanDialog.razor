@@ -1,0 +1,68 @@
+﻿@inject IJSRuntime JS
+@inject NavigationManager Navigation
+@implements IAsyncDisposable
+
+<MudDialog>
+    <DialogContent>
+        <div class="d-flex flex-column align-center pa-2">
+            @if (_unsupported)
+            {
+                <MudAlert Severity="Severity.Warning">
+                    QR scanning is not supported in this browser.
+                </MudAlert>
+            }
+            else
+            {
+                <video id="qr-video" autoplay playsinline muted
+                       style="width:100%; max-width:320px; border-radius:8px; background:#000;" />
+                <MudText Typo="Typo.caption" Class="mud-text-secondary mt-2">
+                    Point camera at a QR code
+                </MudText>
+            }
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+
+    private bool _unsupported;
+    private DotNetObjectReference<QRScanDialog>? _ref;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        _ref = DotNetObjectReference.Create(this);
+        await JS.InvokeVoidAsync("qrScanner.start", "qr-video", _ref);
+    }
+
+    [JSInvokable]
+    public void OnScanned(string url)
+    {
+        MudDialog.Close();
+        var uri = new Uri(url);
+        Navigation.NavigateTo(uri.PathAndQuery);
+    }
+
+    [JSInvokable]
+    public void OnUnsupported()
+    {
+        _unsupported = true;
+        StateHasChanged();
+    }
+
+    async void Cancel()
+    {
+        await JS.InvokeVoidAsync("qrScanner.stop");
+        MudDialog.Cancel();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await JS.InvokeVoidAsync("qrScanner.stop");
+        _ref?.Dispose();
+    }
+}
