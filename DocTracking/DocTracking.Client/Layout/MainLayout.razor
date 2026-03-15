@@ -68,7 +68,10 @@
 
 <MudLayout>
     <MudAppBar Elevation="0" Style="background: transparent; box-shadow: none;">
-        <MudIconButton Icon="@Icons.Material.Filled.Menu" ... />
+        <MudIconButton Icon="@Icons.Material.Filled.Menu"
+                       Color="Color.Primary"
+                       Edge="Edge.Start"
+                       OnClick="@(() => _drawerOpen = !_drawerOpen)" />
         <MudSpacer />
         <AuthorizeView>
             <Authorized>
@@ -91,14 +94,11 @@
                     <div class="d-flex flex-column align-center pa-3 mb-4 rounded-lg position-relative"
                          style="@($"width: 100%; transition: all 0.3s ease; height: 110px; background: {(_drawerOpen ? "linear-gradient(145deg, #f0f2f5 0%, #e8eaf0 100%)" : "transparent")}; border: {(_drawerOpen ? "1px solid rgba(0,0,0,0.08)" : "none")};")">
 
-                        <div class="position-relative"
-                             style="margin-top: 8px;">
-
+                        <div class="position-relative" style="margin-top: 8px;">
                             <MudAvatar Size="@(_drawerOpen? Size.Large: Size.Medium)"
                                        Style="@($"transition: all 0.3s ease; {(_drawerOpen ? "box-shadow: 0 4px 12px rgba(0,0,0,0.15);" : "")}")">
                                 <MudIcon Icon="@Icons.Material.Filled.Person" Color="Color.Surface" />
                             </MudAvatar>
-
                             <div style="position: absolute; bottom: 2px; right: 2px; width: 12px; height: 12px; background: #4caf50; border: 2px solid white; border-radius: 50%;"></div>
                         </div>
 
@@ -125,15 +125,6 @@
             @Body
         </MudContainer>
     </MudMainContent>
-
-    <AuthorizeView>
-        <Authorized>
-            <MudFab Color="Color.Primary"
-                    StartIcon="@Icons.Material.Filled.QrCodeScanner"
-                    Style="position:fixed; bottom:24px; right:24px; z-index:1000;"
-                    OnClick="OpenScanDialog" />
-        </Authorized>
-    </AuthorizeView>
 </MudLayout>
 
 @code {
