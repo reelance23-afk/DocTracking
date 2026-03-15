@@ -38,9 +38,6 @@ namespace DocTracking.Components.Pages
                 int.TryParse(officeIdClaim, out var myOfficeId);
                 int.TryParse(unitIdClaim, out var myUnitId);
 
-                if (Doc.Creator?.Email == email || (int.TryParse(userId, out var creatorId) && Doc.CreatorId == creatorId))
-                    return Redirect($"/my-tracking?ref={referenceNumber}");
-
                 if (isAdmin)
                     return Redirect($"/document-tracking?ref={referenceNumber}");
 
@@ -52,53 +49,56 @@ namespace DocTracking.Components.Pages
                         .OrderByDescending(l => l.TimeStamp)
                         .ToListAsync();
 
-                    if (Doc.Status == "In Motion" && !isOfficeHead && Doc.NextOfficeId == myOfficeId)
+                    bool isIncomingToMe = Doc.Status == "In Motion" &&
+                                         Doc.NextOfficeId == myOfficeId &&
+                                         (isOfficeHead || !Doc.NextUnitId.HasValue || Doc.NextUnitId == myUnitId);
+
+                    if (isIncomingToMe && !isOfficeHead)
                     {
-                        bool unitMatch = string.IsNullOrEmpty(unitIdClaim)
-                            ? !Doc.NextUnitId.HasValue
-                            : !Doc.NextUnitId.HasValue || Doc.NextUnitId == myUnitId;
+                        var appUser = await _db.AppUsers.FirstOrDefaultAsync(u => u.Email == email);
 
-                        if (unitMatch)
+                        Doc.Status = "Received";
+                        Doc.LastActionDate = DateTime.UtcNow;
+                        Doc.CurrentOfficeId = Doc.NextOfficeId;
+                        Doc.CurrentUnitId = Doc.NextUnitId;
+                        Doc.NextOfficeId = null;
+                        Doc.NextUnitId = null;
+
+                        _db.DocumentLogs.Add(new DocumentLog
                         {
-                            var appUser = await _db.AppUsers.FirstOrDefaultAsync(u => u.Email == email);
+                            DocumentId = Doc.Id,
+                            Action = "Received",
+                            OfficeId = Doc.CurrentOfficeId,
+                            UnitId = Doc.CurrentUnitId,
+                            AppUserId = appUser?.Id,
+                            TimeStamp = DateTime.UtcNow
+                        });
+                        await _db.SaveChangesAsync();
 
-                            Doc.Status = "Received";
-                            Doc.LastActionDate = DateTime.UtcNow;
-                            Doc.CurrentOfficeId = Doc.NextOfficeId;
-                            Doc.CurrentUnitId = Doc.NextUnitId;
-                            Doc.NextOfficeId = null;
-                            Doc.NextUnitId = null;
-
-                            _db.DocumentLogs.Add(new DocumentLog
-                            {
-                                DocumentId = Doc.Id,
-                                Action = "Received",
-                                OfficeId = Doc.CurrentOfficeId,
-                                UnitId = Doc.CurrentUnitId,
-                                AppUserId = appUser?.Id,
-                                TimeStamp = DateTime.UtcNow
-                            });
-                            await _db.SaveChangesAsync();
-
-                            bool isOnDesk = Doc.CurrentOfficeId == myOfficeId &&
-                                            (isOfficeHead || !Doc.CurrentUnitId.HasValue || Doc.CurrentUnitId == myUnitId);
-                            return Redirect($"/office-desk?ref={referenceNumber}&tab={(isOnDesk ? "OnDesk" : "Outgoing")}");
-                        }
+                        return Redirect($"/office-desk?ref={referenceNumber}&tab=OnDesk");
                     }
+
+                    // creator check only after confirming doc is not incoming to them
+                    if (Doc.Creator?.Email == email)
+                        return Redirect($"/my-tracking?ref={referenceNumber}");
 
                     var lastForward = logs2.FirstOrDefault(l => l.Action == "Forwarded");
                     bool isRecipient = Doc.NextOfficeId == myOfficeId &&
                                        (isOfficeHead || !Doc.NextUnitId.HasValue || Doc.NextUnitId == myUnitId);
                     bool isSender = lastForward?.OfficeId == myOfficeId;
-                    bool isOnDesk2 = Doc.CurrentOfficeId == myOfficeId &&
-                                     (isOfficeHead || !Doc.CurrentUnitId.HasValue || Doc.CurrentUnitId == myUnitId);
+                    bool isOnDesk = Doc.CurrentOfficeId == myOfficeId &&
+                                    (isOfficeHead || !Doc.CurrentUnitId.HasValue || Doc.CurrentUnitId == myUnitId);
 
                     if (isRecipient) { /* fall through to show page */ }
-                    else if (isSender || isOnDesk2)
-                        return Redirect($"/office-desk?ref={referenceNumber}&tab={(isOnDesk2 ? "OnDesk" : "Outgoing")}");
+                    else if (isSender || isOnDesk)
+                        return Redirect($"/office-desk?ref={referenceNumber}&tab={(isOnDesk ? "OnDesk" : "Outgoing")}");
                     else if (logs2.Any(l => l.OfficeId == myOfficeId))
                         return Redirect($"/unit-history?ref={referenceNumber}");
                 }
+
+
+                if (Doc.Creator?.Email == email)
+                    return Redirect($"/my-tracking?ref={referenceNumber}");
             }
 
             Logs = await _db.DocumentLogs
