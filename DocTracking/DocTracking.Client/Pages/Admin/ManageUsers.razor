@@ -289,13 +289,13 @@
     {
         var parameters = new DialogParameters
         {
-            { "Message", $"Delete '{user.Name}'? This cannot be undone." },
+            { "Message", $"Delete '{user.Name ?? "this user"}'? This cannot be undone." },
             { "YesText", "Delete" },
             { "CancelText", "Cancel" }
         };
         var dialog = await DialogService.ShowAsync<MudMessageBox>("Delete User", parameters);
         var result = await dialog.Result;
-        if (result.Canceled) return;
+        if (result is null || result.Canceled) return;
         var (ok, error) = await DocService.DeleteAppUserAsync(user.Id);
         if (!ok) { Snackbar.Add(error ?? "Error deleting user.", Severity.Error); return; }
         Snackbar.Add("User deleted.", Severity.Success);

@@ -88,11 +88,12 @@ namespace DocTracking.Components.Pages
                     bool isOnDesk = Doc.CurrentOfficeId == myOfficeId &&
                                     (isOfficeHead || !Doc.CurrentUnitId.HasValue || Doc.CurrentUnitId == myUnitId);
 
-                    if (isRecipient) 
-                    else if (isSender || isOnDesk)
+                    if (isSender || isOnDesk)
                         return Redirect($"/office-desk?ref={referenceNumber}&tab={(isOnDesk ? "OnDesk" : "Outgoing")}");
-                    else if (logs2.Any(l => l.OfficeId == myOfficeId))
+                    else if (!isRecipient && logs2.Any(l => l.OfficeId == myOfficeId))
                         return Redirect($"/unit-history?ref={referenceNumber}");
+
+
                 }
 
 

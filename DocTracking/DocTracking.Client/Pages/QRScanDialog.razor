@@ -1,6 +1,8 @@
 ﻿@inject IJSRuntime JS
 @inject NavigationManager Navigation
 @implements IAsyncDisposable
+@using MudBlazor
+
 
 <MudDialog>
     <DialogContent>
@@ -25,12 +27,12 @@
                     </MudTabPanel>
                     <MudTabPanel Icon="@Icons.Material.Filled.Upload" Text="Upload Photo" TabPanelActivated="StopCamera">
                         <div class="d-flex flex-column align-center pt-3" style="width:100%">
-                            <MudFileUpload T="IBrowserFile" FilesChanged="OnImageUploaded"
-                                           Accept=".png,.jpg,.jpeg" Style="width:100%">
+                             <MudFileUpload T="IBrowserFile" FilesChanged="OnImageUploaded"
+                                Accept=".png,.jpg,.jpeg" Style="width:100%">
                                 <ActivatorContent>
-                                    <MudButton Variant="Variant.Outlined" Color="Color.Primary"
-                                               StartIcon="@Icons.Material.Filled.Image" FullWidth="true">
-                                        Select QR Code Image
+                                    <MudButton HtmlTag="label" Variant="Variant.Outlined" Color="Color.Primary"
+                                    StartIcon="@Icons.Material.Filled.Image" FullWidth="true">
+                                    Select QR Code Image
                                     </MudButton>
                                 </ActivatorContent>
                             </MudFileUpload>
