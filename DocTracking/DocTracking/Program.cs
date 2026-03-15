@@ -33,11 +33,6 @@ if (string.IsNullOrEmpty(connectionString))
     connectionString = $"Host={host};Port={port};Database={db};Username={user};Password={password};SSL Mode=Require;Trust Server Certificate=true";
 }
 
-builder.Services.Configure<OpenIdConnectOptions>(OpenIdConnectDefaults.AuthenticationScheme, options =>
-{
-    options.TokenValidationParameters.RoleClaimType = "roles";
-    options.TokenValidationParameters.NameClaimType = "name";
-});
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(connectionString));
 builder.Services.AddHttpClient();
@@ -46,7 +41,6 @@ builder.Services.Configure<OpenIdConnectOptions>(OpenIdConnectDefaults.Authentic
     options.TokenValidationParameters.RoleClaimType = "roles";
     options.TokenValidationParameters.NameClaimType = "name";
     options.BackchannelTimeout = TimeSpan.FromSeconds(30);
-    options.ProtocolValidator.RequireNonce = false;
 });
 builder.Services.AddDataProtection()
     .PersistKeysToDbContext<ApplicationDbContext>();
