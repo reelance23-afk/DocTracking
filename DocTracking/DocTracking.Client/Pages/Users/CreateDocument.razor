@@ -143,7 +143,7 @@
                             @if (newDocument.NextOfficeId.HasValue && GetUnitsForOffice(newDocument.NextOfficeId.Value).Any())
                             {
                                 <MudItem xs="12" md="4">
-                                    <MudSelect @bind-Value="newDocument.NextUnitId"
+                                    <MudSelect T="int?" @bind-Value="newDocument.NextUnitId"
                                                Label="Specific Unit"
                                                Variant="Variant.Outlined"
                                                Required="true"
