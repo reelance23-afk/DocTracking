@@ -11,7 +11,14 @@
         }
 </style>
 
-<MudNavMenu Class="d-flex flex-column" Style="height: 100%;">
+@if (ShowText)
+{
+    <div class="px-4 mb-1">
+        <MudText Typo="Typo.overline" Class="mud-text-secondary font-weight-bold" Style="font-size:0.65rem; letter-spacing:0.1em;">MENU</MudText>
+    </div>
+}
+
+<MudNavMenu Rounded="true" Margin="Margin.Dense" Class="px-2">
 
     <div class="nav-section">
         <MudNavLink Href="/"
@@ -21,7 +28,7 @@
                     IconColor="Color.Primary">
             @if (ShowText)
             {
-                <MudText Typo="Typo.body1" Style="font-weight: 500;">Dashboard</MudText>
+                <MudText Typo="Typo.body1" Style="font-weight:500;">Dashboard</MudText>
             }
         </MudNavLink>
     </div>
@@ -31,17 +38,13 @@
             @if (!context.User.IsInRole("Admin") && !context.User.IsInRole("Office"))
             {
                 <div class="nav-section">
-                    <MudNavLink Href="/create-document"
-                                Icon="@Icons.Material.Filled.NoteAdd"
-                                IconColor="Color.Success">
+                    <MudNavLink Href="/create-document" Icon="@Icons.Material.Filled.NoteAdd" IconColor="Color.Success">
                         @if (ShowText)
                         {
                             <MudText Typo="Typo.body2">Create Document</MudText>
                         }
                     </MudNavLink>
-                    <MudNavLink Href="/my-tracking"
-                                Icon="@Icons.Material.Filled.History"
-                                IconColor="Color.Info">
+                    <MudNavLink Href="/my-tracking" Icon="@Icons.Material.Filled.History" IconColor="Color.Info">
                         @if (ShowText)
                         {
                             <MudText Typo="Typo.body2">My Tracking</MudText>
@@ -53,35 +56,26 @@
             @if (context.User.IsInRole("Office"))
             {
                 <div class="nav-section">
-                    <MudNavLink Href="/office-desk"
-                                Icon="@Icons.Material.Filled.InsertDriveFile"
-                                IconColor="Color.Warning">
+                    <MudNavLink Href="/office-desk" Icon="@Icons.Material.Filled.InsertDriveFile" IconColor="Color.Warning">
                         @if (ShowText)
                         {
                             <MudText Typo="Typo.body2">Pending Documents</MudText>
                         }
                     </MudNavLink>
-                    <MudNavLink Href="/unit-history"
-                                Icon="@Icons.Material.Filled.History"
-                                IconColor="Color.Info">
+                    <MudNavLink Href="/unit-history" Icon="@Icons.Material.Filled.History" IconColor="Color.Info">
                         @if (ShowText)
                         {
                             <MudText Typo="Typo.body2">Document History</MudText>
                         }
                     </MudNavLink>
                     <MudDivider Class="my-2" />
-                    <MudNavLink Href="/create-document"
-                                Icon="@Icons.Material.Filled.NoteAdd"
-                                IconColor="Color.Success">
+                    <MudNavLink Href="/create-document" Icon="@Icons.Material.Filled.NoteAdd" IconColor="Color.Success">
                         @if (ShowText)
                         {
-
                             <MudText Typo="Typo.body2">Create Document</MudText>
                         }
                     </MudNavLink>
-                    <MudNavLink Href="/my-tracking"
-                                Icon="@Icons.Material.Filled.History"
-                                IconColor="Color.Info">
+                    <MudNavLink Href="/my-tracking" Icon="@Icons.Material.Filled.History" IconColor="Color.Info">
                         @if (ShowText)
                         {
                             <MudText Typo="Typo.body2">My Tracking</MudText>
@@ -93,42 +87,32 @@
             @if (context.User.IsInRole("Admin"))
             {
                 <div class="nav-section">
-                    <MudNavLink Href="/manage-offices"
-                                Icon="@Icons.Material.Filled.Business"
-                                IconColor="Color.Secondary">
+                    <MudNavLink Href="/manage-offices" Icon="@Icons.Material.Filled.Business" IconColor="Color.Secondary">
                         @if (ShowText)
                         {
                             <MudText Typo="Typo.body2">Manage Offices</MudText>
                         }
                     </MudNavLink>
-                    <MudNavLink Href="/manage-users"
-                                Icon="@Icons.Material.Filled.People"
-                                IconColor="Color.Tertiary">
+                    <MudNavLink Href="/manage-users" Icon="@Icons.Material.Filled.People" IconColor="Color.Tertiary">
                         @if (ShowText)
                         {
                             <MudText Typo="Typo.body2">User Management</MudText>
                         }
                     </MudNavLink>
-                    <MudNavLink Href="/document-tracking"
-                                Icon="@Icons.Material.Filled.Description"
-                                IconColor="Color.Info">
+                    <MudNavLink Href="/document-tracking" Icon="@Icons.Material.Filled.Description" IconColor="Color.Info">
                         @if (ShowText)
                         {
                             <MudText Typo="Typo.body2">Document Tracking</MudText>
                         }
                     </MudNavLink>
                     <MudDivider Class="my-2" />
-                    <MudNavLink Href="/create-document"
-                                Icon="@Icons.Material.Filled.NoteAdd"
-                                IconColor="Color.Success">
+                    <MudNavLink Href="/create-document" Icon="@Icons.Material.Filled.NoteAdd" IconColor="Color.Success">
                         @if (ShowText)
                         {
                             <MudText Typo="Typo.body2">Create Document</MudText>
                         }
                     </MudNavLink>
-                    <MudNavLink Href="/my-tracking"
-                                Icon="@Icons.Material.Filled.History"
-                                IconColor="Color.Info">
+                    <MudNavLink Href="/my-tracking" Icon="@Icons.Material.Filled.History" IconColor="Color.Info">
                         @if (ShowText)
                         {
                             <MudText Typo="Typo.body2">My Tracking</MudText>
@@ -142,21 +126,16 @@
     <div class="mt-auto">
         <AuthorizeView>
             <Authorized>
-                <MudNavLink Href="/settings"
-                            Icon="@Icons.Material.Filled.Settings"
-                            IconColor="Color.Default">
+                <MudNavLink Href="/settings" Icon="@Icons.Material.Filled.Settings" IconColor="Color.Default">
                     @if (ShowText)
                     {
                         <MudText Typo="Typo.body2">Settings</MudText>
                     }
                 </MudNavLink>
-                <MudNavLink Href="/Account/Logout"
-                            ForceLoad="true"
-                            Icon="@Icons.Material.Filled.Logout"
-                            IconColor="Color.Error">
+                <MudNavLink Href="/Account/Logout" ForceLoad="true" Icon="@Icons.Material.Filled.Logout" IconColor="Color.Error">
                     @if (ShowText)
                     {
-                        <MudText Typo="Typo.body2">Logout</MudText>
+                        <MudText Typo="Typo.body2" Class="mud-error-text">Logout</MudText>
                     }
                 </MudNavLink>
             </Authorized>

@@ -67,16 +67,31 @@
 </style>
 
 <MudLayout>
-    <MudAppBar Elevation="0" Style="background: transparent; box-shadow: none;">
+    <MudAppBar Elevation="0" Color="Color.Surface"
+               Style="border-bottom: 1px solid var(--mud-palette-lines-default);">
         <MudIconButton Icon="@Icons.Material.Filled.Menu"
-                       Color="Color.Primary"
+                       Color="Color.Default"
                        Edge="Edge.Start"
-                       OnClick="@(() => _drawerOpen = !_drawerOpen)" />
+                       OnClick="@(() => _drawerOpen = !_drawerOpen)"
+                       Class="mr-2" />
+
+        <MudTextField @bind-Value="_searchTerm"
+                      Placeholder="Search documents, users, or offices..."
+                      Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search"
+                      IconSize="Size.Small"
+                      Variant="Variant.Filled"
+                      Margin="Margin.Dense"
+                      DisableUnderLine="true"
+                      Style="max-width:400px; border-radius:8px;"
+                      Class="d-none d-sm-flex" />
+
         <MudSpacer />
+
         <AuthorizeView>
             <Authorized>
                 <MudIconButton Icon="@Icons.Material.Filled.QrCodeScanner"
-                               Color="Color.Primary"
+                               Color="Color.Default"
                                OnClick="OpenScanDialog" />
             </Authorized>
         </AuthorizeView>
@@ -84,33 +99,26 @@
     </MudAppBar>
 
     <MudDrawer @bind-Open="_drawerOpen"
-               Elevation="2"
+               Elevation="1"
                Variant="DrawerVariant.Responsive"
                ClipMode="DrawerClipMode.Never">
 
-        <MudDrawerHeader Class="pt-4 px-2">
+        <MudDrawerHeader Class="pa-4">
             <AuthorizeView>
                 <Authorized>
-                    <div class="d-flex flex-column align-center pa-3 mb-4 rounded-lg position-relative"
-                         style="@($"width: 100%; transition: all 0.3s ease; height: 110px; background: {(_drawerOpen ? "linear-gradient(145deg, #f0f2f5 0%, #e8eaf0 100%)" : "transparent")}; border: {(_drawerOpen ? "1px solid rgba(0,0,0,0.08)" : "none")};")">
-
-                        <div class="position-relative" style="margin-top: 8px;">
-                            <MudAvatar Size="@(_drawerOpen? Size.Large: Size.Medium)"
-                                       Style="@($"transition: all 0.3s ease; {(_drawerOpen ? "box-shadow: 0 4px 12px rgba(0,0,0,0.15);" : "")}")">
-                                <MudIcon Icon="@Icons.Material.Filled.Person" Color="Color.Surface" />
-                            </MudAvatar>
-                            <div style="position: absolute; bottom: 2px; right: 2px; width: 12px; height: 12px; background: #4caf50; border: 2px solid white; border-radius: 50%;"></div>
-                        </div>
-
+                    <MudPaper Outlined="true" Class="d-flex align-center pa-2 rounded-lg w-100" Elevation="0"
+                              Style="background-color: var(--mud-palette-background-grey);">
+                        <MudAvatar Color="Color.Dark" Variant="Variant.Filled" Size="Size.Medium" Class="mr-3 font-weight-bold">
+                            @(displayName?.Length > 0 ? displayName[0].ToString().ToUpper() : "?")
+                        </MudAvatar>
                         @if (_showText)
                         {
-                            <div class="text-center mt-2" style="animation: fadeIn 0.4s ease-out;">
-                                <MudText Typo="Typo.body2" Class="font-weight-bold text-truncate mb-1" Style="max-width: 140px; color: var(--mud-palette-text-primary);">
-                                    @(displayName ?? "User")
-                                </MudText>
+                            <div class="d-flex flex-column overflow-hidden" style="animation: fadeIn 0.4s ease-out;">
+                                <MudText Typo="Typo.subtitle2" Class="font-weight-bold text-truncate">@(displayName ?? "User")</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@(displayRole ?? "—")</MudText>
                             </div>
                         }
-                    </div>
+                    </MudPaper>
                 </Authorized>
             </AuthorizeView>
         </MudDrawerHeader>
@@ -130,8 +138,10 @@
 @code {
     bool _drawerOpen = true;
     bool _showText = true;
+    private string _searchTerm = "";
     private MudTheme CurrentTheme = new();
     private string? displayName;
+    private string? displayRole;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -144,26 +154,13 @@
 
             var profile = await DocService.GetProfileAsync();
             displayName = profile?.Name;
+            displayRole = profile?.Role switch
+            {
+                "Admin" => "System Administrator",
+                "Office" => "Office Worker",
+                _ => "User"
+            };
             StateHasChanged();
-        }
-    }
-
-    async Task HandleDrawerStateChange(bool isOpen)
-    {
-        if (_drawerOpen == isOpen) return;
-        if (isOpen)
-        {
-            _drawerOpen = true;
-            StateHasChanged();
-            await Task.Delay(250);
-            _showText = true;
-        }
-        else
-        {
-            _showText = false;
-            StateHasChanged();
-            await Task.Delay(50);
-            _drawerOpen = false;
         }
     }
 
