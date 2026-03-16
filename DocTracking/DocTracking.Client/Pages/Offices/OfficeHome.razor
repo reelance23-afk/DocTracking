@@ -81,7 +81,7 @@
                         </MudButton>
                     </div>
                     <MudGrid>
-                        <MudItem xs="6">
+                        <MudItem xs="12" sm="6">
                             <MudPaper Elevation="0" Class="pa-3" Style="background: rgba(var(--mud-palette-error-rgb), 0.08); border-radius: 8px; min-height: 200px;">
                                 <MudText Typo="Typo.subtitle2" Color="Color.Error" Class="mb-3 font-weight-bold">Incoming</MudText>
                                 @foreach (var doc in incomingDocs.Take(5))
@@ -100,7 +100,7 @@
                                 }
                             </MudPaper>
                         </MudItem>
-                        <MudItem xs="6">
+                        <MudItem xs="12" sm="6">
                             <MudPaper Elevation="0" Class="pa-3" Style="background: rgba(var(--mud-palette-warning-rgb), 0.08); border-radius: 8px; min-height: 200px;">
                                 <MudText Typo="Typo.subtitle2" Color="Color.Warning" Class="mb-3 font-weight-bold">On Desk</MudText>
                                 @foreach (var doc in deskDocs.Take(5))
