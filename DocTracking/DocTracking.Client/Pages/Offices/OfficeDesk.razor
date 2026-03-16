@@ -448,7 +448,7 @@
                 (isOfficeHead ? true : (myUnitId.HasValue ? (d.CurrentUnitId == null || d.CurrentUnitId == myUnitId) : d.CurrentUnitId == null))
             ).ToList();
 
-            outgoingDocs = await DocService.GetOutgoingAsync(userEmail);
+            outgoingDocs = await DocService.GetOutgoingAsync();
         }
         finally
         {
