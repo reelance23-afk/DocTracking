@@ -119,22 +119,18 @@
                             }
                         </MudSelect>
                     }
-                    <MudGrid>
-                        <MudItem xs="6">
-                            <MudButton Color="Color.Primary" Variant="Variant.Filled" FullWidth="true"
-                                       Disabled="@(selectedOfficeId == null || busy)"
-                                       StartIcon="@Icons.Material.Filled.Send" OnClick="ForwardAsync">
-                                Forward
-                            </MudButton>
-                        </MudItem>
-                        <MudItem xs="6">
-                            <MudButton Color="Color.Success" Variant="Variant.Filled" FullWidth="true"
-                                       Disabled="@(selectedOfficeId != null || busy)"
-                                       StartIcon="@Icons.Material.Filled.Done" OnClick="FinishAsync">
-                                Finish
-                            </MudButton>
-                        </MudItem>
-                    </MudGrid>
+                    <div class="d-flex gap-2">
+                        <MudButton Color="Color.Primary" Variant="Variant.Filled" FullWidth="true"
+                                   Disabled="@(selectedOfficeId == null || busy)"
+                                   StartIcon="@Icons.Material.Filled.Send" OnClick="ForwardAsync">
+                            Forward
+                        </MudButton>
+                        <MudButton Color="Color.Success" Variant="Variant.Filled" FullWidth="true"
+                                   Disabled="@(selectedOfficeId != null || busy)"
+                                   StartIcon="@Icons.Material.Filled.Done" OnClick="FinishAsync">
+                            Finish
+                        </MudButton>
+                    </div>
                 </MudItem>
             }
         </MudGrid>
@@ -169,11 +165,11 @@
     private async Task ReceiveAsync()
     {
         var parameters = new DialogParameters
-    {
-        { "Message", "Accept this document onto your desk?" },
-        { "YesText", "Receive" },
-        { "CancelText", "Cancel" }
-    };
+        {
+            { "Message", "Accept this document onto your desk?" },
+            { "YesText", "Receive" },
+            { "CancelText", "Cancel" }
+        };
         var dialog = await DialogService.ShowAsync<MudMessageBox>("Confirm Receive", parameters);
         var result = await dialog.Result;
         if (result.Canceled) return;
@@ -195,11 +191,11 @@
         }
         var dest = AllOffices.FirstOrDefault(o => o.Id == selectedOfficeId)?.Name;
         var parameters = new DialogParameters
-    {
-        { "Message", $"Forward this document to {dest}?" },
-        { "YesText", "Forward" },
-        { "CancelText", "Cancel" }
-    };
+        {
+            { "Message", $"Forward this document to {dest}?" },
+            { "YesText", "Forward" },
+            { "CancelText", "Cancel" }
+        };
         var dialog = await DialogService.ShowAsync<MudMessageBox>("Confirm Forward", parameters);
         var result = await dialog.Result;
         if (result.Canceled) return;
@@ -213,11 +209,11 @@
     private async Task FinishAsync()
     {
         var parameters = new DialogParameters
-    {
-        { "Message", "Mark this document as completed? This cannot be undone." },
-        { "YesText", "Finish" },
-        { "CancelText", "Cancel" }
-    };
+        {
+            { "Message", "Mark this document as completed? This cannot be undone." },
+            { "YesText", "Finish" },
+            { "CancelText", "Cancel" }
+        };
         var options = new DialogOptions { MaxWidth = MaxWidth.ExtraSmall };
         var dialog = await DialogService.ShowAsync<MudMessageBox>("Confirm Finish", parameters, options);
         var result = await dialog.Result;
