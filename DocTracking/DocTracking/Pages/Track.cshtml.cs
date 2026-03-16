@@ -53,30 +53,8 @@ namespace DocTracking.Components.Pages
                                          Doc.NextOfficeId == myOfficeId &&
                                          (isOfficeHead || !Doc.NextUnitId.HasValue || Doc.NextUnitId == myUnitId);
 
-                    if (isIncomingToMe && !isOfficeHead)
-                    {
-                        var appUser = await _db.AppUsers.FirstOrDefaultAsync(u => u.Email == email);
-
-                        Doc.Status = "Received";
-                        Doc.LastActionDate = DateTime.UtcNow;
-                        Doc.CurrentOfficeId = Doc.NextOfficeId;
-                        Doc.CurrentUnitId = Doc.NextUnitId;
-                        Doc.NextOfficeId = null;
-                        Doc.NextUnitId = null;
-
-                        _db.DocumentLogs.Add(new DocumentLog
-                        {
-                            DocumentId = Doc.Id,
-                            Action = "Received",
-                            OfficeId = Doc.CurrentOfficeId,
-                            UnitId = Doc.CurrentUnitId,
-                            AppUserId = appUser?.Id,
-                            TimeStamp = DateTime.UtcNow
-                        });
-                        await _db.SaveChangesAsync();
-
-                        return Redirect($"/office-desk?ref={referenceNumber}&tab=OnDesk");
-                    }
+                    if (isIncomingToMe)
+                        return Redirect($"/office-desk?ref={referenceNumber}&tab=Incoming");
 
                     if (Doc.Creator?.Email == email)
                         return Redirect($"/my-tracking?ref={referenceNumber}");
@@ -92,10 +70,7 @@ namespace DocTracking.Components.Pages
                         return Redirect($"/office-desk?ref={referenceNumber}&tab={(isOnDesk ? "OnDesk" : "Outgoing")}");
                     else if (!isRecipient && logs2.Any(l => l.OfficeId == myOfficeId))
                         return Redirect($"/unit-history?ref={referenceNumber}");
-
-
                 }
-
 
                 if (Doc.Creator?.Email == email)
                     return Redirect($"/my-tracking?ref={referenceNumber}");
