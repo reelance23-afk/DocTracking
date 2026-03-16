@@ -13,10 +13,10 @@
     .ticket-card:hover {
         border-color: #fecdd3 !important;
         box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-    }
+    }                                                                                        
 </style>
 
-<div class="pa-6 pa-md-8 mx-auto" style="max-width: 1400px;">
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
 
     @* Hero Title & Actions *@
     <div class="d-flex flex-wrap align-end justify-space-between gap-4 mb-8">
@@ -234,7 +234,7 @@
 
         </MudGrid>
     }
-</div>
+</MudContainer>
 
 @code {
     private List<Document> allDocuments = new();

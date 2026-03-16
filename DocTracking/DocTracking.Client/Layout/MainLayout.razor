@@ -75,17 +75,6 @@
                        OnClick="@(() => _drawerOpen = !_drawerOpen)"
                        Class="mr-2" />
 
-        <MudTextField @bind-Value="_searchTerm"
-                      Placeholder="Search documents, users, or offices..."
-                      Adornment="Adornment.Start"
-                      AdornmentIcon="@Icons.Material.Filled.Search"
-                      IconSize="Size.Small"
-                      Variant="Variant.Filled"
-                      Margin="Margin.Dense"
-                      DisableUnderLine="true"
-                      Style="max-width:400px; border-radius:8px;"
-                      Class="d-none d-sm-flex" />
-
         <MudSpacer />
 
         <AuthorizeView>
