@@ -40,8 +40,9 @@ namespace DocTracking.Client.Services
             return await GetJsonAsync<List<Document>>(url) ?? new();
         }
 
-        public async Task<List<Document>> GetOutgoingAsync(string email) =>
-            await GetJsonAsync<List<Document>>($"api/documents/outgoing/user/{email}") ?? new();
+        public async Task<List<Document>> GetOutgoingAsync() =>
+            await GetJsonAsync<List<Document>>("api/documents/outgoing/user") ?? new();
+
 
         public async Task<List<DocumentLog>> GetDocumentLogsAsync(int id) =>
             await GetJsonAsync<List<DocumentLog>>($"api/documentlogs/{id}") ?? new();

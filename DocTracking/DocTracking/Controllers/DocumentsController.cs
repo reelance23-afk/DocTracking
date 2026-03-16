@@ -397,9 +397,10 @@ namespace DocTracking.Controllers
             return Ok();
         }
 
-        [HttpGet("outgoing/user/{email}")]
-        public async Task<ActionResult<IEnumerable<Document>>> GetOutGoing(string email)
+        [HttpGet("outgoing/user")]
+        public async Task<ActionResult<IEnumerable<Document>>> GetOutGoing()
         {
+            var email = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email);
             var appUser = await _context.AppUsers.Include(u => u.Unit).FirstOrDefaultAsync(u => u.Email == email);
             if (appUser == null) return NotFound();
 
@@ -438,6 +439,7 @@ namespace DocTracking.Controllers
 
             return await query.OrderByDescending(d => d.LastActionDate ?? d.CreatedAt).ToListAsync();
         }
+
 
         [HttpGet("history/unit/{unitId}")]
         public async Task<ActionResult<IEnumerable<Document>>> GetUnitHistory(int unitId)

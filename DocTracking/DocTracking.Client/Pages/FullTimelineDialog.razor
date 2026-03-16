@@ -35,64 +35,69 @@
         {
             <MudPaper Elevation="3" Class="pa-4 rounded-xl">
                 <MudHidden Breakpoint="Breakpoint.MdAndUp">
-                    @for (int i = 0; i < logs.Count; i++)
-                    {
-                        var log = logs[i];
-                        bool isCurrent = (i == 0);
-                        bool isCompleted = log.Action == "Completed";
-                        <MudCard Elevation="@(isCurrent ? 4 : 1)" Class="@($"mb-3 {(isCurrent ? "border-solid border-l-4 mud-border-primary" : "")}")">
-                            <MudCardHeader Class="pb-1">
-                                <CardHeaderContent>
-                                    <div class="d-flex justify-space-between align-center">
-                                        <div class="d-flex align-center gap-2">
-                                            <MudIcon Icon="@GetIconForAction(log.Action)" Color="@GetActionColor(log.Action)" Size="Size.Small" />
-                                            <MudText Typo="Typo.subtitle1" Class="font-weight-bold">@log.Action</MudText>
-                                            @if (isCurrent && !isCompleted)
+                    <MudTimeline TimelinePosition="TimelinePosition.Start" Class="w-100">
+                        @for (int i = 0; i < logs.Count; i++)
+                        {
+                            var log = logs[i];
+                            bool isCurrent = (i == 0);
+                            bool isCompleted = log.Action == "Completed";
+                            <MudTimelineItem Color="@GetTimelineColor(log.Action, isCurrent)" Size="Size.Small">
+                                <ItemContent>
+                                    <MudCard Elevation="@(isCurrent ? 4 : 1)" Class="@($"mb-3 {(isCurrent ? "border-solid border-l-4 mud-border-primary" : "")}")">
+                                        <MudCardContent Class="pa-3">
+                                            <div class="d-flex align-center gap-2 mb-1">
+                                                <MudIcon Icon="@GetIconForAction(log.Action)" Color="@GetActionColor(log.Action)" Size="Size.Small" />
+                                                <MudText Typo="Typo.subtitle1" Class="font-weight-bold">@log.Action</MudText>
+                                                @if (isCurrent && !isCompleted)
+                                                {
+                                                    <MudChip T="string" Color="Color.Primary" Size="Size.Small" Variant="Variant.Filled">CURRENT</MudChip>
+                                                }
+                                            </div>
+                                            <MudText Typo="Typo.caption" Class="mud-text-secondary mb-1">
+                                                @log.TimeStamp.ToLocalTime().ToString("MMM dd • hh:mm tt")
+                                            </MudText>
+                                            <MudText Typo="Typo.body2" Class="mb-1">
+                                                <MudIcon Icon="@Icons.Material.Filled.AccountCircle" Size="Size.Small" Class="mr-1 mud-text-secondary" />
+                                                <span class="mud-text-secondary">By:</span> <strong>@(log.AppUser?.Name ?? log.UserName ?? "System")</strong>
+                                            </MudText>
+                                            @if (log.Office != null || !string.IsNullOrEmpty(log.OfficeName))
                                             {
-                                                <MudChip T="string" Color="Color.Primary" Size="Size.Small" Variant="Variant.Filled">CURRENT</MudChip>
+                                                <div class="d-flex align-center">
+                                                    <MudIcon Icon="@GetLocationIcon(log.Action)" Size="Size.Small" Color="@GetLocationColor(log.Action)" Class="mr-2" />
+                                                    <div>
+                                                        <MudText Typo="Typo.body2">
+                                                            <span class="mud-text-secondary">@GetLocationLabel(log.Action):</span>
+                                                            <strong>@(log.Office?.Name ?? log.OfficeName)</strong>
+                                                            @if (log.Office == null && !string.IsNullOrEmpty(log.OfficeName))
+                                                            {
+                                                                <span class="mud-text-secondary" style="font-style: italic;"> (deleted)</span>
+                                                            }
+                                                        </MudText>
+                                                        @if (log.Unit != null || !string.IsNullOrEmpty(log.UnitName))
+                                                        {
+                                                            <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                                                                ↳ @(log.Unit?.Name ?? log.UnitName)
+                                                                @if (log.Unit == null && !string.IsNullOrEmpty(log.UnitName))
+                                                                {
+                                                                    <span style="font-style: italic;"> (deleted)</span>
+                                                                }
+                                                            </MudText>
+                                                        }
+                                                    </div>
+                                                </div>
                                             }
-                                        </div>
-                                        <MudText Typo="Typo.caption" Class="mud-text-secondary">
-                                            @log.TimeStamp.ToLocalTime().ToString("MMM dd • hh:mm tt")
-                                        </MudText>
-                                    </div>
-                                </CardHeaderContent>
-                            </MudCardHeader>
-                            <MudCardContent Class="pt-0">
-                                <MudText Typo="Typo.body2" Class="mb-1">
-                                    <MudIcon Icon="@Icons.Material.Filled.AccountCircle" Size="Size.Small" Class="mr-1 mud-text-secondary" />
-                                    <span class="mud-text-secondary">By:</span> <strong>@(log.AppUser?.Name ?? log.UserName ?? "System")</strong>
-                                </MudText>
-                                @if (log.Office != null || !string.IsNullOrEmpty(log.OfficeName))
-                                {
-                                    <MudText Typo="Typo.body2">
-                                        <MudIcon Icon="@GetLocationIcon(log.Action)" Size="Size.Small" Color="@GetLocationColor(log.Action)" Class="mr-1" />
-                                        <span class="mud-text-secondary">@GetLocationLabel(log.Action):</span>
-                                        <strong>@(log.Office?.Name ?? log.OfficeName)</strong>
-                                        @if (log.Office == null && !string.IsNullOrEmpty(log.OfficeName))
-                                        {
-                                            <span class="mud-text-secondary" style="font-style: italic;"> (deleted)</span>
-                                        }
-                                    </MudText>
-                                    @if (log.Unit != null || !string.IsNullOrEmpty(log.UnitName))
-                                    {
-                                        <MudText Typo="Typo.caption" Class="mud-text-secondary ml-5">
-                                            ↳ @(log.Unit?.Name ?? log.UnitName)
-                                            @if (log.Unit == null && !string.IsNullOrEmpty(log.UnitName))
+                                            @if (isCompleted)
                                             {
-                                                <span style="font-style: italic;"> (deleted)</span>
+                                                <MudText Typo="Typo.body2" Color="Color.Success" Class="font-weight-medium mt-1">Document processing completed successfully</MudText>
                                             }
-                                        </MudText>
-                                    }
-                                }
-                                @if (isCompleted)
-                                {
-                                    <MudText Typo="Typo.body2" Color="Color.Success" Class="font-weight-medium mt-1">Document processing completed successfully</MudText>
-                                }
-                            </MudCardContent>
-                        </MudCard>
-                    }
+                                        </MudCardContent>
+                                    </MudCard>
+                                </ItemContent>
+                            </MudTimelineItem>
+                        }
+                    </MudTimeline>
                 </MudHidden>
+
 
                 @* Desktop *@
                 <MudHidden Breakpoint="Breakpoint.SmAndDown">
