@@ -147,7 +147,9 @@
                                                Label="Specific Unit"
                                                Variant="Variant.Outlined"
                                                Required="true"
-                                               RequiredError="Destination Unit required">
+                                               RequiredError="Destination Unit required"
+                                               ToStringFunc="@(id => GetUnitsForOffice(newDocument.NextOfficeId!.Value).FirstOrDefault(u => u.Id == id)?.Name ?? string.Empty)">
+                                        
                                         @foreach (var unit in GetUnitsForOffice(newDocument.NextOfficeId.Value))
                                         {
                                             <MudSelectItem T="int?" Value="@((int?)unit.Id)">
