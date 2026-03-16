@@ -104,3 +104,179 @@
         margin-top: 48px !important;
     }
 }
+
+/* Mobile-specific styles for DocTracking */
+
+/* Touch-friendly button sizing */
+@media (max-width: 768px) {
+    .mud-button {
+        min-height: 44px;
+        min-width: 44px;
+    }
+
+    .mud-icon-button {
+        min-height: 44px;
+        min-width: 44px;
+    }
+
+    .mobile-spacing {
+        padding: 8px !important;
+    }
+
+    .mud-typography-h4 {
+        font-size: 1.5rem !important;
+    }
+
+    .mud-typography-h5 {
+        font-size: 1.25rem !important;
+    }
+
+    .mud-card {
+        margin-bottom: 12px;
+    }
+
+    .mud-table-container {
+        overflow-x: auto;
+    }
+
+    .mud-input-control {
+        margin-bottom: 16px;
+    }
+
+    .mud-timeline {
+        padding-left: 0 !important;
+    }
+
+    .mud-timeline-item {
+        padding-left: 24px !important;
+    }
+
+    .mud-drawer-temporary {
+        z-index: 1300;
+    }
+
+    .mud-dialog {
+        margin: 16px;
+        max-height: calc(100vh - 32px);
+    }
+
+    .mud-tabs .mud-tab {
+        min-width: auto;
+        padding: 8px 12px;
+    }
+
+    .mud-container {
+        padding-left: 16px !important;
+        padding-right: 16px !important;
+    }
+}
+
+/* Extra small devices (480px and below) */
+@media (max-width: 480px) {
+    .mud-typography-h4 {
+        font-size: 1.25rem !important;
+    }
+
+    .mud-container {
+        padding-left: 8px !important;
+        padding-right: 8px !important;
+    }
+
+    .mud-card-content {
+        padding: 12px !important;
+    }
+
+    .mud-card-actions {
+        padding: 12px !important;
+    }
+}
+
+/* Very small phones (425px and below) */
+@media (max-width: 425px) {
+    .mud-typography-h4 {
+        font-size: 1.1rem !important;
+    }
+
+    .mud-typography-h5 {
+        font-size: 1rem !important;
+    }
+
+    .mud-typography-h6 {
+        font-size: 0.95rem !important;
+    }
+
+    .mud-typography-body1 {
+        font-size: 0.875rem !important;
+    }
+
+    .mud-container {
+        padding-left: 6px !important;
+        padding-right: 6px !important;
+    }
+
+    .mud-card-content {
+        padding: 10px !important;
+    }
+
+    .mud-card-actions {
+        padding: 8px 10px !important;
+    }
+
+    .mud-dialog {
+        margin: 8px !important;
+        max-height: calc(100vh - 16px);
+    }
+
+    .mud-dialog-content {
+        padding: 12px !important;
+    }
+
+    .mud-tabs .mud-tab {
+        padding: 6px 8px !important;
+        font-size: 0.75rem !important;
+    }
+
+    .mud-chip {
+        height: 22px !important;
+        font-size: 0.7rem !important;
+    }
+
+    .mud-timeline-item {
+        padding-left: 16px !important;
+    }
+
+    .mud-paper {
+        padding: 10px !important;
+    }
+
+    .mud-grid {
+        gap: 8px !important;
+    }
+
+    /* Stat cards — tighter on tiny screens */
+    .mud-typography-h3 {
+        font-size: 1.75rem !important;
+    }
+
+    /* Appbar icons closer together */
+    .mud-appbar .mud-icon-button {
+        padding: 4px !important;
+    }
+
+    /* Full-width buttons in actions */
+    .mud-card-actions .mud-button {
+        font-size: 0.8rem !important;
+        padding: 6px 10px !important;
+    }
+}
+
+/* Landscape mobile adjustments */
+@media (max-width: 768px) and (orientation: landscape) {
+    .mud-appbar {
+        height: 48px;
+    }
+
+    .mt-16 {
+        margin-top: 48px !important;
+    }
+}
