@@ -6,67 +6,58 @@
         min-height: 44px;
         min-width: 44px;
     }
-    
+
     .mud-icon-button {
         min-height: 44px;
         min-width: 44px;
     }
-    
+
     /* Mobile-friendly spacing */
     .mobile-spacing {
         padding: 8px !important;
     }
-    
+
     /* Responsive text sizing */
     .mud-typography-h4 {
         font-size: 1.5rem !important;
     }
-    
+
     .mud-typography-h5 {
         font-size: 1.25rem !important;
     }
-    
+
     /* Mobile card improvements */
     .mud-card {
         margin-bottom: 12px;
     }
-    
+
     /* Better mobile table handling */
     .mud-table-container {
         overflow-x: auto;
     }
-    
+
     /* Mobile-friendly form elements */
     .mud-input-control {
         margin-bottom: 16px;
     }
-    
-    /* Responsive timeline adjustments */
-    .mud-timeline {
-        padding-left: 0 !important;
-    }
-    
-    .mud-timeline-item {
-        padding-left: 24px !important;
-    }
-    
+
     /* Mobile navigation improvements */
     .mud-drawer-temporary {
         z-index: 1300;
     }
-    
+
     /* Better mobile dialog sizing */
     .mud-dialog {
         margin: 16px;
         max-height: calc(100vh - 32px);
     }
-    
+
     /* Mobile-friendly tabs */
     .mud-tabs .mud-tab {
         min-width: auto;
         padding: 8px 12px;
     }
-    
+
     /* Responsive container padding */
     .mud-container {
         padding-left: 16px !important;
@@ -75,103 +66,6 @@
 }
 
 /* Extra small devices */
-@media (max-width: 480px) {
-    .mud-typography-h4 {
-        font-size: 1.25rem !important;
-    }
-    
-    .mud-container {
-        padding-left: 8px !important;
-        padding-right: 8px !important;
-    }
-    
-    .mud-card-content {
-        padding: 12px !important;
-    }
-    
-    .mud-card-actions {
-        padding: 12px !important;
-    }
-}
-
-/* Landscape mobile adjustments */
-@media (max-width: 768px) and (orientation: landscape) {
-    .mud-appbar {
-        height: 48px;
-    }
-    
-    .mt-16 {
-        margin-top: 48px !important;
-    }
-}
-
-/* Mobile-specific styles for DocTracking */
-
-/* Touch-friendly button sizing */
-@media (max-width: 768px) {
-    .mud-button {
-        min-height: 44px;
-        min-width: 44px;
-    }
-
-    .mud-icon-button {
-        min-height: 44px;
-        min-width: 44px;
-    }
-
-    .mobile-spacing {
-        padding: 8px !important;
-    }
-
-    .mud-typography-h4 {
-        font-size: 1.5rem !important;
-    }
-
-    .mud-typography-h5 {
-        font-size: 1.25rem !important;
-    }
-
-    .mud-card {
-        margin-bottom: 12px;
-    }
-
-    .mud-table-container {
-        overflow-x: auto;
-    }
-
-    .mud-input-control {
-        margin-bottom: 16px;
-    }
-
-    .mud-timeline {
-        padding-left: 0 !important;
-    }
-
-    .mud-timeline-item {
-        padding-left: 24px !important;
-    }
-
-    .mud-drawer-temporary {
-        z-index: 1300;
-    }
-
-    .mud-dialog {
-        margin: 16px;
-        max-height: calc(100vh - 32px);
-    }
-
-    .mud-tabs .mud-tab {
-        min-width: auto;
-        padding: 8px 12px;
-    }
-
-    .mud-container {
-        padding-left: 16px !important;
-        padding-right: 16px !important;
-    }
-}
-
-/* Extra small devices (480px and below) */
 @media (max-width: 480px) {
     .mud-typography-h4 {
         font-size: 1.25rem !important;
@@ -241,10 +135,6 @@
         font-size: 0.7rem !important;
     }
 
-    .mud-timeline-item {
-        padding-left: 16px !important;
-    }
-
     .mud-paper {
         padding: 10px !important;
     }
@@ -253,7 +143,7 @@
         gap: 8px !important;
     }
 
-    /* Stat cards � tighter on tiny screens */
+    /* Stat cards tighter on tiny screens */
     .mud-typography-h3 {
         font-size: 1.75rem !important;
     }
@@ -276,10 +166,10 @@
         padding: 8px 12px !important;
     }
 
-    .mud-dialog-actions .mud-button {
-        font-size: 0.8rem !important;
-        padding: 5px 10px !important;
-    }
+        .mud-dialog-actions .mud-button {
+            font-size: 0.8rem !important;
+            padding: 5px 10px !important;
+        }
 
     /* Dialog title — allow name to shrink, chip stays visible */
     .mud-dialog-title .mud-chip {
@@ -306,7 +196,7 @@
         gap: 4px;
     }
 
-    /* Timeline timestamp — keep compact, allow wrapping */
+    /* Timeline timestamp — keep compact */
     .mud-card .mud-typography-caption {
         font-size: 0.65rem !important;
         white-space: nowrap;
