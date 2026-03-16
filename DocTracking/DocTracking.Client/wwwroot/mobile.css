@@ -253,7 +253,7 @@
         gap: 8px !important;
     }
 
-    /* Stat cards � tighter on tiny screens */
+    /* Stat cards � tighter on tiny screens */
     .mud-typography-h3 {
         font-size: 1.75rem !important;
     }
@@ -267,6 +267,43 @@
     .mud-card-actions .mud-button {
         font-size: 0.8rem !important;
         padding: 6px 10px !important;
+    }
+
+    /* Dialog action rows — wrap so 3+ buttons don't overflow */
+    .mud-dialog-actions {
+        flex-wrap: wrap !important;
+        gap: 6px !important;
+        padding: 8px 12px !important;
+    }
+
+    .mud-dialog-actions .mud-button {
+        font-size: 0.8rem !important;
+        padding: 5px 10px !important;
+    }
+
+    /* Dialog title — allow name to shrink, chip stays visible */
+    .mud-dialog-title .mud-chip {
+        flex-shrink: 0;
+    }
+
+    .mud-dialog-title .mud-typography {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        min-width: 0;
+    }
+
+    /* QRScanDialog tab labels — allow wrapping so Upload Photo fits */
+    .mud-tabs .mud-tab-panel .mud-tab {
+        white-space: normal !important;
+        text-align: center !important;
+        line-height: 1.2 !important;
+    }
+
+    /* Timeline timestamp — prevent it from being pushed off on narrow rows */
+    .mud-card .mud-typography-caption {
+        white-space: nowrap;
+        font-size: 0.65rem !important;
     }
 }
 
