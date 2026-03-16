@@ -300,10 +300,42 @@
         line-height: 1.2 !important;
     }
 
-    /* Timeline timestamp — prevent it from being pushed off on narrow rows */
+    /* Timeline card header — action + timestamp row: wrap so timestamp drops below on tiny screens */
+    .mud-card-header .mud-card-header-content > div {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+
+    /* Timeline timestamp — keep compact, allow wrapping */
     .mud-card .mud-typography-caption {
-        white-space: nowrap;
         font-size: 0.65rem !important;
+        white-space: nowrap;
+    }
+
+    /* Dashboard Recent Activity timeline cards — truncate doc name, don't shrink chip */
+    .mud-timeline .mud-card .mud-typography-body2.font-weight-bold {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        min-width: 0;
+        flex: 1;
+    }
+
+    .mud-timeline .mud-card .mud-chip {
+        flex-shrink: 0;
+    }
+
+    /* Dashboard timeline second row (date + location) — wrap instead of overflow */
+    .mud-timeline .mud-card-content > div {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+
+    /* Kanban mini-cards — truncate doc name */
+    .mud-paper .mud-typography-body2.font-weight-bold {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 }
 
