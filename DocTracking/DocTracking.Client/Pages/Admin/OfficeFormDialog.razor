@@ -3,8 +3,9 @@
 <MudDialog>
     <DialogContent>
         <MudForm @bind-IsValid="isValid" @ref="form" Class="mt-2">
-            <MudTextField @bind-Value="OfficeName" Label="Office Name" Variant="Variant.Outlined"
-                          Required="true" RequiredError="Office name is required!" AutoFocus="true" />
+            <MudTextField @bind-Value="UnitName" Label="Unit Name" Variant="Variant.Outlined"
+                          Required="true" RequiredError="Unit name is required!"
+                          AutoFocus="true" Immediate="true" />
         </MudForm>
     </DialogContent>
     <DialogActions>
@@ -15,7 +16,7 @@
 
 @code {
     [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
-    [Parameter] public string OfficeName { get; set; } = "";
+    [Parameter] public string UnitName { get; set; } = "";
 
     private bool isValid;
     private MudForm? form;
@@ -23,6 +24,6 @@
     private async Task Submit()
     {
         await form!.ValidateAsync();
-        if (isValid) MudDialog.Close(DialogResult.Ok(OfficeName));
+        if (isValid) MudDialog.Close(DialogResult.Ok(UnitName));
     }
 }

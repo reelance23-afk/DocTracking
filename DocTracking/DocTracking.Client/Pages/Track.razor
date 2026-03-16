@@ -269,26 +269,17 @@
             {
                 var logs2 = await DocService.GetDocumentLogsAsync(doc.Id);
 
-                if (doc.Status == "In Motion" &&
-                    !isOfficeHead &&
-                    doc.NextOfficeId == myOfficeId)
+                // Document is incoming to this user's office/unit — redirect to Incoming tab
+                if (doc.Status == "In Motion" && doc.NextOfficeId == myOfficeId)
                 {
                     bool unitMatch = string.IsNullOrEmpty(unitIdClaim)
                         ? !doc.NextUnitId.HasValue
                         : !doc.NextUnitId.HasValue || doc.NextUnitId == myUnitId;
 
-                    if (unitMatch)
+                    if (unitMatch || isOfficeHead)
                     {
-                        var received = await DocService.ReceivedDocumentAsync(doc.Id);
-                        if (received)
-                        {
-                            doc = await DocService.GetDocumentByRefAsync(ReferenceNumber);
-                            if (doc == null) { isLoading = false; return; }
-                            bool isOnDesk = doc.CurrentOfficeId == myOfficeId &&
-                                            (isOfficeHead || !doc.CurrentUnitId.HasValue || doc.CurrentUnitId == myUnitId);
-                            Navigation.NavigateTo($"/office-desk?ref={ReferenceNumber}&tab={(isOnDesk ? "OnDesk" : "Outgoing")}");
-                            return;
-                        }
+                        Navigation.NavigateTo($"/office-desk?ref={ReferenceNumber}&tab=Incoming");
+                        return;
                     }
                 }
 
@@ -296,14 +287,14 @@
                 bool isRecipient = doc.NextOfficeId == myOfficeId &&
                                    (isOfficeHead || !doc.NextUnitId.HasValue || doc.NextUnitId == myUnitId);
                 bool isSender = lastForward?.OfficeId == myOfficeId;
-                bool isOnDesk2 = doc.CurrentOfficeId == myOfficeId &&
-                                 (isOfficeHead || !doc.CurrentUnitId.HasValue || doc.CurrentUnitId == myUnitId);
+                bool isOnDesk = doc.CurrentOfficeId == myOfficeId &&
+                                (isOfficeHead || !doc.CurrentUnitId.HasValue || doc.CurrentUnitId == myUnitId);
 
                 if (isRecipient) { isLoading = false; return; }
 
-                if (isSender || isOnDesk2)
+                if (isSender || isOnDesk)
                 {
-                    Navigation.NavigateTo($"/office-desk?ref={ReferenceNumber}&tab={(isOnDesk2 ? "OnDesk" : "Outgoing")}");
+                    Navigation.NavigateTo($"/office-desk?ref={ReferenceNumber}&tab={(isOnDesk ? "OnDesk" : "Outgoing")}");
                     return;
                 }
 
