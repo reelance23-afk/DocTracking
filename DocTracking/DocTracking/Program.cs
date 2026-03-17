@@ -23,18 +23,24 @@ var builder = WebApplication.CreateBuilder(args);
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
-if (string.IsNullOrEmpty(connectionString))
-{
-    var host = Environment.GetEnvironmentVariable("PGHOST");
-    var port = Environment.GetEnvironmentVariable("PGPORT") ?? "5432";
-    var db = Environment.GetEnvironmentVariable("PGDATABASE");
-    var user = Environment.GetEnvironmentVariable("PGUSER");
-    var password = Environment.GetEnvironmentVariable("PGPASSWORD");
-    connectionString = $"Host={host};Port={port};Database={db};Username={user};Password={password};SSL Mode=Require;Trust Server Certificate=true";
-}
-
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseNpgsql(connectionString));
+{
+    if (builder.Environment.IsDevelopment())
+    {
+        options.UseSqlServer(connectionString);
+    }
+    else
+    {
+        var pgHost = Environment.GetEnvironmentVariable("PGHOST");
+        var pgPort = Environment.GetEnvironmentVariable("PGPORT") ?? "5432";
+        var pgDb = Environment.GetEnvironmentVariable("PGDATABASE");
+        var pgUser = Environment.GetEnvironmentVariable("PGUSER");
+        var pgPass = Environment.GetEnvironmentVariable("PGPASSWORD");
+        var pgConn = $"Host={pgHost};Port={pgPort};Database={pgDb};Username={pgUser};Password={pgPass};";
+        options.UseNpgsql(pgConn);
+    }
+});
+
 builder.Services.AddHttpClient();
 builder.Services.Configure<OpenIdConnectOptions>(OpenIdConnectDefaults.AuthenticationScheme, options =>
 {
@@ -142,14 +148,19 @@ app.UseAntiforgery();
 app.MapStaticAssets();
 app.Use(async (context, next) =>
 {
-    await next();
-    if (context.Response.ContentType?.Contains("text/html") == true)
+    context.Response.OnStarting(() =>
     {
-        context.Response.Headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
-        context.Response.Headers["Pragma"] = "no-cache";
-        context.Response.Headers["Expires"] = "0";
-    }
+        if (context.Response.ContentType?.Contains("text/html") == true)
+        {
+            context.Response.Headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
+            context.Response.Headers["Pragma"] = "no-cache";
+            context.Response.Headers["Expires"] = "0";
+        }
+        return Task.CompletedTask;
+    });
+    await next();
 });
+
 app.MapRazorPages();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()

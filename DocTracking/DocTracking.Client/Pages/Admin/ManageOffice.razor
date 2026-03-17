@@ -34,7 +34,6 @@
             <MudText Typo="Typo.h4" Class="font-weight-bold">Office Management</MudText>
             <MudText Typo="Typo.body2" Class="mud-text-secondary">Manage offices and their respective units.</MudText>
         </div>
-        <!-- Desktop Add Button -->
         <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
                    OnClick="OpenAddOfficeDialog" Class="d-none d-md-flex">
             Add Office
@@ -100,7 +99,6 @@
 
                             @if (office.Units != null && office.Units.Any())
                             {
-                                <!-- Desktop Table -->
                                 <MudTable Items="office.Units" Hover="true" Dense="true" Elevation="0"
                                           Class="rounded-lg overflow-hidden desktop-table" T="Unit">
                                     <HeaderContent>
@@ -148,7 +146,6 @@
                                     </RowTemplate>
                                 </MudTable>
 
-                                <!-- Mobile Cards -->
                                 <div class="mobile-units">
                                     @foreach (var unit in office.Units)
                                     {
@@ -213,7 +210,6 @@
 
 </MudContainer>
 
-<!-- Mobile FAB - Shows only on small screens -->
 <MudFab Color="Color.Primary" 
        StartIcon="@Icons.Material.Filled.Add" 
        OnClick="OpenAddOfficeDialog"

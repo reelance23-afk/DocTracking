@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Hosting.Server;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 
 namespace DocTracking.Data
@@ -8,7 +9,7 @@ namespace DocTracking.Data
         public ApplicationDbContext CreateDbContext(string[] args)
         {
             var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-                .UseNpgsql("Host=localhost;Database=dummy;Username=dummy;Password=dummy")
+                .UseNpgsql("Host=crossover.proxy.rlwy.net;Port=56546;Database=railway;Username=postgres;Password=ntQqnqwFwyYzhOGpdoIUmYfKkAUntPfn;")
                 .Options;
             return new ApplicationDbContext(options);
         }
