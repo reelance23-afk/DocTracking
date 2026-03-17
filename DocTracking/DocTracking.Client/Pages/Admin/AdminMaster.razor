@@ -65,9 +65,11 @@
             </div>
         </MudPaper>
 
-        <MudGrid Spacing="4">
-            <MudItem xs="12" md="8" Style="display:flex; flex-direction:column;">
-                <div class="d-flex flex-column gap-6" style="height:100%;">
+        <MudGrid Spacing="4" Style="align-items: stretch;">
+
+            <MudItem xs="12" md="8" Style="display: flex; flex-direction: column;">
+                <div class="d-flex flex-column gap-6" style="flex: 1;">
+
                     <div>
                         <div class="d-flex align-center justify-space-between mb-4">
                             <MudText Typo="Typo.h6" Class="font-weight-bold d-flex align-center gap-2">
@@ -75,7 +77,6 @@
                                 Priority Documents
                             </MudText>
                         </div>
-
                         <MudGrid Spacing="3">
                             @if (!priorityDocs.Any())
                             {
@@ -157,10 +158,9 @@
                 </div>
             </MudItem>
 
-            <MudItem xs="12" md="4">
+            <MudItem xs="12" md="4" Style="display: flex; flex-direction: column;">
                 <MudPaper Elevation="4" Class="rounded-xl d-flex flex-column overflow-hidden"
-                          Style="height: 600px; border: 1px solid #1e293b; background-color: #0f172a;">
-
+                          Style="flex: 1; min-height: 500px; border: 1px solid #1e293b; background-color: #0f172a;">
                     <div class="pa-5 d-flex align-center justify-space-between"
                          style="border-bottom: 1px solid #1e293b; background-color: rgba(15,23,42,0.95);">
                         <MudText Typo="Typo.subtitle1" Class="font-weight-bold d-flex align-center gap-2" Style="color:white;">
@@ -214,6 +214,7 @@
             </MudItem>
 
         </MudGrid>
+
     }
 </MudContainer>
 
