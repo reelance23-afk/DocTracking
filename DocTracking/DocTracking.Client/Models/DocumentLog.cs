@@ -34,5 +34,7 @@ namespace DocTracking.Client.Models
         public string? UnitName { get; set; } 
         public string? OfficeName { get; set; }
         public string? UserName { get; set; }
+
+        public string? Comment { get; set; }
     }
 }

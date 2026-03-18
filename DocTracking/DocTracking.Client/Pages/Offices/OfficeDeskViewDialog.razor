@@ -87,6 +87,15 @@
 
             @if (Tab == DeskTab.Incoming)
             {
+                @if (!string.IsNullOrEmpty(Doc.Comment))
+                {
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Comment from Forwarding Office</MudText>
+                        <MudPaper Elevation="0" Class="pa-3 mt-1 rounded" Style="background: rgba(var(--mud-palette-info-rgb), 0.08); border-left: 3px solid var(--mud-palette-info);">
+                            <MudText Typo="Typo.body2">@Doc.Comment</MudText>
+                        </MudPaper>
+                    </MudItem>
+                }
                 <MudItem xs="12">
                     <MudDivider Class="my-2" />
                     <MudButton Color="Color.Success" Variant="Variant.Filled" FullWidth="true"
@@ -100,13 +109,18 @@
             {
                 <MudItem xs="12">
                     <MudDivider Class="my-2" />
+                    <MudTextField @bind-Value="comment" Label="Comment (optional)" Variant="Variant.Outlined"
+                                  Lines="2" Placeholder="Add a note before forwarding or finishing..."
+                                  Class="mb-3" />
                     <MudText Typo="Typo.subtitle2" Class="mb-2 font-weight-bold">Route To</MudText>
                     <MudSelect T="int?" Value="selectedOfficeId" ValueChanged="OnOfficeSelected"
                                Variant="Variant.Outlined" Label="Select Office" Class="mb-3" FullWidth="true">
                         <MudSelectItem T="int?" Value="@((int?)null)">None</MudSelectItem>
                         @foreach (var off in AllOffices.Where(o => o.Id != Doc.CurrentOfficeId))
                         {
-                            <MudSelectItem T="int?" Value="@((int?)off.Id)">@off.Name</MudSelectItem>
+                            <MudSelectItem T="int?" Value="@((int?)off.Id)">
+                                @off.Name@(string.IsNullOrEmpty(off.ReceivingSchedule) ? "" : $" ({off.ReceivingSchedule})")
+                            </MudSelectItem>
                         }
                     </MudSelect>
                     @if (selectedOfficeId.HasValue && availableUnits.Any())
@@ -150,6 +164,7 @@
 
     private int? selectedOfficeId;
     private int? selectedUnitId;
+    private string? comment;
     private bool busy;
 
     private IEnumerable<Unit> availableUnits => selectedOfficeId.HasValue
@@ -184,7 +199,7 @@
     private async Task ForwardAsync()
     {
         if (!selectedOfficeId.HasValue) return;
-        if (Doc.CurrentOfficeId == selectedOfficeId && Doc.CurrentUnitId == selectedUnitId)
+        if (Doc.CurrentOfficeId == selectedOfficeId)
         {
             Snackbar.Add("Cannot forward to the same office and unit", Severity.Warning);
             return;
@@ -200,7 +215,7 @@
         var result = await dialog.Result;
         if (result.Canceled) return;
         busy = true;
-        await DocService.ForwardDocumentAsync(Doc.Id, selectedOfficeId.Value, selectedUnitId);
+        await DocService.ForwardDocumentAsync(Doc.Id, selectedOfficeId.Value, selectedUnitId, comment);
         busy = false;
         Snackbar.Add("Document forwarded successfully!", Severity.Success);
         MudDialog.Close(DialogResult.Ok(true));
@@ -219,7 +234,7 @@
         var result = await dialog.Result;
         if (result.Canceled) return;
         busy = true;
-        await DocService.FinishDocumentAsync(Doc.Id);
+        await DocService.FinishDocumentAsync(Doc.Id, comment);
         busy = false;
         Snackbar.Add("Document marked as completed!", Severity.Success);
         MudDialog.Close(DialogResult.Ok(true));

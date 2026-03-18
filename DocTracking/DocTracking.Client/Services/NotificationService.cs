@@ -49,6 +49,14 @@ namespace DocTracking.Client.Services
                     if (additionalGroups != null)
                         foreach (var g in additionalGroups)
                             await _hub.InvokeAsync("JoinGroup", g);
+
+                    var history = await _http.GetFromJsonAsync<List<AppNotification>>("api/notifications");
+                    if (history != null)
+                    {
+                        Notifications.Clear();
+                        Notifications.AddRange(history);
+                    }
+                    OnChange?.Invoke();
                 };
             }
 
@@ -63,17 +71,18 @@ namespace DocTracking.Client.Services
 
             if (!_historyLoaded)
             {
-                var history = await _http.GetFromJsonAsync<List<AppNotification>>("api/notifications");
-                if (history != null)
+                var fresh = await _http.GetFromJsonAsync<List<AppNotification>>("api/notifications");
+                if (fresh != null)
                 {
                     Notifications.Clear();
-                    Notifications.AddRange(history);
+                    Notifications.AddRange(fresh);
                 }
                 _historyLoaded = true;
+                OnChange?.Invoke();
             }
-
-            OnChange?.Invoke();
         }
+
+
 
         public async Task MarkAllReadAsync()
         {

@@ -54,9 +54,18 @@ namespace DocTracking.Controllers
             await _context.SaveChangesAsync();
         }
 
+        private async Task TryNotify(string group, string message, string docName)
+        {
+            try { await Notify(group, message, docName); }
+            catch (Exception ex) { Console.WriteLine($"[Notify] Failed for group {group}: {ex.Message}"); }
+        }
+
         [HttpPost]
         public async Task<ActionResult<Document>> CreateDocument([FromBody] Document doc)
         {
+            if (!await _context.Offices.AnyAsync(o => o.Id == doc.NextOfficeId))
+                return BadRequest("Destination office does not exist.");
+
             var email = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email);
             var appuser = await _context.AppUsers.FirstOrDefaultAsync(u => u.Email == email);
 
@@ -71,7 +80,7 @@ namespace DocTracking.Controllers
             _context.Documents.Add(doc);
             await _context.SaveChangesAsync();
 
-            var docLogs = (new DocumentLog
+            _context.DocumentLogs.Add(new DocumentLog
             {
                 DocumentId = doc.Id,
                 Action = "Created",
@@ -80,35 +89,35 @@ namespace DocTracking.Controllers
                 OfficeId = doc.NextOfficeId,
                 AppUserId = appuser?.Id
             });
-
-            _context.DocumentLogs.Add(docLogs);
             await _context.SaveChangesAsync();
 
             var creatorName = appuser?.Name ?? "Someone";
 
             if (appuser != null)
-                await Notify($"user-{appuser.Id}", "You created a new document.", doc.Name ?? "");
+                await TryNotify($"user-{appuser.Id}", "You created a new document.", doc.Name ?? "");
 
             if (doc.NextUnitId.HasValue)
             {
-                await Notify($"unit-{doc.NextUnitId}", $"A document from {creatorName} is incoming to your unit", doc.Name ?? "");
-                await Notify($"office-head-{doc.NextOfficeId}", $"A document from {creatorName} incoming to one of your units", doc.Name ?? "");
-                   
+                await TryNotify($"unit-{doc.NextUnitId}", $"A document from {creatorName} is incoming to your unit", doc.Name ?? "");
+                await TryNotify($"office-head-{doc.NextOfficeId}", $"A document from {creatorName} incoming to one of your units", doc.Name ?? "");
             }
             else if (doc.NextOfficeId.HasValue)
             {
-                await Notify($"office-{doc.NextOfficeId}", $"A document from {creatorName} incoming to your office", doc.Name ?? "");
-                await Notify($"office-head-{doc.NextOfficeId}", $"A document from {creatorName} incoming to your office", doc.Name ?? "");
+                await TryNotify($"office-{doc.NextOfficeId}", $"A document from {creatorName} incoming to your office", doc.Name ?? "");
+                await TryNotify($"office-head-{doc.NextOfficeId}", $"A document from {creatorName} incoming to your office", doc.Name ?? "");
             }
 
-
-                return Ok(doc);
+            return Ok(doc);
         }
 
         [HttpPost("upload")]
         public async Task<IActionResult> UploadFile(IFormFile file)
         {
             if (file == null) return BadRequest("No File Uploaded");
+            var allowedExtensions = new[] { ".pdf", ".doc", ".docx", ".jpg", ".png" };
+            var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+            if (!allowedExtensions.Contains(ext)) return BadRequest("File type not allowed.");
+            if (file.Length > 10 * 1024 * 1024) return BadRequest("File exceeds 10MB limit.");
 
             var uploadsFolder = Path.Combine(_env.WebRootPath, "uploads");
             if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
@@ -120,9 +129,12 @@ namespace DocTracking.Controllers
         }
 
         [HttpDelete("upload")]
-        public async Task<IActionResult> DeleteUpload([FromQuery] string path)
+        public IActionResult DeleteUpload([FromQuery] string path)
         {
-            var fullPath = Path.Combine(_env.WebRootPath, path.TrimStart('/'));
+            var uploadsFolder = Path.GetFullPath(Path.Combine(_env.WebRootPath, "uploads"));
+            var fullPath = Path.GetFullPath(Path.Combine(_env.WebRootPath, path.TrimStart('/')));
+            if (!fullPath.StartsWith(uploadsFolder + Path.DirectorySeparatorChar))
+                return BadRequest("Invalid path.");
             if (System.IO.File.Exists(fullPath))
                 System.IO.File.Delete(fullPath);
             return Ok();
@@ -189,6 +201,23 @@ namespace DocTracking.Controllers
             return await query.ToListAsync();
         }
 
+        [HttpGet("desk/{officeId}")]
+        public async Task<ActionResult<IEnumerable<Document>>> GetDeskDocuments(int officeId, [FromQuery] int? unitId = null)
+        {
+            var query = _context.Documents
+                .Include(d => d.Creator)
+                .Include(d => d.CurrentOffice)
+                .Include(d => d.CurrentUnit)
+                .Where(d => d.CurrentOfficeId == officeId && d.Status == "Received");
+
+            if (unitId.HasValue)
+                query = query.Where(d => d.CurrentUnitId == null || d.CurrentUnitId == unitId);
+            else
+                query = query.Where(d => d.CurrentUnitId == null);
+
+            return await query.ToListAsync();
+        }
+
         [HttpPut("{id}/receive")]
         public async Task<IActionResult> ReceiveDocument(int id)
         {
@@ -203,7 +232,10 @@ namespace DocTracking.Controllers
             if (doc.Status != "In Motion") return Conflict("Document has already been Received");
 
             var email = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email);
-            var appUser = await _context.AppUsers.FirstOrDefaultAsync(u => u.Email == email);
+            var appUser = await _context.AppUsers.Include(u => u.Unit).FirstOrDefaultAsync(u => u.Email == email);
+            int? callerOfficeId = appUser?.Unit?.OfficeId ?? appUser?.OfficeId;
+            if (callerOfficeId != doc.NextOfficeId)
+                return Forbid();
 
             var receivedOfficeId = doc.NextOfficeId;
             var receivedUnitId = doc.NextUnitId;
@@ -224,7 +256,8 @@ namespace DocTracking.Controllers
                 OfficeId = doc.CurrentOfficeId,
                 UnitId = doc.CurrentUnitId,
                 AppUserId = appUser?.Id,
-                TimeStamp = DateTime.UtcNow
+                TimeStamp = DateTime.UtcNow,
+                Comment = doc.Comment
             });
 
             await _context.SaveChangesAsync();
@@ -235,22 +268,21 @@ namespace DocTracking.Controllers
             if (doc.CreatorId.HasValue)
             {
                 if (receivedUnitId.HasValue)
-                    await Notify($"user-{doc.CreatorId}", $"Your document has been received by {receivedBy} in {receivedUnitName} of {receivedOfficeName}.", docName);
+                    await TryNotify($"user-{doc.CreatorId}", $"Your document has been received by {receivedBy} in {receivedUnitName} of {receivedOfficeName}.", docName);
                 else if (receivedOfficeId.HasValue)
-                    await Notify($"user-{doc.CreatorId}", $"Your document has been received by {receivedBy} in {receivedOfficeName}.", docName);
+                    await TryNotify($"user-{doc.CreatorId}", $"Your document has been received by {receivedBy} in {receivedOfficeName}.", docName);
             }
 
             if (receivedUnitId.HasValue)
             {
-                await Notify($"unit-{receivedUnitId}", $"{receivedBy} received a document in your unit.", docName);
-                await Notify($"office-head-{receivedOfficeId}", $"{receivedBy} received a document in {receivedUnitName} of {receivedOfficeName}.", docName);
+                await TryNotify($"unit-{receivedUnitId}", $"{receivedBy} received a document in your unit.", docName);
+                await TryNotify($"office-head-{receivedOfficeId}", $"{receivedBy} received a document in {receivedUnitName} of {receivedOfficeName}.", docName);
             }
             else if (receivedOfficeId.HasValue)
             {
-                await Notify($"office-{receivedOfficeId}", $"{receivedBy} received a document.", docName);
-                await Notify($"office-head-{receivedOfficeId}", $"{receivedBy} received a document in {receivedOfficeName}.", docName);
+                await TryNotify($"office-{receivedOfficeId}", $"{receivedBy} received a document.", docName);
+                await TryNotify($"office-head-{receivedOfficeId}", $"{receivedBy} received a document in {receivedOfficeName}.", docName);
             }
-
 
             return Ok();
         }
@@ -270,6 +302,9 @@ namespace DocTracking.Controllers
 
             var email = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email);
             var appUser = await _context.AppUsers.Include(u => u.Unit).FirstOrDefaultAsync(u => u.Email == email);
+            int? callerOfficeId = appUser?.Unit?.OfficeId ?? appUser?.OfficeId;
+            if (callerOfficeId != doc.CurrentOfficeId)
+                return Forbid();
 
             var fromOfficeId = doc.CurrentOfficeId;
             var fromUnitId = doc.CurrentUnitId;
@@ -281,6 +316,7 @@ namespace DocTracking.Controllers
             var destination = nextUnit != null ? nextUnit.Name : nextOffice?.Name ?? "another office";
 
             doc.Status = "In Motion";
+            doc.Comment = request.Comment;
             doc.LastActionDate = DateTime.UtcNow;
             doc.NextOfficeId = request.NextOfficeId;
             doc.NextUnitId = request.NextUnitId;
@@ -294,7 +330,8 @@ namespace DocTracking.Controllers
                 OfficeId = request.NextOfficeId,
                 UnitId = request.NextUnitId,
                 AppUserId = appUser?.Id,
-                TimeStamp = DateTime.UtcNow
+                TimeStamp = DateTime.UtcNow,
+                Comment = request.Comment
             });
 
             await _context.SaveChangesAsync();
@@ -305,31 +342,31 @@ namespace DocTracking.Controllers
             if (doc.CreatorId.HasValue)
             {
                 if (request.NextUnitId.HasValue)
-                    await Notify($"user-{doc.CreatorId}", $"Your document was forwarded by {forwardedBy} to {nextUnit?.Name} of {nextOffice?.Name}.", docName);
+                    await TryNotify($"user-{doc.CreatorId}", $"Your document was forwarded by {forwardedBy} to {nextUnit?.Name} of {nextOffice?.Name}.", docName);
                 else
-                    await Notify($"user-{doc.CreatorId}", $"Your document was forwarded by {forwardedBy} to {nextOffice?.Name}.", docName);
+                    await TryNotify($"user-{doc.CreatorId}", $"Your document was forwarded by {forwardedBy} to {nextOffice?.Name}.", docName);
             }
 
             if (fromUnitId.HasValue)
             {
-                await Notify($"unit-{fromUnitId}", $"{forwardedBy} forwarded a document to {destination}.", docName);
-                await Notify($"office-head-{fromOfficeId}", $"{forwardedBy} forwarded a document from {fromUnitName} of {fromOfficeName} to {destination}.", docName);
+                await TryNotify($"unit-{fromUnitId}", $"{forwardedBy} forwarded a document to {destination}.", docName);
+                await TryNotify($"office-head-{fromOfficeId}", $"{forwardedBy} forwarded a document from {fromUnitName} of {fromOfficeName} to {destination}.", docName);
             }
             else if (fromOfficeId.HasValue)
             {
-                await Notify($"office-{fromOfficeId}", $"{forwardedBy} forwarded a document to {destination}.", docName);
-                await Notify($"office-head-{fromOfficeId}", $"{forwardedBy} forwarded a document from {fromOfficeName} to {destination}.", docName);
+                await TryNotify($"office-{fromOfficeId}", $"{forwardedBy} forwarded a document to {destination}.", docName);
+                await TryNotify($"office-head-{fromOfficeId}", $"{forwardedBy} forwarded a document from {fromOfficeName} to {destination}.", docName);
             }
 
             if (request.NextUnitId.HasValue)
             {
-                await Notify($"unit-{request.NextUnitId}", $"{forwardedBy} forwarded a document to your unit.", docName);
-                await Notify($"office-head-{request.NextOfficeId}", $"{forwardedBy} forwarded a document to {nextUnit?.Name} of {nextOffice?.Name}.", docName);
+                await TryNotify($"unit-{request.NextUnitId}", $"{forwardedBy} forwarded a document to your unit.", docName);
+                await TryNotify($"office-head-{request.NextOfficeId}", $"{forwardedBy} forwarded a document to {nextUnit?.Name} of {nextOffice?.Name}.", docName);
             }
             else
             {
-                await Notify($"office-{request.NextOfficeId}", $"{forwardedBy} forwarded a document to your office.", docName);
-                await Notify($"office-head-{request.NextOfficeId}", $"{forwardedBy} forwarded a document to {nextOffice?.Name}.", docName);
+                await TryNotify($"office-{request.NextOfficeId}", $"{forwardedBy} forwarded a document to your office.", docName);
+                await TryNotify($"office-head-{request.NextOfficeId}", $"{forwardedBy} forwarded a document to {nextOffice?.Name}.", docName);
             }
 
             return Ok();
@@ -346,7 +383,10 @@ namespace DocTracking.Controllers
             if (doc == null) return NotFound();
 
             var email = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email);
-            var appUser = await _context.AppUsers.FirstOrDefaultAsync(u => u.Email == email);
+            var appUser = await _context.AppUsers.Include(u => u.Unit).FirstOrDefaultAsync(u => u.Email == email);
+            int? callerOfficeId = appUser?.Unit?.OfficeId ?? appUser?.OfficeId;
+            if (callerOfficeId != doc.CurrentOfficeId)
+                return Forbid();
 
             doc.Status = "Completed";
             doc.LastActionDate = DateTime.UtcNow;
@@ -372,7 +412,8 @@ namespace DocTracking.Controllers
                 OfficeId = finishedAtOffice,
                 UnitId = finishedAtUnit,
                 AppUserId = appUser?.Id,
-                TimeStamp = DateTime.UtcNow
+                TimeStamp = DateTime.UtcNow,
+                Comment = doc.Comment
             });
 
             await _context.SaveChangesAsync();
@@ -381,17 +422,17 @@ namespace DocTracking.Controllers
             var finishedBy = appUser?.Name ?? "Someone";
 
             if (doc.CreatorId.HasValue)
-                await Notify($"user-{doc.CreatorId}", $"Your document has been completed by {finishedBy}.", docName);
+                await TryNotify($"user-{doc.CreatorId}", $"Your document has been completed by {finishedBy}.", docName);
 
             if (finishedAtUnit.HasValue)
             {
-                await Notify($"unit-{finishedAtUnit}", $"{finishedBy} completed a document in your unit.", docName);
-                await Notify($"office-head-{finishedAtOffice}", $"{finishedBy} completed a document in {finishedUnitName} of {finishedOfficeName}.", docName);
+                await TryNotify($"unit-{finishedAtUnit}", $"{finishedBy} completed a document in your unit.", docName);
+                await TryNotify($"office-head-{finishedAtOffice}", $"{finishedBy} completed a document in {finishedUnitName} of {finishedOfficeName}.", docName);
             }
             else if (finishedAtOffice.HasValue)
             {
-                await Notify($"office-{finishedAtOffice}", $"{finishedBy} completed a document.", docName);
-                await Notify($"office-head-{finishedAtOffice}", $"{finishedBy} completed a document in {finishedOfficeName}.", docName);
+                await TryNotify($"office-{finishedAtOffice}", $"{finishedBy} completed a document.", docName);
+                await TryNotify($"office-head-{finishedAtOffice}", $"{finishedBy} completed a document in {finishedOfficeName}.", docName);
             }
 
             return Ok();
@@ -407,39 +448,35 @@ namespace DocTracking.Controllers
             int? myOfficeId = appUser.Unit?.OfficeId ?? appUser.OfficeId;
             int? myUnitId = appUser.UnitId;
 
-            var query = _context.Documents
-                .Include(d => d.Creator)
-                .Include(d => d.NextOffice)
-                .Include(d => d.NextUnit)
-                .Where(d => d.Status == "In Motion");
+            if (myOfficeId == null) return new List<Document>();
+
+            IQueryable<int> forwardedDocIds;
 
             if (myUnitId.HasValue)
             {
-                query = query.Where(d => _context.DocumentLogs.Any(log =>
-                    log.DocumentId == d.Id &&
-                    log.Action == "Forwarded" &&
-                    log.AppUser != null &&
-                    log.AppUser.UnitId == myUnitId));
-            }
-            else if (myOfficeId.HasValue)
-            {
-                query = query.Where(d => _context.DocumentLogs.Any(log =>
-                    log.DocumentId == d.Id &&
-                    log.Action == "Forwarded" &&
-                    log.AppUser != null &&
-                    (
-                        (log.AppUser.Unit != null && log.AppUser.Unit.OfficeId == myOfficeId) ||
-                        (log.AppUser.Unit == null && log.AppUser.OfficeId == myOfficeId)
-                    )));
+                forwardedDocIds = _context.DocumentLogs
+                    .Where(log => log.Action == "Forwarded" && log.AppUser != null && log.AppUser.UnitId == myUnitId)
+                    .Select(log => log.DocumentId)
+                    .Distinct();
             }
             else
             {
-                return new List<Document>();
+                forwardedDocIds = _context.DocumentLogs
+                    .Where(log => log.Action == "Forwarded" && log.AppUser != null &&
+                        ((log.AppUser.Unit != null && log.AppUser.Unit.OfficeId == myOfficeId) ||
+                         (log.AppUser.Unit == null && log.AppUser.OfficeId == myOfficeId)))
+                    .Select(log => log.DocumentId)
+                    .Distinct();
             }
 
-            return await query.OrderByDescending(d => d.LastActionDate ?? d.CreatedAt).ToListAsync();
+            return await _context.Documents
+                .Include(d => d.Creator)
+                .Include(d => d.NextOffice)
+                .Include(d => d.NextUnit)
+                .Where(d => d.Status == "In Motion" && forwardedDocIds.Contains(d.Id))
+                .OrderByDescending(d => d.LastActionDate ?? d.CreatedAt)
+                .ToListAsync();
         }
-
 
         [HttpGet("history/unit/{unitId}")]
         public async Task<ActionResult<IEnumerable<Document>>> GetUnitHistory(int unitId)
@@ -524,7 +561,6 @@ namespace DocTracking.Controllers
             return File(qrCodeBytes, "image/png");
         }
 
-
         [HttpGet("by-ref/{referenceNumber}")]
         [AllowAnonymous]
         public async Task<ActionResult<Document>> GetByReferenceNumber(string referenceNumber)
@@ -538,13 +574,12 @@ namespace DocTracking.Controllers
                 .FirstOrDefaultAsync(d => d.ReferenceNumber == referenceNumber);
             return doc == null ? NotFound() : Ok(doc);
         }
-
-
     }
 
     public class ForwardRequest
     {
         public int NextOfficeId { get; set; }
         public int? NextUnitId { get; set; }
+        public string? Comment { get; set; }
     }
 }

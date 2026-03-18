@@ -57,6 +57,18 @@ namespace DocTracking.Data
                 .WithMany()
                 .HasForeignKey(n => n.AppUserId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Document>()
+                .HasIndex(d => new { d.NextOfficeId, d.Status });
+
+            modelBuilder.Entity<Document>()
+                .HasIndex(d => new { d.CurrentOfficeId, d.Status });
+
+            modelBuilder.Entity<DocumentLog>()
+                .HasIndex(l => new { l.DocumentId, l.Action });
+
+            modelBuilder.Entity<AppNotification>()
+                .HasIndex(n => new { n.AppUserId, n.IsRead });
         }
     }
 }

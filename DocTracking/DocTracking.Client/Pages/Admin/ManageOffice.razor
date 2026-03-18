@@ -2,6 +2,7 @@
 @attribute [Authorize(Roles = "Admin")]
 @using DocTracking.Client.Models
 @using DocTracking.Client.Services
+@using DocTracking.Client.Pages.Offices
 @inject DocumentService DocService
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
@@ -70,6 +71,16 @@
                                 </div>
                             </div>
                             <div class="d-flex align-center gap-1" @onclick:stopPropagation>
+                                @if (!string.IsNullOrEmpty(office.ReceivingSchedule))
+                                {
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined"
+                                             Icon="@Icons.Material.Filled.Schedule" Class="mr-1">
+                                        @office.ReceivingSchedule
+                                    </MudChip>
+                                }
+                                <MudIconButton Icon="@Icons.Material.Filled.EditCalendar" Size="Size.Small"
+                                               Color="Color.Primary" OnClick="@(() => OpenScheduleDialog(office))"
+                                               Title="Set Receiving Schedule" />
                                 <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
                                                Color="Color.Warning" OnClick="@(() => OpenEditOfficeDialog(office))" />
                                 <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
@@ -224,7 +235,6 @@
 
     private Dictionary<int, string> unitNames = new();
     private bool isSubmittingUnit;
-
     private bool isSubmitting;
     private DialogOptions dialogOptions = new() { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
 
@@ -234,51 +244,23 @@
 
     protected override async Task OnInitializedAsync() => await LoadOffices();
 
-    private string GetUnitName(int officeId)
-    {
-        return unitNames.TryGetValue(officeId, out var name) ? name : "";
-    }
-
-    private void SetUnitName(int officeId, string value)
-    {
-        unitNames[officeId] = value;
-    }
+    private string GetUnitName(int officeId) => unitNames.TryGetValue(officeId, out var name) ? name : "";
+    private void SetUnitName(int officeId, string value) => unitNames[officeId] = value;
 
     private async Task LoadOffices(bool showSpinner = true)
     {
         if (showSpinner) loading = true;
         try
         {
-            var updated = await DocService.GetOfficesAsync();
+            offices = await DocService.GetOfficesAsync();
             allUsers = await DocService.GetAppUserAsync();
-
-            if (showSpinner)
-            {
-                offices = updated;
-            }
-            else
-            {
-                foreach (var updatedOffice in updated)
-                {
-                    var existing = offices.FirstOrDefault(o => o.Id == updatedOffice.Id);
-                    if (existing != null)
-                    {
-                        var index = offices.IndexOf(existing);
-                        offices[index] = updatedOffice;
-                    }
-                    else
-                    {
-                        offices.Add(updatedOffice);
-                    }
-                }
-                offices.RemoveAll(o => !updated.Any(u => u.Id == o.Id));
-            }
         }
         finally
         {
             if (showSpinner) loading = false;
         }
     }
+
 
     private async Task OpenAddOfficeDialog()
     {
@@ -309,12 +291,30 @@
             isSubmitting = true;
             try
             {
-                var (ok, error) = await DocService.UpdateOfficeAsync(new Office { Id = office.Id, Name = name });
+                var (ok, error) = await DocService.UpdateOfficeAsync(new Office { Id = office.Id, Name = name, ReceivingSchedule = office.ReceivingSchedule });
                 if (!ok) { Snackbar.Add(error ?? "Error updating office.", Severity.Error); return; }
                 Snackbar.Add("Office updated.", Severity.Success);
                 await LoadOffices(showSpinner: false);
             }
             finally { isSubmitting = false; }
+        }
+    }
+
+    private async Task OpenScheduleDialog(Office office)
+    {
+        var parameters = new DialogParameters<ReceivingScheduleDialog>
+        {
+            { x => x.OfficeId, office.Id },
+            { x => x.OfficeName, office.Name ?? "" },
+            { x => x.CurrentSchedule, office.ReceivingSchedule }
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
+        var dialog = await DialogService.ShowAsync<ReceivingScheduleDialog>("Receiving Schedule", parameters, options);
+        var result = await dialog.Result;
+        if (!result.Canceled)
+        {
+            office.ReceivingSchedule = result.Data as string;
+            StateHasChanged();
         }
     }
 
@@ -374,7 +374,6 @@
     private async Task SubmitUnit(Office office)
     {
         if (string.IsNullOrWhiteSpace(GetUnitName(office.Id))) return;
-
         isSubmittingUnit = true;
         try
         {
@@ -388,3 +387,4 @@
         finally { isSubmittingUnit = false; }
     }
 }
+

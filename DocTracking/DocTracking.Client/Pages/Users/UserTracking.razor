@@ -90,6 +90,16 @@
                                     </div>
                                 </div>
                             }
+                            @if (!string.IsNullOrEmpty(log.Comment))
+                            {
+                                <MudPaper Elevation="0" Class="pa-2 mt-2 rounded" Style="background: rgba(var(--mud-palette-info-rgb), 0.08); border-left: 3px solid var(--mud-palette-info);">
+                                    <div class="d-flex align-center gap-1 mb-1">
+                                        <MudIcon Icon="@Icons.Material.Filled.Comment" Size="Size.Small" Color="Color.Info" />
+                                        <MudText Typo="Typo.caption" Color="Color.Info" Class="font-weight-bold">Note</MudText>
+                                    </div>
+                                    <MudText Typo="Typo.body2">@log.Comment</MudText>
+                                </MudPaper>
+                            }
                             @if (isCompleted)
                             {
                                 <MudText Typo="Typo.body2" Color="Color.Success" Class="font-weight-medium mt-2">Document processing completed successfully</MudText>
@@ -167,6 +177,16 @@
                                                 </MudItem>
                                             }
                                         </MudGrid>
+                                        @if (!string.IsNullOrEmpty(log.Comment))
+                                        {
+                                            <MudPaper Elevation="0" Class="pa-2 mt-2 rounded" Style="background: rgba(var(--mud-palette-info-rgb), 0.08); border-left: 3px solid var(--mud-palette-info);">
+                                                <div class="d-flex align-center gap-1 mb-1">
+                                                    <MudIcon Icon="@Icons.Material.Filled.Comment" Size="Size.Small" Color="Color.Info" />
+                                                    <MudText Typo="Typo.caption" Color="Color.Info" Class="font-weight-bold">Note</MudText>
+                                                </div>
+                                                <MudText Typo="Typo.body2">@log.Comment</MudText>
+                                            </MudPaper>
+                                        }
                                         @if (isCompleted)
                                         {
                                             <MudText Typo="Typo.body2" Color="Color.Success" Class="font-weight-medium mt-2">Document processing completed successfully</MudText>

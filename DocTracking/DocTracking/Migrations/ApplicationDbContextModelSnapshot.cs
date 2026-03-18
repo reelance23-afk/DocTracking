@@ -49,7 +49,7 @@ namespace DocTracking.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("AppUserId");
+                    b.HasIndex("AppUserId", "IsRead");
 
                     b.ToTable("AppNotifications");
                 });
@@ -96,6 +96,9 @@ namespace DocTracking.Migrations
                         .HasColumnType("integer");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Comment")
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -152,13 +155,13 @@ namespace DocTracking.Migrations
 
                     b.HasIndex("CreatorId");
 
-                    b.HasIndex("CurrentOfficeId");
-
                     b.HasIndex("CurrentUnitId");
 
-                    b.HasIndex("NextOfficeId");
-
                     b.HasIndex("NextUnitId");
+
+                    b.HasIndex("CurrentOfficeId", "Status");
+
+                    b.HasIndex("NextOfficeId", "Status");
 
                     b.ToTable("Documents");
                 });
@@ -176,6 +179,9 @@ namespace DocTracking.Migrations
 
                     b.Property<int?>("AppUserId")
                         .HasColumnType("integer");
+
+                    b.Property<string>("Comment")
+                        .HasColumnType("text");
 
                     b.Property<int>("DocumentId")
                         .HasColumnType("integer");
@@ -202,11 +208,11 @@ namespace DocTracking.Migrations
 
                     b.HasIndex("AppUserId");
 
-                    b.HasIndex("DocumentId");
-
                     b.HasIndex("OfficeId");
 
                     b.HasIndex("UnitId");
+
+                    b.HasIndex("DocumentId", "Action");
 
                     b.ToTable("DocumentLogs");
                 });
@@ -221,6 +227,9 @@ namespace DocTracking.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ReceivingSchedule")
                         .HasColumnType("text");
 
                     b.HasKey("Id");

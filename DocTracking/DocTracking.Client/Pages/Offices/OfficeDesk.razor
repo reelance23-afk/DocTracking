@@ -23,20 +23,37 @@
     }
     else if (myOffice != null)
     {
-        <div class="d-flex align-center mb-6">
-            <MudIcon Icon="@Icons.Material.Filled.Business" Size="Size.Large" Class="mr-3" Color="Color.Primary" />
-            <div>
-                @if (myUnitId.HasValue)
-                {
-                    <MudText Typo="Typo.h4" Class="font-weight-bold">@myUnitName</MudText>
-                }
-                else
-                {
-                    <MudText Typo="Typo.h4" Class="font-weight-bold">@myOffice?.Name</MudText>
-                }
-                <MudText Typo="Typo.body2" Style="color: var(--mud-palette-text-secondary);">Office Desk</MudText>
+        <div class="d-flex align-center justify-space-between mb-6">
+            <div class="d-flex align-center">
+                <MudIcon Icon="@Icons.Material.Filled.Business" Size="Size.Large" Class="mr-3" Color="Color.Primary" />
+                <div>
+                    @if (myUnitId.HasValue)
+                    {
+                        <MudText Typo="Typo.h4" Class="font-weight-bold">@myUnitName</MudText>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.h4" Class="font-weight-bold">@myOffice?.Name</MudText>
+                    }
+                    <div class="d-flex align-center gap-2 mt-1">
+                        <MudText Typo="Typo.body2" Style="color: var(--mud-palette-text-secondary);">Office Desk</MudText>
+                        @if (!string.IsNullOrEmpty(myOffice?.ReceivingSchedule))
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined"
+                                     Icon="@Icons.Material.Filled.Schedule">
+                                @myOffice.ReceivingSchedule
+                            </MudChip>
+                        }
+                    </div>
+                </div>
             </div>
+            <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small"
+                       StartIcon="@Icons.Material.Filled.EditCalendar"
+                       OnClick="OpenScheduleDialog">
+                @(string.IsNullOrEmpty(myOffice?.ReceivingSchedule) ? "Set Schedule" : "Edit Schedule")
+            </MudButton>
         </div>
+
 
         <MudGrid Class="mb-6">
             <MudItem xs="12" sm="4">
@@ -440,14 +457,7 @@
         try
         {
             incomingDocs = await DocService.GetIncomingAsync(myOffice.Id, myUnitId);
-            var allDocs = await DocService.GetAllDocumentsAsync();
-
-            deskDocs = allDocs.Where(d =>
-                d.CurrentOfficeId == myOffice.Id &&
-                d.Status == "Received" &&
-                (isOfficeHead ? true : (myUnitId.HasValue ? (d.CurrentUnitId == null || d.CurrentUnitId == myUnitId) : d.CurrentUnitId == null))
-            ).ToList();
-
+            deskDocs = await DocService.GetDeskDocumentsAsync(myOffice.Id, isOfficeHead ? null : myUnitId);
             outgoingDocs = await DocService.GetOutgoingAsync();
         }
         finally
@@ -456,6 +466,7 @@
             StateHasChanged();
         }
     }
+
 
     private async Task OpenDeskDialog(Document doc, OfficeDeskViewDialog.DeskTab tab)
     {
@@ -470,6 +481,27 @@
         var result = await dialog.Result;
         if (result is { Canceled: false })
             await RefreshQueues();
+    }
+
+    private async Task OpenScheduleDialog()
+    {
+        if (myOffice == null) return;
+        var parameters = new DialogParameters<ReceivingScheduleDialog>
+    {
+        { x => x.OfficeId, myOffice.Id },
+        { x => x.OfficeName, myOffice.Name },
+        { x => x.CurrentSchedule, myOffice.ReceivingSchedule }
+    };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
+        var dialog = await DialogService.ShowAsync<ReceivingScheduleDialog>("Receiving Schedule", parameters, options);
+        var result = await dialog.Result;
+        if (!result.Canceled)
+        {
+            myOffice.ReceivingSchedule = result.Data as string;
+            var idx = allOffices.FindIndex(o => o.Id == myOffice.Id);
+            if (idx >= 0) allOffices[idx] = myOffice;
+            StateHasChanged();
+        }
     }
 
     private Color GetPriorityColor(string? priority) => priority switch

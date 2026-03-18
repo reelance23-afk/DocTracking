@@ -58,6 +58,12 @@
                     {
                         <MudText Typo="Typo.caption" Class="mud-text-secondary">↳ @doc.CurrentUnit.Name</MudText>
                     }
+                    @if (!string.IsNullOrEmpty(doc.CurrentOffice.ReceivingSchedule))
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Primary">
+                            <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" Class="mr-1" />@doc.CurrentOffice.ReceivingSchedule
+                        </MudText>
+                    }
                 }
                 else
                 {
@@ -72,6 +78,12 @@
                     @if (doc.NextUnit != null)
                     {
                         <MudText Typo="Typo.caption" Class="mud-text-secondary">↳ @doc.NextUnit.Name</MudText>
+                    }
+                    @if (!string.IsNullOrEmpty(doc.NextOffice.ReceivingSchedule))
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Primary">
+                            <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" Class="mr-1" />@doc.NextOffice.ReceivingSchedule
+                        </MudText>
                     }
                 }
                 else
@@ -143,7 +155,14 @@
                                             ↳ @(log.Unit?.Name ?? log.UnitName)
                                         </MudText>
                                     }
+                                    @if (!string.IsNullOrEmpty(log.Office?.ReceivingSchedule))
+                                    {
+                                        <MudText Typo="Typo.caption" Color="Color.Primary" Class="ml-5">
+                                            <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" Class="mr-1" />@log.Office.ReceivingSchedule
+                                        </MudText>
+                                    }
                                 }
+
                             </MudCardContent>
                         </MudCard>
                     }
@@ -206,6 +225,12 @@
                                                                 {
                                                                     <MudText Typo="Typo.caption" Class="mud-text-secondary">
                                                                         ↳ @(log.Unit?.Name ?? log.UnitName)
+                                                                    </MudText>
+                                                                }
+                                                                @if (!string.IsNullOrEmpty(log.Office?.ReceivingSchedule))
+                                                                {
+                                                                    <MudText Typo="Typo.caption" Color="Color.Primary">
+                                                                        <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" Class="mr-1" />@log.Office.ReceivingSchedule
                                                                     </MudText>
                                                                 }
                                                             </div>

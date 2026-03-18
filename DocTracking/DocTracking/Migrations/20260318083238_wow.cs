@@ -7,7 +7,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace DocTracking.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreate : Migration
+    public partial class wow : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -32,7 +32,8 @@ namespace DocTracking.Migrations
                 {
                     Id = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    Name = table.Column<string>(type: "text", nullable: false)
+                    Name = table.Column<string>(type: "text", nullable: false),
+                    ReceivingSchedule = table.Column<string>(type: "text", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -123,6 +124,7 @@ namespace DocTracking.Migrations
                     Status = table.Column<string>(type: "text", nullable: false),
                     Priority = table.Column<string>(type: "text", nullable: false),
                     ReferenceNumber = table.Column<string>(type: "text", nullable: true),
+                    Comment = table.Column<string>(type: "text", nullable: true),
                     CurrentOfficeId = table.Column<int>(type: "integer", nullable: true),
                     NextOfficeId = table.Column<int>(type: "integer", nullable: true),
                     CurrentUnitId = table.Column<int>(type: "integer", nullable: true),
@@ -180,7 +182,8 @@ namespace DocTracking.Migrations
                     TimeStamp = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     UnitName = table.Column<string>(type: "text", nullable: true),
                     OfficeName = table.Column<string>(type: "text", nullable: true),
-                    UserName = table.Column<string>(type: "text", nullable: true)
+                    UserName = table.Column<string>(type: "text", nullable: true),
+                    Comment = table.Column<string>(type: "text", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -210,9 +213,9 @@ namespace DocTracking.Migrations
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_AppNotifications_AppUserId",
+                name: "IX_AppNotifications_AppUserId_IsRead",
                 table: "AppNotifications",
-                column: "AppUserId");
+                columns: new[] { "AppUserId", "IsRead" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_AppUsers_OfficeId",
@@ -230,9 +233,9 @@ namespace DocTracking.Migrations
                 column: "AppUserId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_DocumentLogs_DocumentId",
+                name: "IX_DocumentLogs_DocumentId_Action",
                 table: "DocumentLogs",
-                column: "DocumentId");
+                columns: new[] { "DocumentId", "Action" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_DocumentLogs_OfficeId",
@@ -250,9 +253,9 @@ namespace DocTracking.Migrations
                 column: "CreatorId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Documents_CurrentOfficeId",
+                name: "IX_Documents_CurrentOfficeId_Status",
                 table: "Documents",
-                column: "CurrentOfficeId");
+                columns: new[] { "CurrentOfficeId", "Status" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_Documents_CurrentUnitId",
@@ -260,9 +263,9 @@ namespace DocTracking.Migrations
                 column: "CurrentUnitId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Documents_NextOfficeId",
+                name: "IX_Documents_NextOfficeId_Status",
                 table: "Documents",
-                column: "NextOfficeId");
+                columns: new[] { "NextOfficeId", "Status" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_Documents_NextUnitId",

@@ -3,8 +3,8 @@ using DocTracking.Client.Pages;
 using DocTracking.Client.Services;
 using DocTracking.Components;
 using DocTracking.Data;
-using DocTracking.Security;
 using DocTracking.Services;
+using DocTracking.Security;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
@@ -18,6 +18,7 @@ using MudBlazor.Services;
 using Npgsql.EntityFrameworkCore.PostgreSQL;
 using Swashbuckle.AspNetCore.SwaggerUI;
 using System.Text.Json.Serialization;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -93,7 +94,7 @@ builder.Services.AddHttpClient<DocumentService>(client =>
 {
     client.BaseAddress = new Uri(builder.Configuration["BaseAddress"] ?? "https://localhost:7221/");
 }).AddHttpMessageHandler<CookieHandler>();
-
+builder.Services.AddMemoryCache();
 builder.Services.AddScoped<ThemeService>();
 builder.Services.AddScoped<NotificationService>();
 builder.Services.AddRazorPages();

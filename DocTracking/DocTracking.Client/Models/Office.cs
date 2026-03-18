@@ -11,6 +11,7 @@ namespace DocTracking.Client.Models
         [Required]
         public string Name { get; set; }
 
+        public string? ReceivingSchedule { get; set; }
         public ICollection<Unit>? Units { get; set; }
 
     }

@@ -19,6 +19,7 @@ namespace DocTracking.Controllers
         }
 
         [HttpPost]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<List<Office>>> AddOffice([FromBody] Office office)
         {
             var exists = await _context.Offices.AnyAsync(o => o.Name == office.Name);
@@ -39,6 +40,7 @@ namespace DocTracking.Controllers
         }
 
         [HttpPut("{id}")]
+        [Authorize(Roles = "Admin,Office")]
         public async Task<IActionResult> UpdateOffice(int id, [FromBody] Office office)
         {
             var existing = await _context.Offices.FindAsync(id);
@@ -47,11 +49,13 @@ namespace DocTracking.Controllers
             var duplicate = await _context.Offices.AnyAsync(o => o.Name == office.Name && o.Id != id);
             if (duplicate) return Conflict("An office with this name already exists");
             existing.Name = office.Name;
+            existing.ReceivingSchedule = office.ReceivingSchedule;
             await _context.SaveChangesAsync();
             return Ok(existing);
         }
 
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteOffice(int id)
         {
             var existing = await _context.Offices

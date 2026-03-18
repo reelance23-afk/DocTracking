@@ -1,0 +1,134 @@
+﻿@using DocTracking.Client.Models
+@using DocTracking.Client.Services
+@inject DocumentService DocService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent>
+        <div class="d-flex align-center gap-2">
+            <MudIcon Icon="@Icons.Material.Filled.Schedule" Color="Color.Primary" />
+            <MudText Typo="Typo.h6" Class="font-weight-bold">Receiving Schedule</MudText>
+        </div>
+    </TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">@OfficeName</MudText>
+        <MudGrid Spacing="3">
+            <MudItem xs="12">
+                <MudText Typo="Typo.subtitle2" Class="mb-2 font-weight-bold">Day Range</MudText>
+                <div class="d-flex align-center gap-3">
+                    <MudSelect T="string" @bind-Value="_fromDay" Label="From" Variant="Variant.Outlined" Style="flex:1">
+                        @foreach (var day in _days)
+                        {
+                            <MudSelectItem Value="@day">@day</MudSelectItem>
+                        }
+                    </MudSelect>
+                    <MudText Class="mt-4">—</MudText>
+                    <MudSelect T="string" @bind-Value="_toDay" Label="To" Variant="Variant.Outlined" Style="flex:1">
+                        @foreach (var day in _days)
+                        {
+                            <MudSelectItem Value="@day">@day</MudSelectItem>
+                        }
+                    </MudSelect>
+                </div>
+            </MudItem>
+            <MudItem xs="12">
+                <MudText Typo="Typo.subtitle2" Class="mb-2 font-weight-bold">Time Range</MudText>
+                <div class="d-flex align-center gap-3">
+                    <MudTimePicker @bind-Time="_startTime" Label="Opens" Variant="Variant.Outlined"
+                                   AmPm="true" Style="flex:1" />
+                    <MudText Class="mt-4">—</MudText>
+                    <MudTimePicker @bind-Time="_endTime" Label="Closes" Variant="Variant.Outlined"
+                                   AmPm="true" Style="flex:1" />
+                </div>
+            </MudItem>
+            @if (!string.IsNullOrEmpty(Preview))
+            {
+                <MudItem xs="12">
+                    <MudPaper Elevation="0" Class="pa-3 rounded"
+                              Style="background: rgba(var(--mud-palette-primary-rgb), 0.08); border-left: 3px solid var(--mud-palette-primary);">
+                        <MudText Typo="Typo.body2">
+                            <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" Class="mr-1" />
+                            <strong>Preview:</strong> @Preview
+                        </MudText>
+                    </MudPaper>
+                </MudItem>
+            }
+        </MudGrid>
+    </DialogContent>
+    <DialogActions>
+        @if (!string.IsNullOrEmpty(CurrentSchedule))
+        {
+            <MudButton Color="Color.Error" Variant="Variant.Text" Disabled="_saving" OnClick="ClearAsync">
+                Clear Schedule
+            </MudButton>
+        }
+        <MudSpacer />
+        <MudButton OnClick="@(() => MudDialog.Cancel())" Variant="Variant.Text">Cancel</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled"
+                   Disabled="@(!IsValid || _saving)" OnClick="SaveAsync">
+            @(_saving ? "Saving..." : "Save")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public int OfficeId { get; set; }
+    [Parameter] public string OfficeName { get; set; } = "";
+    [Parameter] public string? CurrentSchedule { get; set; }
+
+    private static readonly string[] _days = { "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun" };
+    private string _fromDay = "Mon";
+    private string _toDay = "Fri";
+    private TimeSpan? _startTime = new TimeSpan(8, 0, 0);
+    private TimeSpan? _endTime = new TimeSpan(17, 0, 0);
+    private bool _saving;
+
+    private bool IsValid => _startTime.HasValue && _endTime.HasValue && _startTime < _endTime;
+    private string Preview => IsValid ? $"{_fromDay}-{_toDay} {Fmt(_startTime!.Value)}-{Fmt(_endTime!.Value)}" : "";
+    private static string Fmt(TimeSpan t) => DateTime.Today.Add(t).ToString("h:mm tt");
+
+    protected override void OnParametersSet()
+    {
+        if (string.IsNullOrEmpty(CurrentSchedule)) return;
+        try
+        {
+
+            var spaceIdx = CurrentSchedule.IndexOf(' ');
+            if (spaceIdx < 0) return;
+            var dayPart = CurrentSchedule[..spaceIdx].Split('-');
+            if (dayPart.Length == 2) { _fromDay = dayPart[0]; _toDay = dayPart[1]; }
+
+            var timePart = CurrentSchedule[(spaceIdx + 1)..];
+
+            var dashIdx = timePart.IndexOf('-', timePart.IndexOf(' ') + 1);
+            if (dashIdx > 0)
+            {
+                if (DateTime.TryParse(timePart[..dashIdx].Trim(), System.Globalization.CultureInfo.InvariantCulture,System.Globalization.DateTimeStyles.None, out var s)) _startTime = s.TimeOfDay;
+                if (DateTime.TryParse(timePart[(dashIdx + 1)..].Trim(), out var e)) _endTime = e.TimeOfDay;
+            }
+        }
+        catch { }
+    }
+
+    private async Task SaveAsync()
+    {
+        if (!IsValid) return;
+        _saving = true;
+        var (ok, error) = await DocService.UpdateOfficeAsync(
+            new Office { Id = OfficeId, Name = OfficeName, ReceivingSchedule = Preview });
+        _saving = false;
+        if (ok) { Snackbar.Add("Schedule saved!", Severity.Success); MudDialog.Close(DialogResult.Ok(Preview)); }
+        else Snackbar.Add(error ?? "Failed to save.", Severity.Error);
+    }
+
+    private async Task ClearAsync()
+    {
+        _saving = true;
+        var (ok, error) = await DocService.UpdateOfficeAsync(
+            new Office { Id = OfficeId, Name = OfficeName, ReceivingSchedule = null });
+        _saving = false;
+        if (ok) { Snackbar.Add("Schedule cleared.", Severity.Success); MudDialog.Close(DialogResult.Ok<string?>(null)); }
+        else Snackbar.Add(error ?? "Failed to clear.", Severity.Error);
+    }
+}

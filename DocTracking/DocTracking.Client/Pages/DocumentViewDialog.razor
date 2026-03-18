@@ -41,6 +41,13 @@
                     {
                         <MudText Typo="Typo.body2" Class="mud-text-secondary">↳ @Doc.CurrentUnit.Name</MudText>
                     }
+                    @if (!string.IsNullOrEmpty(Doc.CurrentOffice.ReceivingSchedule))
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Primary">
+                            <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" Class="mr-1" />@Doc.CurrentOffice.ReceivingSchedule
+                        </MudText>
+                    }
+
                 }
                 else
                 {
@@ -55,6 +62,12 @@
                     @if (Doc.NextUnit != null)
                     {
                         <MudText Typo="Typo.body2" Class="mud-text-secondary">↳ @Doc.NextUnit.Name</MudText>
+                    }
+                    @if (!string.IsNullOrEmpty(Doc.NextOffice.ReceivingSchedule))
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Primary">
+                            <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" Class="mr-1" />@Doc.NextOffice.ReceivingSchedule
+                        </MudText>
                     }
                 }
                 else

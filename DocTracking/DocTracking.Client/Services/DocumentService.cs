@@ -18,6 +18,8 @@ namespace DocTracking.Client.Services
         private async Task<T?> GetJsonAsync<T>(string url)
         {
             var response = await _http.GetAsync(url);
+            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                throw new UnauthorizedAccessException();
             if (!response.IsSuccessStatusCode) return default;
             var content = await response.Content.ReadAsStringAsync();
             if (content.TrimStart().StartsWith('<')) return default;
@@ -36,6 +38,12 @@ namespace DocTracking.Client.Services
         public async Task<List<Document>> GetIncomingAsync(int officeId, int? unitId = null)
         {
             var url = $"api/documents/incoming/{officeId}";
+            if (unitId.HasValue) url += $"?unitId={unitId.Value}";
+            return await GetJsonAsync<List<Document>>(url) ?? new();
+        }
+        public async Task<List<Document>> GetDeskDocumentsAsync(int officeId, int? unitId = null)
+        {
+            var url = $"api/documents/desk/{officeId}";
             if (unitId.HasValue) url += $"?unitId={unitId.Value}";
             return await GetJsonAsync<List<Document>>(url) ?? new();
         }
@@ -92,14 +100,28 @@ namespace DocTracking.Client.Services
         public async Task<bool> ReceivedDocumentAsync(int id) =>
             (await _http.PutAsync($"api/documents/{id}/receive", null)).IsSuccessStatusCode;
 
-        public async Task ForwardDocumentAsync(int id, int nextOfficeId, int? nextUnitId = null) =>
-            await _http.PutAsJsonAsync($"api/documents/{id}/forward", new { NextOfficeId = nextOfficeId, NextUnitId = nextUnitId });
+        public async Task<(bool Success, string? Error)> ForwardDocumentAsync(int id, int nextOfficeId, int? nextUnitId = null, string? comment = null)
+        {
+           var response = await _http.PutAsJsonAsync($"api/documents/{id}/forward", new { NextOfficeId = nextOfficeId, NextUnitId = nextUnitId, Comment = comment });
+            if (response.IsSuccessStatusCode) return (true, null);
+            return (false, await response.Content.ReadAsStringAsync());
+        }
 
-        public async Task FinishDocumentAsync(int id) =>
-            await _http.PutAsync($"api/documents/{id}/finish", null);
+        public async Task<(bool Success, string? Error)> FinishDocumentAsync(int id, string? comment = null)
+        {
+            var response = await _http.PutAsJsonAsync($"api/documents/{id}/finish", new { Comment = comment });
+            if (response.IsSuccessStatusCode) return (true, null); 
+            return (false, await response.Content.ReadAsStringAsync());
+        }
 
-        public async Task UpdateAppUserAsync(AppUser user) =>
-            await _http.PutAsJsonAsync($"api/appusers/{user.Id}", user);
+
+        public async Task<(bool Success, string? Error)> UpdateAppUserAsync(AppUser user)
+        {
+           var response = await _http.PutAsJsonAsync($"api/appusers/{user.Id}", user);
+           if (response.IsSuccessStatusCode) return (true, null);
+           return (false, await response.Content.ReadAsStringAsync());
+
+        }
 
         public async Task<(bool Success, string? Error)> AddOfficeAsync(Office office)
         {
