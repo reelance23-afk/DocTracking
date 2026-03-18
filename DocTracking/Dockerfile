@@ -11,9 +11,3 @@ FROM base AS final
 WORKDIR /app
 COPY --from=build /app/publish .
 ENTRYPOINT ["dotnet", "DocTracking.dll"]
-
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(connectionString));
-
-
-UseSqlServer("Server =.\\SQLEXPRESS; Database = DocTrackingDB; Trusted_Connection = True; TrustServerCertificate = True; ")
