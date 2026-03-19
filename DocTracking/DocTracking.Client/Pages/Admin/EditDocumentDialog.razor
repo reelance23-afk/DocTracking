@@ -96,6 +96,56 @@
                 </MudPaper>
             </MudItem>
 
+            <MudItem xs="12">
+                <MudPaper Elevation="2" Class="pa-4" Style="border-top: 4px solid var(--mud-palette-warning);">
+                    <MudText Typo="Typo.subtitle1" Class="font-weight-bold mb-4">
+                        <MudIcon Icon="@Icons.Material.Filled.AdminPanelSettings" Size="Size.Small" Class="mr-2 mb-n1" />
+                        Admin Override
+                    </MudText>
+                    <MudGrid Spacing="3">
+                        <MudItem xs="12" md="6">
+                            <MudSelect @bind-Value="overrideStatus" Label="Force Status" Variant="Variant.Outlined"
+                                       HelperText="Override the current document status" T="string">
+                                <MudSelectItem T="string" Value="@("")">— No change —</MudSelectItem>
+                                <MudSelectItem T="string" Value="@("In Motion")">In Motion</MudSelectItem>
+                                <MudSelectItem T="string" Value="@("Received")">Received</MudSelectItem>
+                                <MudSelectItem T="string" Value="@("Completed")">Completed</MudSelectItem>
+                            </MudSelect>
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudSelect Value="reassignOfficeId" Label="Reassign to Office"
+                                       Variant="Variant.Outlined" T="int?"
+                                       HelperText="Redirect document to another office"
+                                       ValueChanged="OnOfficeChanged">
+                                <MudSelectItem T="int?" Value="@((int?)null)">— No change —</MudSelectItem>
+                                @foreach (var office in offices)
+                                {
+                                    <MudSelectItem T="int?" Value="@((int?)office.Id)">@office.Name</MudSelectItem>
+                                }
+                            </MudSelect>
+                        </MudItem>
+                        @if (reassignOfficeId != null && reassignOfficeUnits.Any())
+                        {
+                            <MudItem xs="12" md="6">
+                                <MudSelect @bind-Value="reassignUnitId" Label="Reassign to Unit (optional)"
+                                           Variant="Variant.Outlined" T="int?">
+                                    <MudSelectItem T="int?" Value="@((int?)null)">— No specific unit —</MudSelectItem>
+                                    @foreach (var unit in reassignOfficeUnits)
+                                    {
+                                        <MudSelectItem T="int?" Value="@((int?)unit.Id)">@unit.Name</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            </MudItem>
+                        }
+                        <MudItem xs="12">
+                            <MudTextField @bind-Value="overrideComment" Label="Override Reason"
+                                          Variant="Variant.Outlined" Lines="2"
+                                          HelperText="Optional: reason for this admin action" />
+                        </MudItem>
+                    </MudGrid>
+                </MudPaper>
+            </MudItem>
+
         </MudGrid>
     </DialogContent>
     <DialogActions>
@@ -104,16 +154,32 @@
         <MudButton Color="Color.Error" Variant="Variant.Outlined"
                    StartIcon="@Icons.Material.Filled.Delete" OnClick="DeleteDocument">Delete</MudButton>
         <MudButton Color="Color.Primary" Variant="Variant.Filled"
-                   StartIcon="@Icons.Material.Filled.Save" OnClick="Submit">Save Changes</MudButton>
+                   StartIcon="@Icons.Material.Filled.Save" Disabled="@isSaving" OnClick="Submit">
+            @(isSaving ? "Saving..." : "Save Changes")
+        </MudButton>
     </DialogActions>
 </MudDialog>
 
 @code {
     [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
     [Parameter] public Document Doc { get; set; } = new();
+    [Parameter] public List<Office> Offices { get; set; } = new();
 
     private IBrowserFile? selectedFile;
+    private List<Office> offices = new();
+    private List<Unit> reassignOfficeUnits = new();
+    private string overrideStatus = "";
+    private string? overrideComment;
+    private int? reassignOfficeId;
+    private int? reassignUnitId;
+    private bool isSaving;
+
     private static readonly string[] AllowedExtensions = { ".pdf", ".doc", ".docx", ".jpg", ".png" };
+
+    protected override void OnInitialized()
+    {
+        offices = Offices;
+    }
 
     private void OnFileSelected(IBrowserFile file)
     {
@@ -127,22 +193,48 @@
         Doc.FileName = file.Name;
     }
 
-    private void RemoveFile()
+    private void OnOfficeChanged(int? officeId)
     {
-        selectedFile = null;
-        Doc.FileName = string.Empty;
+        reassignOfficeId = officeId;
+        reassignUnitId = null;
+        reassignOfficeUnits = offices.FirstOrDefault(o => o.Id == officeId)?.Units?.ToList() ?? new();
     }
 
     private async Task Submit()
     {
-        if (selectedFile != null)
+        isSaving = true;
+        try
         {
-            var uploadedPath = await DocService.UploadFileAsync(selectedFile);
-            if (uploadedPath != null) Doc.FilePath = uploadedPath;
-            else Snackbar.Add("File upload failed, saving without new file.", Severity.Warning);
+            if (selectedFile != null)
+            {
+                var uploadedPath = await DocService.UploadFileAsync(selectedFile);
+                if (uploadedPath != null) Doc.FilePath = uploadedPath;
+                else Snackbar.Add("File upload failed, saving without new file.", Severity.Warning);
+            }
+
+            var (docOk, docError) = await DocService.UpdateDocumentAsync(Doc);
+            if (!docOk) { Snackbar.Add(docError ?? "Failed to save document.", Severity.Error); return; }
+
+            var hasOverride = !string.IsNullOrEmpty(overrideStatus) || reassignOfficeId != null;
+            if (hasOverride)
+            {
+                var overrideRequest = new AdminOverridePayload
+                {
+                    Status = string.IsNullOrEmpty(overrideStatus) ? Doc.Status : overrideStatus,
+                    ForceComment = overrideComment,
+                    NextOfficeId = reassignOfficeId,
+                    NextUnitId = reassignUnitId,
+                    ReassignComment = overrideComment
+                };
+                var (ok, error) = await DocService.AdminOverrideDocumentAsync(Doc.Id, overrideRequest);
+                if (!ok) { Snackbar.Add(error ?? "Override failed.", Severity.Error); return; }
+            }
+
+            MudDialog.Close(DialogResult.Ok(Doc));
         }
-        MudDialog.Close(DialogResult.Ok(Doc));
+        finally { isSaving = false; }
     }
+
 
     private void Cancel() => MudDialog.Cancel();
 

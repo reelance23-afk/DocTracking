@@ -1,7 +1,7 @@
-using System.Net.Http.Json;
-using System.Text.Json;
 using DocTracking.Client.Models;
 using Microsoft.AspNetCore.Components.Forms;
+using System.Net.Http.Json;
+using System.Text.Json;
 
 namespace DocTracking.Client.Services
 {
@@ -76,6 +76,9 @@ namespace DocTracking.Client.Services
         public async Task<List<Document>> GetOfficeHistoryAsync(int officeId) =>
             await GetJsonAsync<List<Document>>($"api/documents/history/office/{officeId}") ?? new();
 
+        public async Task<List<Document>> GetUserActivityAsync(int userId) =>
+            await GetJsonAsync<List<Document>>($"api/documents/activity/user/{userId}") ?? new();
+
         public async Task<AppUser?> GetProfileAsync()
         {
             var response = await _http.GetAsync("api/documents/my-profile");
@@ -145,6 +148,9 @@ namespace DocTracking.Client.Services
         public Task<(bool Success, string? Error)> DeleteDocumentAsync(int id) =>
             ToResult(_http.DeleteAsync($"api/documents/{id}"));
 
+        public Task<(bool Success, string? Error)> AdminOverrideDocumentAsync(int id, AdminOverridePayload request) =>
+            ToResult(_http.PutAsJsonAsync($"api/documents/{id}/admin-override", request));
+
         public string GetQRCodeUrl(int documentId) => $"{_http.BaseAddress}api/documents/{documentId}/qrcode";
 
         public async Task<Document?> GetDocumentByRefAsync(string referenceNumber)
@@ -160,5 +166,14 @@ namespace DocTracking.Client.Services
     public class UploadResponse
     {
         public string? FilePath { get; set; }
+    }
+
+    public class AdminOverridePayload
+    {
+        public string? Status { get; set; }
+        public string? ForceComment { get; set; }
+        public int? NextOfficeId { get; set; }
+        public int? NextUnitId { get; set; }
+        public string? ReassignComment { get; set; }
     }
 }

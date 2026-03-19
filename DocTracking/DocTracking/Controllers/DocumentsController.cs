@@ -97,11 +97,10 @@ namespace DocTracking.Controllers
                 await TryNotify($"user-{appuser.Id}", "You created a new document.", doc.Name ?? "");
 
             await NotifyOfficeOrUnit(doc.NextUnitId, doc.NextOfficeId,
-            $"A document from {creatorName} is incoming to your unit",
-            $"A document from {creatorName} incoming to your office",
-            $"A document from {creatorName} incoming to your office",
-             doc.Name ?? "");
-
+                $"A document from {creatorName} is incoming to your unit",
+                $"A document from {creatorName} incoming to your office",
+                $"A document from {creatorName} incoming to your office",
+                doc.Name ?? "");
 
             return Ok(doc);
         }
@@ -153,12 +152,10 @@ namespace DocTracking.Controllers
         public async Task<ActionResult<AppUser>> GetMyProfile()
         {
             var email = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email);
-
             var appUser = await _context.AppUsers
                 .Include(d => d.Unit)
                 .Include(d => d.Office)
                 .FirstOrDefaultAsync(d => d.Email == email);
-
             return appUser == null ? NotFound() : Ok(appUser);
         }
 
@@ -173,6 +170,34 @@ namespace DocTracking.Controllers
                 .Include(d => d.CurrentUnit)
                 .Where(d => d.Creator != null && d.Creator.Email == email)
                 .OrderByDescending(d => d.CreatedAt)
+                .ToListAsync();
+        }
+
+        [HttpGet("activity/user/{userId}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<IEnumerable<Document>>> GetUserActivity(int userId)
+        {
+            var docIds = await _context.DocumentLogs
+                .Where(l => l.AppUserId == userId)
+                .Select(l => l.DocumentId)
+                .Distinct()
+                .ToListAsync();
+
+            var created = await _context.Documents
+                .Where(d => d.CreatorId == userId)
+                .Select(d => d.Id)
+                .ToListAsync();
+
+            var allIds = docIds.Union(created).Distinct();
+
+            return await _context.Documents
+                .Include(d => d.Creator)
+                .Include(d => d.CurrentOffice)
+                .Include(d => d.CurrentUnit)
+                .Include(d => d.NextOffice)
+                .Include(d => d.NextUnit)
+                .Where(d => allIds.Contains(d.Id))
+                .OrderByDescending(d => d.LastActionDate ?? d.CreatedAt)
                 .ToListAsync();
         }
 
@@ -270,11 +295,10 @@ namespace DocTracking.Controllers
             }
 
             await NotifyOfficeOrUnit(receivedUnitId, receivedOfficeId,
-            $"{receivedBy} received a document in your unit.",
-            $"{receivedBy} received a document.",
-            $"{receivedBy} received a document in {receivedUnitName ?? receivedOfficeName} of {receivedOfficeName}.",
-            docName);
-
+                $"{receivedBy} received a document in your unit.",
+                $"{receivedBy} received a document.",
+                $"{receivedBy} received a document in {receivedUnitName ?? receivedOfficeName} of {receivedOfficeName}.",
+                docName);
 
             return Ok();
         }
@@ -340,16 +364,16 @@ namespace DocTracking.Controllers
             }
 
             await NotifyOfficeOrUnit(fromUnitId, fromOfficeId,
-            $"{forwardedBy} forwarded a document to {destination}.",
-            $"{forwardedBy} forwarded a document to {destination}.",
-            $"{forwardedBy} forwarded a document from {fromUnitName ?? fromOfficeName} of {fromOfficeName} to {destination}.",
-            docName);
+                $"{forwardedBy} forwarded a document to {destination}.",
+                $"{forwardedBy} forwarded a document to {destination}.",
+                $"{forwardedBy} forwarded a document from {fromUnitName ?? fromOfficeName} of {fromOfficeName} to {destination}.",
+                docName);
 
             await NotifyOfficeOrUnit(request.NextUnitId, request.NextOfficeId,
-            $"{forwardedBy} forwarded a document to your unit.",
-            $"{forwardedBy} forwarded a document to your office.",
-            $"{forwardedBy} forwarded a document to {nextUnit?.Name ?? nextOffice?.Name}.",
-            docName);
+                $"{forwardedBy} forwarded a document to your unit.",
+                $"{forwardedBy} forwarded a document to your office.",
+                $"{forwardedBy} forwarded a document to {nextUnit?.Name ?? nextOffice?.Name}.",
+                docName);
 
             return Ok();
         }
@@ -408,10 +432,10 @@ namespace DocTracking.Controllers
                 await TryNotify($"user-{doc.CreatorId}", $"Your document has been completed by {finishedBy}.", docName);
 
             await NotifyOfficeOrUnit(finishedAtUnit, finishedAtOffice,
-            $"{finishedBy} completed a document in your unit.",
-            $"{finishedBy} completed a document.",
-            $"{finishedBy} completed a document in {finishedUnitName ?? finishedOfficeName} of {finishedOfficeName}.",
-            docName);
+                $"{finishedBy} completed a document in your unit.",
+                $"{finishedBy} completed a document.",
+                $"{finishedBy} completed a document in {finishedUnitName ?? finishedOfficeName} of {finishedOfficeName}.",
+                docName);
 
             return Ok();
         }
@@ -468,7 +492,6 @@ namespace DocTracking.Controllers
                 .Where(d => _context.DocumentLogs.Any(log => log.DocumentId == d.Id && log.UnitId == unitId))
                 .OrderByDescending(d => d.CreatedAt)
                 .ToListAsync();
-
             return Ok(document);
         }
 
@@ -486,7 +509,6 @@ namespace DocTracking.Controllers
                     (log.UnitId == null && log.OfficeId == officeId))))
                 .OrderByDescending(d => d.CreatedAt)
                 .ToListAsync();
-
             return Ok(document);
         }
 
@@ -553,7 +575,52 @@ namespace DocTracking.Controllers
             return doc == null ? NotFound() : Ok(doc);
         }
 
-        private async Task NotifyOfficeOrUnit(int? unitId, int? officeId,string unitMsg, string officeMsg, string headMsg, string docName)
+        [HttpPut("{id}/admin-override")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> AdminOverride(int id, [FromBody] AdminOverrideRequest request)
+        {
+            var doc = await _context.Documents
+                .Include(d => d.Creator)
+                .Include(d => d.CurrentOffice)
+                .Include(d => d.NextOffice)
+                .FirstOrDefaultAsync(d => d.Id == id);
+            if (doc == null) return NotFound();
+
+            var email = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email);
+            var appUser = await _context.AppUsers.FirstOrDefaultAsync(u => u.Email == email);
+
+            doc.Status = request.Status ?? doc.Status;
+            doc.LastActionDate = DateTime.UtcNow;
+
+            if (request.NextOfficeId.HasValue)
+            {
+                doc.CurrentOfficeId = null;
+                doc.CurrentUnitId = null;
+                doc.NextOfficeId = request.NextOfficeId;
+                doc.NextUnitId = request.NextUnitId;
+                doc.Status = "In Motion";
+            }
+
+            _context.DocumentLogs.Add(new DocumentLog
+            {
+                DocumentId = doc.Id,
+                Action = "Admin Override",
+                OfficeId = request.NextOfficeId ?? doc.CurrentOfficeId,
+                UnitId = request.NextUnitId ?? doc.CurrentUnitId,
+                AppUserId = appUser?.Id,
+                TimeStamp = DateTime.UtcNow,
+                Comment = request.NextOfficeId.HasValue ? request.ReassignComment : request.ForceComment
+            });
+
+            await _context.SaveChangesAsync();
+
+            if (doc.CreatorId.HasValue)
+                await TryNotify($"user-{doc.CreatorId}", "Your document status was updated by an admin.", doc.Name ?? "");
+
+            return Ok();
+        }
+
+        private async Task NotifyOfficeOrUnit(int? unitId, int? officeId, string unitMsg, string officeMsg, string headMsg, string docName)
         {
             if (unitId.HasValue)
             {
@@ -578,5 +645,14 @@ namespace DocTracking.Controllers
     public class FinishRequest
     {
         public string? Comment { get; set; }
+    }
+
+    public class AdminOverrideRequest
+    {
+        public string? Status { get; set; }
+        public string? ForceComment { get; set; }
+        public int? NextOfficeId { get; set; }
+        public int? NextUnitId { get; set; }
+        public string? ReassignComment { get; set; }
     }
 }

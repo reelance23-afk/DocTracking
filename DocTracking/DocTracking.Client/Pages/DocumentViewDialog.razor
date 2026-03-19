@@ -218,7 +218,12 @@
 
     private async Task EditDocument()
     {
-        var parameters = new DialogParameters<EditDocumentDialog> { { x => x.Doc, Doc } };
+        var offices = await DocService.GetOfficesAsync();
+        var parameters = new DialogParameters<EditDocumentDialog>
+        {
+            { x => x.Doc, Doc },
+            { x => x.Offices, offices }
+        };
         var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
         var dialog = await DialogService.ShowAsync<EditDocumentDialog>("Edit Document", parameters, options);
         var result = await dialog.Result;

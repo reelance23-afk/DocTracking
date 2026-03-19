@@ -1,4 +1,4 @@
-@page "/document-tracking"
+﻿@page "/document-tracking"
 @attribute [Authorize(Roles = "Admin")]
 @using DocTracking.Client
 @using DocTracking.Client.Models
@@ -7,6 +7,7 @@
 @using DocTracking.Client.Services.Helpers
 @inject DocumentService DocumentService
 @inject IDialogService DialogService
+@inject IJSRuntime JS
 @rendermode InteractiveAuto
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
@@ -35,8 +36,40 @@
                               IconSize="Size.Medium" Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" />
             </div>
 
+            <div class="d-flex gap-2 flex-wrap align-center mb-4">
+                <MudSelect @bind-Value="statusFilter" Label="Status" Variant="Variant.Outlined"
+                           Margin="Margin.Dense" T="string" Style="min-width:140px;">
+                    <MudSelectItem T="string" Value="@("")">All Statuses</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("In Motion")">In Motion</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("Received")">Received</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("Completed")">Completed</MudSelectItem>
+                </MudSelect>
+                <MudSelect @bind-Value="officeFilter" Label="Office" Variant="Variant.Outlined"
+                           Margin="Margin.Dense" T="string" Style="min-width:160px;">
+                    <MudSelectItem T="string" Value="@("")">All Offices</MudSelectItem>
+                    @foreach (var office in allOffices)
+                    {
+                        <MudSelectItem T="string" Value="@office.Name">@office.Name</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudDatePicker @bind-Date="dateFrom" Label="From" Variant="Variant.Outlined"
+                               Margin="Margin.Dense" Style="min-width:140px;" />
+                <MudDatePicker @bind-Date="dateTo" Label="To" Variant="Variant.Outlined"
+                               Margin="Margin.Dense" Style="min-width:140px;" />
+                @if (!string.IsNullOrEmpty(statusFilter) || !string.IsNullOrEmpty(officeFilter) || dateFrom != null || dateTo != null)
+                {
+                    <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="ClearFilters"
+                               StartIcon="@Icons.Material.Filled.Clear">Clear</MudButton>
+                }
+                <MudSpacer />
+                <MudButton Variant="Variant.Outlined" Color="Color.Success"
+                           StartIcon="@Icons.Material.Filled.Download" OnClick="ExportCsv">
+                    Export CSV
+                </MudButton>
+            </div>
+
             <MudHidden Breakpoint="Breakpoint.SmAndDown">
-                <MudTable Items="@allDocuments" Hover="true" T="Document" Filter="new Func<Document, bool>(FilterFunc)">
+                <MudTable Items="@FilteredDocuments" Hover="true" T="Document">
                     <HeaderContent>
                         <MudTh><MudTableSortLabel SortBy="new Func<Document, object>(x => x.Name)">Name</MudTableSortLabel></MudTh>
                         <MudTh>Sender</MudTh>
@@ -74,7 +107,12 @@
                                 <MudIconButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Secondary"
                                                Icon="@Icons.Material.Filled.QrCode"
                                                OnClick="@(async () => await OpenQRDialog(context))" />
-
+                                <MudIconButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Warning"
+                                               Icon="@Icons.Material.Filled.Edit"
+                                               OnClick="@(async () => await OpenEditDialog(context))" />
+                                <MudIconButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Error"
+                                               Icon="@Icons.Material.Filled.Delete"
+                                               OnClick="@(async () => await DeleteDocument(context))" />
                             </div>
                         </MudTd>
                     </RowTemplate>
@@ -88,21 +126,18 @@
                 </MudTable>
             </MudHidden>
 
-                <MudHidden Breakpoint="Breakpoint.MdAndUp">
-                    @{
-                        var mobileDocs = allDocuments.Where(d => FilterFunc(d)).ToList();
-                    }
-                    @if (!mobileDocs.Any())
+            <MudHidden Breakpoint="Breakpoint.MdAndUp">
+                @if (!FilteredDocuments.Any())
+                {
+                    <div class="pa-8 text-center">
+                        <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Large" Style="opacity: 0.3; font-size: 4rem;" Class="mb-4" />
+                        <MudText Typo="Typo.h6" Class="mud-text-secondary">No documents found</MudText>
+                    </div>
+                }
+                else
+                {
+                    @foreach (var doc in FilteredDocuments)
                     {
-                        <div class="pa-8 text-center">
-                            <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Large" Style="opacity: 0.3; font-size: 4rem;" Class="mb-4" />
-                            <MudText Typo="Typo.h6" Class="mud-text-secondary">No documents found</MudText>
-                        </div>
-                    }
-                    else
-                    {
-                        @foreach (var doc in mobileDocs)
-                        {
                         <MudCard Elevation="2" Class="mb-3">
                             <MudCardContent Class="pa-4">
                                 <div class="d-flex justify-space-between align-start mb-2">
@@ -134,17 +169,21 @@
                                 </MudText>
                             </MudCardContent>
                             <MudCardActions Class="pa-4 pt-0">
-                                <div class="d-flex gap-2" style="width:100%">
+                                <div class="d-flex gap-2 flex-wrap" style="width:100%">
                                     <MudButton Variant="Variant.Filled" Color="Color.Primary" Style="flex:1"
-                                               StartIcon="@Icons.Material.Filled.Visibility" FullWidth="true"
+                                               StartIcon="@Icons.Material.Filled.Visibility"
                                                OnClick="@(async () => await OpenViewDialog(doc))">View</MudButton>
                                     <MudIconButton Variant="Variant.Outlined" Color="Color.Secondary"
                                                    Icon="@Icons.Material.Filled.QrCode"
                                                    OnClick="@(async () => await OpenQRDialog(doc))" />
-
+                                    <MudIconButton Variant="Variant.Outlined" Color="Color.Warning"
+                                                   Icon="@Icons.Material.Filled.Edit"
+                                                   OnClick="@(async () => await OpenEditDialog(doc))" />
+                                    <MudIconButton Variant="Variant.Outlined" Color="Color.Error"
+                                                   Icon="@Icons.Material.Filled.Delete"
+                                                   OnClick="@(async () => await DeleteDocument(doc))" />
                                 </div>
                             </MudCardActions>
-
                         </MudCard>
                     }
                 }
@@ -157,13 +196,31 @@
     [SupplyParameterFromQuery(Name = "ref")] public string? RefParam { get; set; }
 
     private List<Document> allDocuments = new();
+    private List<Office> allOffices = new();
     private bool loading = true;
     private string searchString = "";
+    private string statusFilter = "";
+    private string officeFilter = "";
+    private DateTime? dateFrom;
+    private DateTime? dateTo;
     private bool dialogOpened = false;
+
+    private IEnumerable<Document> FilteredDocuments => allDocuments
+        .Where(d => string.IsNullOrEmpty(searchString) || FilterFunc(d))
+        .Where(d => string.IsNullOrEmpty(statusFilter) || d.Status == statusFilter)
+        .Where(d => string.IsNullOrEmpty(officeFilter) ||
+                    d.CurrentOffice?.Name == officeFilter ||
+                    d.NextOffice?.Name == officeFilter)
+        .Where(d => dateFrom == null || d.CreatedAt.ToLocalTime().Date >= dateFrom.Value.Date)
+        .Where(d => dateTo == null || d.CreatedAt.ToLocalTime().Date <= dateTo.Value.Date);
 
     protected override async Task OnInitializedAsync()
     {
-        try { allDocuments = await DocumentService.GetAllDocumentsAsync(); }
+        try
+        {
+            allDocuments = await DocumentService.GetAllDocumentsAsync();
+            allOffices = await DocumentService.GetOfficesAsync();
+        }
         catch (Exception ex) { Console.WriteLine(ex.Message); }
         finally { loading = false; }
     }
@@ -181,6 +238,41 @@
         }
     }
 
+    private void ClearFilters()
+    {
+        statusFilter = "";
+        officeFilter = "";
+        dateFrom = null;
+        dateTo = null;
+    }
+
+    private async Task ExportCsv()
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("Name,Type,Sender,Status,Priority,Current Office,Current Unit,Next Office,Created At");
+        foreach (var doc in FilteredDocuments)
+        {
+            sb.AppendLine($"\"{doc.Name}\",\"{doc.Type}\",\"{doc.Creator?.Name}\",\"{doc.Status}\",\"{doc.Priority}\"," +
+                          $"\"{doc.CurrentOffice?.Name}\",\"{doc.CurrentUnit?.Name}\",\"{doc.NextOffice?.Name}\"," +
+                          $"\"{doc.CreatedAt.ToLocalTime():yyyy-MM-dd}\"");
+        }
+        var bytes = System.Text.Encoding.UTF8.GetBytes(sb.ToString());
+        var base64 = Convert.ToBase64String(bytes);
+        await JS.InvokeVoidAsync("downloadCsv", base64, $"documents_{DateTime.Now:yyyyMMdd}.csv");
+    }
+
+    private bool FilterFunc(Document element)
+    {
+        if (string.IsNullOrWhiteSpace(searchString)) return true;
+        if (element.Name?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+        if (element.Creator?.Name?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+        if (element.Status?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+        if (element.CurrentOffice?.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+        if (element.NextOffice?.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+        if (element.CurrentUnit?.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+        if (element.NextUnit?.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
+        return false;
+    }
 
     private async Task OpenQRDialog(Document doc)
     {
@@ -205,37 +297,20 @@
             FileName = doc.FileName,
             FilePath = doc.FilePath
         };
-        var parameters = new DialogParameters<EditDocumentDialog> { { x => x.Doc, editingDoc } };
-        var dialog = await DialogService.ShowAsync<EditDocumentDialog>("Edit Document", parameters);
-        var result = await dialog.Result;
-        if (!result!.Canceled && result.Data is Document updated)
+        var offices = await DocumentService.GetOfficesAsync();
+        var parameters = new DialogParameters<EditDocumentDialog>
         {
-            var (success, _) = await DocumentService.UpdateDocumentAsync(updated);
-            if (success)
-            {
-                var existing = allDocuments.FirstOrDefault(d => d.Id == updated.Id);
-                if (existing != null)
-                {
-                    existing.Name = updated.Name; existing.Type = updated.Type;
-                    existing.Description = updated.Description; existing.Priority = updated.Priority;
-                    existing.FileName = updated.FileName; existing.FilePath = updated.FilePath;
-                }
-                StateHasChanged();
-            }
+            { x => x.Doc, editingDoc },
+            { x => x.Offices, offices }
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
+        var dialog = await DialogService.ShowAsync<EditDocumentDialog>("Edit Document", parameters, options);
+        var result = await dialog.Result;
+        if (!result!.Canceled)
+        {
+            allDocuments = await DocumentService.GetAllDocumentsAsync();
+            StateHasChanged();
         }
-    }
-
-    private bool FilterFunc(Document element)
-    {
-        if (string.IsNullOrWhiteSpace(searchString)) return true;
-        if (element.Name?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
-        if (element.Creator?.Name?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
-        if (element.Status?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
-        if (element.CurrentOffice?.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
-        if (element.NextOffice?.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
-        if (element.CurrentUnit?.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
-        if (element.NextUnit?.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
-        return false;
     }
 
     private async Task OpenViewDialog(Document doc)
@@ -254,7 +329,28 @@
                 allDocuments.RemoveAll(d => d.Id == doc.Id);
                 StateHasChanged();
             }
+            else
+            {
+                allDocuments = await DocumentService.GetAllDocumentsAsync();
+                StateHasChanged();
+            }
         }
     }
-}
 
+    private async Task DeleteDocument(Document doc)
+    {
+        var parameters = new DialogParameters
+        {
+            { "Message", $"Delete '{doc.Name}'? This cannot be undone." },
+            { "YesText", "Delete" },
+            { "CancelText", "Cancel" }
+        };
+        var dialog = await DialogService.ShowAsync<MudMessageBox>("Delete Document", parameters);
+        var result = await dialog.Result;
+        if (result is null || result.Canceled) return;
+        var (ok, _) = await DocumentService.DeleteDocumentAsync(doc.Id);
+        if (!ok) return;
+        allDocuments.RemoveAll(d => d.Id == doc.Id);
+        StateHasChanged();
+    }
+}
