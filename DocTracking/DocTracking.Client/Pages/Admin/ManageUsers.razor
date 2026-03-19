@@ -8,11 +8,12 @@
 @rendermode InteractiveAuto
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
-    <MudText Typo="Typo.h4" Class="mb-4">Manage Users</MudText>
-
-    <MudTextField @bind-Value="searchString" Placeholder="Search users..."
-                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
-                  Variant="Variant.Outlined" Immediate="true" Class="mb-4" />
+    <div class="d-flex justify-space-between align-center mb-4 toolbar-row">
+        <MudText Typo="Typo.h4" Class="font-weight-bold">Manage Users</MudText>
+        <MudTextField @bind-Value="searchString" Placeholder="Search users..."
+                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                      Variant="Variant.Outlined" Immediate="true" />
+    </div>
 
     @if (isLoading)
     {

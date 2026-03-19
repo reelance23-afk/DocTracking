@@ -30,7 +30,7 @@
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-6 mb-8">
 
-    <div class="d-flex justify-space-between align-center mb-4">
+    <div class="d-flex justify-space-between align-center mb-4 page-header-row">
         <div>
             <MudText Typo="Typo.h4" Class="font-weight-bold">Office Management</MudText>
             <MudText Typo="Typo.body2" Class="mud-text-secondary">Manage offices and their respective units.</MudText>
@@ -57,20 +57,20 @@
             {
                 <MudExpansionPanel @key="office.Id" MaxHeight="1500">
                     <TitleContent>
-                        <div class="d-flex align-center justify-space-between w-100 pr-2">
-                            <div class="d-flex align-center gap-3">
+                        <div class="d-flex align-center justify-space-between w-100 pr-2" style="flex-wrap: wrap; gap: 4px;">
+                            <div class="d-flex align-center gap-3" style="min-width: 0; flex: 1;">
                                 <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small">
                                     <MudIcon Icon="@Icons.Material.Filled.Business" Size="Size.Small" />
                                 </MudAvatar>
-                                <div>
-                                    <MudText Typo="Typo.body1" Class="font-weight-bold">@office.Name</MudText>
+                                <div style="min-width: 0;">
+                                    <MudText Typo="Typo.body1" Class="font-weight-bold" Style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">@office.Name</MudText>
                                     <MudText Typo="Typo.caption" Class="mud-text-secondary">
                                         @(office.Units?.Count ?? 0) unit@(office.Units?.Count == 1 ? "" : "s") &bull;
                                         @(allUsers.Count(u => office.Units?.Any(un => un.Id == u.UnitId) == true)) worker@(allUsers.Count(u => office.Units?.Any(un => un.Id == u.UnitId) == true) == 1 ? "" : "s")
                                     </MudText>
                                 </div>
                             </div>
-                            <div class="d-flex align-center gap-1" @onclick:stopPropagation>
+                            <div class="d-flex align-center gap-1 flex-shrink-0" @onclick:stopPropagation>
                                 @if (!string.IsNullOrEmpty(office.ReceivingSchedule))
                                 {
                                     <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined"
@@ -93,7 +93,7 @@
                         <div class="pa-4">
                             <MudPaper Elevation="0" Class="pa-3 mb-4 rounded-lg mud-background-gray">
                                 <MudText Typo="Typo.subtitle2" Class="mb-2 font-weight-bold">Add New Unit</MudText>
-                                <div class="d-flex gap-2 align-center">
+                                <div class="d-flex gap-2 align-center unit-input-row">
                                     <input type="text"
                                            value="@GetUnitName(office.Id)"
                                            @oninput="@(e => SetUnitName(office.Id, e.Value?.ToString() ?? ""))"
