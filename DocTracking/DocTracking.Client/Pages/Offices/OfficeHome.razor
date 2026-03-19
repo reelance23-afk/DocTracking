@@ -1,9 +1,13 @@
 @attribute [Authorize(Roles = "Office")]
+@using DocTracking.Client
 @using DocTracking.Client.Models
 @using DocTracking.Client.Services
+@using DocTracking.Client.Services.Helpers
 @inject DocumentService DocService
 @inject ISnackbar Snackbar
 @inject AuthenticationStateProvider AuthStateProvider
+@inject NotificationService NotifService
+@implements IDisposable
 @rendermode InteractiveAuto
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
@@ -89,7 +93,7 @@
                                     <MudPaper Elevation="1" Class="pa-3 mb-2">
                                         <MudText Typo="Typo.body2" Class="font-weight-bold mb-1">@doc.Name</MudText>
                                         <div class="d-flex justify-space-between align-center">
-                                            <MudChip T="string" Size="Size.Small" Color="@GetPriorityColor(doc.Priority)" Variant="Variant.Filled">@doc.Priority</MudChip>
+                                            <MudChip T="string" Size="Size.Small" Color="@DocHelpers.GetPriorityColor(doc.Priority)" Variant="Variant.Filled">@doc.Priority</MudChip>
                                             <MudIconButton Icon="@Icons.Material.Filled.OpenInNew" Size="Size.Small" Color="Color.Primary" Href="@($"/track-document/{doc.Id}")" />
                                         </div>
                                     </MudPaper>
@@ -108,7 +112,7 @@
                                     <MudPaper Elevation="1" Class="pa-3 mb-2">
                                         <MudText Typo="Typo.body2" Class="font-weight-bold mb-1">@doc.Name</MudText>
                                         <div class="d-flex justify-space-between align-center">
-                                            <MudChip T="string" Size="Size.Small" Color="@GetPriorityColor(doc.Priority)" Variant="Variant.Filled">@doc.Priority</MudChip>
+                                            <MudChip T="string" Size="Size.Small" Color="@DocHelpers.GetPriorityColor(doc.Priority)" Variant="Variant.Filled">@doc.Priority</MudChip>
                                             <MudIconButton Icon="@Icons.Material.Filled.OpenInNew" Size="Size.Small" Color="Color.Primary" Href="@($"/track-document/{doc.Id}")" />
                                         </div>
                                     </MudPaper>
@@ -123,7 +127,6 @@
                 </MudPaper>
             </MudItem>
 
-            <!-- Timeline -->
             <MudItem xs="12" md="5">
                 <MudPaper Elevation="2" Class="pa-4" Style="height: 100%;">
                     <div class="d-flex align-center mb-4">
@@ -142,14 +145,14 @@
                         <MudTimeline TimelinePosition="TimelinePosition.Start">
                             @foreach (var doc in recentDocs.Take(4))
                             {
-                                <MudTimelineItem Color="@GetPriorityColor(doc.Priority)" Size="Size.Small">
+                                <MudTimelineItem Color="@DocHelpers.GetPriorityColor(doc.Priority)" Size="Size.Small">
                                     <ItemContent>
                                         <MudCard Elevation="1" Class="mb-1">
                                             <MudCardContent Class="pa-3">
                                                 <div class="d-flex justify-space-between align-center">
                                                     <MudText Typo="Typo.body2" Class="font-weight-bold">@doc.Name</MudText>
                                                     <MudChip T="string" Size="Size.Small"
-                                                             Color="@(doc.Status == "Completed" ? Color.Success : Color.Warning)"
+                                                             Color="@DocHelpers.GetStatusColor(doc.Status)"
                                                              Variant="Variant.Outlined">
                                                         @doc.Status
                                                     </MudChip>
@@ -184,6 +187,7 @@
     private List<Document> deskDocs = new();
     private List<Document> outgoingDocs = new();
     private List<Document> recentDocs = new();
+    private readonly DebounceHelper _debounce = new();
     private string userEmail = "";
     private bool isLoadingInitial = true;
 
@@ -211,23 +215,7 @@
             }
 
             if (myOffice != null)
-            {
-                incomingDocs = await DocService.GetIncomingAsync(myOffice.Id, myUnitId);
-                var allDocs = await DocService.GetAllDocumentsAsync();
-
-                deskDocs = allDocs.Where(d =>
-                    d.CurrentOfficeId == myOffice.Id &&
-                    d.Status == "Received" &&
-                    (myUnitId.HasValue ? (d.CurrentUnitId == null || d.CurrentUnitId == myUnitId) : d.CurrentUnitId == null)
-                ).ToList();
-
-                outgoingDocs = await DocService.GetOutgoingAsync();
-
-                recentDocs = allDocs
-                    .Where(d => d.CurrentOfficeId == myOffice.Id || d.NextOfficeId == myOffice.Id)
-                    .OrderByDescending(d => d.LastActionDate)
-                    .Take(5).ToList();
-            }
+                await RefreshData();
         }
         catch (Exception ex)
         {
@@ -237,12 +225,37 @@
         finally { isLoadingInitial = false; }
     }
 
-    private Color GetPriorityColor(string? priority) => priority switch
+    protected override Task OnAfterRenderAsync(bool firstRender)
     {
-        "Emergency" => Color.Error,
-        "Urgent" => Color.Warning,
-        "Medium" => Color.Info,
-        "Low" => Color.Success,
-        _ => Color.Default
-    };
+        if (firstRender)
+            NotifService.OnChange += OnNotificationReceived;
+        return Task.CompletedTask;
+    }
+
+    private void OnNotificationReceived() =>
+    _debounce.Trigger(async () =>
+    {
+        await RefreshData();
+        await InvokeAsync(StateHasChanged);
+    });
+
+    private async Task RefreshData()
+    {
+        if (myOffice == null) return;
+        incomingDocs = await DocService.GetIncomingAsync(myOffice.Id, myUnitId);
+        deskDocs = await DocService.GetDeskDocumentsAsync(myOffice.Id, myUnitId.HasValue ? myUnitId : null);
+        outgoingDocs = await DocService.GetOutgoingAsync();
+
+        var allDocs = await DocService.GetAllDocumentsAsync();
+        recentDocs = allDocs
+        .Where(d => d.CurrentOfficeId == myOffice.Id || d.NextOfficeId == myOffice.Id)
+        .OrderByDescending(d => d.LastActionDate)
+        .Take(5).ToList();
+    }
+
+    public void Dispose()
+    {
+        NotifService.OnChange -= OnNotificationReceived;
+        _debounce.Dispose();
+    }
 }

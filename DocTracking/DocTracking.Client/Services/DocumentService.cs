@@ -26,6 +26,15 @@ namespace DocTracking.Client.Services
             return JsonSerializer.Deserialize<T>(content, _jsonOptions);
         }
 
+        private async Task<(bool Success, string? Error)> ToResult(Task<HttpResponseMessage> task)
+        {
+            var response = await task;
+            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                throw new UnauthorizedAccessException();
+            if (response.IsSuccessStatusCode) return (true, null);
+            return (false, await response.Content.ReadAsStringAsync());
+        }
+
         public async Task<List<Office>> GetOfficesAsync() =>
             await GetJsonAsync<List<Office>>("api/offices") ?? new();
 
@@ -41,6 +50,7 @@ namespace DocTracking.Client.Services
             if (unitId.HasValue) url += $"?unitId={unitId.Value}";
             return await GetJsonAsync<List<Document>>(url) ?? new();
         }
+
         public async Task<List<Document>> GetDeskDocumentsAsync(int officeId, int? unitId = null)
         {
             var url = $"api/documents/desk/{officeId}";
@@ -50,7 +60,6 @@ namespace DocTracking.Client.Services
 
         public async Task<List<Document>> GetOutgoingAsync() =>
             await GetJsonAsync<List<Document>>("api/documents/outgoing/user") ?? new();
-
 
         public async Task<List<DocumentLog>> GetDocumentLogsAsync(int id) =>
             await GetJsonAsync<List<DocumentLog>>($"api/documentlogs/{id}") ?? new();
@@ -100,91 +109,41 @@ namespace DocTracking.Client.Services
         public async Task<bool> ReceivedDocumentAsync(int id) =>
             (await _http.PutAsync($"api/documents/{id}/receive", null)).IsSuccessStatusCode;
 
-        public async Task<(bool Success, string? Error)> ForwardDocumentAsync(int id, int nextOfficeId, int? nextUnitId = null, string? comment = null)
-        {
-           var response = await _http.PutAsJsonAsync($"api/documents/{id}/forward", new { NextOfficeId = nextOfficeId, NextUnitId = nextUnitId, Comment = comment });
-            if (response.IsSuccessStatusCode) return (true, null);
-            return (false, await response.Content.ReadAsStringAsync());
-        }
+        public Task<(bool Success, string? Error)> ForwardDocumentAsync(int id, int nextOfficeId, int? nextUnitId = null, string? comment = null) =>
+            ToResult(_http.PutAsJsonAsync($"api/documents/{id}/forward", new { NextOfficeId = nextOfficeId, NextUnitId = nextUnitId, Comment = comment }));
 
-        public async Task<(bool Success, string? Error)> FinishDocumentAsync(int id, string? comment = null)
-        {
-            var response = await _http.PutAsJsonAsync($"api/documents/{id}/finish", new { Comment = comment });
-            if (response.IsSuccessStatusCode) return (true, null); 
-            return (false, await response.Content.ReadAsStringAsync());
-        }
+        public Task<(bool Success, string? Error)> FinishDocumentAsync(int id, string? comment = null) =>
+            ToResult(_http.PutAsJsonAsync($"api/documents/{id}/finish", new { Comment = comment }));
 
+        public Task<(bool Success, string? Error)> UpdateAppUserAsync(AppUser user) =>
+            ToResult(_http.PutAsJsonAsync($"api/appusers/{user.Id}", user));
 
-        public async Task<(bool Success, string? Error)> UpdateAppUserAsync(AppUser user)
-        {
-           var response = await _http.PutAsJsonAsync($"api/appusers/{user.Id}", user);
-           if (response.IsSuccessStatusCode) return (true, null);
-           return (false, await response.Content.ReadAsStringAsync());
+        public Task<(bool Success, string? Error)> AddOfficeAsync(Office office) =>
+            ToResult(_http.PostAsJsonAsync("api/offices", office));
 
-        }
+        public Task<(bool Success, string? Error)> UpdateOfficeAsync(Office office) =>
+            ToResult(_http.PutAsJsonAsync($"api/offices/{office.Id}", office));
 
-        public async Task<(bool Success, string? Error)> AddOfficeAsync(Office office)
-        {
-            var response = await _http.PostAsJsonAsync("api/offices", office);
-            if (response.IsSuccessStatusCode) return (true, null);
-            return (false, await response.Content.ReadAsStringAsync());
-        }
+        public Task<(bool Success, string? Error)> DeleteOfficeAsync(int id) =>
+            ToResult(_http.DeleteAsync($"api/offices/{id}"));
 
-        public async Task<(bool Success, string? Error)> UpdateOfficeAsync(Office office)
-        {
-            var response = await _http.PutAsJsonAsync($"api/offices/{office.Id}", office);
-            if (response.IsSuccessStatusCode) return (true, null);
-            return (false, await response.Content.ReadAsStringAsync());
-        }
+        public Task<(bool Success, string? Error)> AddUnitAsync(Unit unit) =>
+            ToResult(_http.PostAsJsonAsync("api/units", unit));
 
-        public async Task<(bool Success, string? Error)> DeleteOfficeAsync(int id)
-        {
-            var response = await _http.DeleteAsync($"api/offices/{id}");
-            if (response.IsSuccessStatusCode) return (true, null);
-            return (false, await response.Content.ReadAsStringAsync());
-        }
+        public Task<(bool Success, string? Error)> UpdateUnitAsync(Unit unit) =>
+            ToResult(_http.PutAsJsonAsync($"api/units/{unit.Id}", unit));
 
-        public async Task<(bool Success, string? Error)> AddUnitAsync(Unit unit)
-        {
-            var response = await _http.PostAsJsonAsync("api/units", unit);
-            if (response.IsSuccessStatusCode) return (true, null);
-            return (false, await response.Content.ReadAsStringAsync());
-        }
+        public Task<(bool Success, string? Error)> DeleteUnitAsync(int id) =>
+            ToResult(_http.DeleteAsync($"api/units/{id}"));
 
-        public async Task<(bool Success, string? Error)> UpdateUnitAsync(Unit unit)
-        {
-            var response = await _http.PutAsJsonAsync($"api/units/{unit.Id}", unit);
-            if (response.IsSuccessStatusCode) return (true, null);
-            return (false, await response.Content.ReadAsStringAsync());
-        }
+        public Task<(bool Success, string? Error)> DeleteAppUserAsync(int id) =>
+            ToResult(_http.DeleteAsync($"api/appusers/{id}"));
 
-        public async Task<(bool Success, string? Error)> DeleteUnitAsync(int id)
-        {
-            var response = await _http.DeleteAsync($"api/units/{id}");
-            if (response.IsSuccessStatusCode) return (true, null);
-            return (false, await response.Content.ReadAsStringAsync());
-        }
+        public Task<(bool Success, string? Error)> UpdateDocumentAsync(Document doc) =>
+            ToResult(_http.PutAsJsonAsync($"api/documents/{doc.Id}", doc));
 
-        public async Task<(bool Success, string? Error)> DeleteAppUserAsync(int id)
-        {
-            var response = await _http.DeleteAsync($"api/appusers/{id}");
-            if (response.IsSuccessStatusCode) return (true, null);
-            return (false, await response.Content.ReadAsStringAsync());
-        }
-
-        public async Task<(bool Success, string? Error)> UpdateDocumentAsync(Document doc)
-        {
-            var response = await _http.PutAsJsonAsync($"api/documents/{doc.Id}", doc);
-            if (response.IsSuccessStatusCode) return (true, null);
-            return (false, await response.Content.ReadAsStringAsync());
-        }
-
-        public async Task<(bool Success, string? Error)> DeleteDocumentAsync(int id)
-        {
-            var response = await _http.DeleteAsync($"api/documents/{id}");
-            if (response.IsSuccessStatusCode) return (true, null);
-            return (false, await response.Content.ReadAsStringAsync());
-        }
+        public Task<(bool Success, string? Error)> DeleteDocumentAsync(int id) =>
+            ToResult(_http.DeleteAsync($"api/documents/{id}"));
 
         public string GetQRCodeUrl(int documentId) => $"{_http.BaseAddress}api/documents/{documentId}/qrcode";
 
@@ -196,7 +155,6 @@ namespace DocTracking.Client.Services
             if (content.TrimStart().StartsWith('<')) return null;
             return JsonSerializer.Deserialize<Document>(content, _jsonOptions);
         }
-
     }
 
     public class UploadResponse

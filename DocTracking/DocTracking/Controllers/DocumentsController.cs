@@ -96,16 +96,12 @@ namespace DocTracking.Controllers
             if (appuser != null)
                 await TryNotify($"user-{appuser.Id}", "You created a new document.", doc.Name ?? "");
 
-            if (doc.NextUnitId.HasValue)
-            {
-                await TryNotify($"unit-{doc.NextUnitId}", $"A document from {creatorName} is incoming to your unit", doc.Name ?? "");
-                await TryNotify($"office-head-{doc.NextOfficeId}", $"A document from {creatorName} incoming to one of your units", doc.Name ?? "");
-            }
-            else if (doc.NextOfficeId.HasValue)
-            {
-                await TryNotify($"office-{doc.NextOfficeId}", $"A document from {creatorName} incoming to your office", doc.Name ?? "");
-                await TryNotify($"office-head-{doc.NextOfficeId}", $"A document from {creatorName} incoming to your office", doc.Name ?? "");
-            }
+            await NotifyOfficeOrUnit(doc.NextUnitId, doc.NextOfficeId,
+            $"A document from {creatorName} is incoming to your unit",
+            $"A document from {creatorName} incoming to your office",
+            $"A document from {creatorName} incoming to your office",
+             doc.Name ?? "");
+
 
             return Ok(doc);
         }
@@ -273,16 +269,12 @@ namespace DocTracking.Controllers
                     await TryNotify($"user-{doc.CreatorId}", $"Your document has been received by {receivedBy} in {receivedOfficeName}.", docName);
             }
 
-            if (receivedUnitId.HasValue)
-            {
-                await TryNotify($"unit-{receivedUnitId}", $"{receivedBy} received a document in your unit.", docName);
-                await TryNotify($"office-head-{receivedOfficeId}", $"{receivedBy} received a document in {receivedUnitName} of {receivedOfficeName}.", docName);
-            }
-            else if (receivedOfficeId.HasValue)
-            {
-                await TryNotify($"office-{receivedOfficeId}", $"{receivedBy} received a document.", docName);
-                await TryNotify($"office-head-{receivedOfficeId}", $"{receivedBy} received a document in {receivedOfficeName}.", docName);
-            }
+            await NotifyOfficeOrUnit(receivedUnitId, receivedOfficeId,
+            $"{receivedBy} received a document in your unit.",
+            $"{receivedBy} received a document.",
+            $"{receivedBy} received a document in {receivedUnitName ?? receivedOfficeName} of {receivedOfficeName}.",
+            docName);
+
 
             return Ok();
         }
@@ -347,33 +339,23 @@ namespace DocTracking.Controllers
                     await TryNotify($"user-{doc.CreatorId}", $"Your document was forwarded by {forwardedBy} to {nextOffice?.Name}.", docName);
             }
 
-            if (fromUnitId.HasValue)
-            {
-                await TryNotify($"unit-{fromUnitId}", $"{forwardedBy} forwarded a document to {destination}.", docName);
-                await TryNotify($"office-head-{fromOfficeId}", $"{forwardedBy} forwarded a document from {fromUnitName} of {fromOfficeName} to {destination}.", docName);
-            }
-            else if (fromOfficeId.HasValue)
-            {
-                await TryNotify($"office-{fromOfficeId}", $"{forwardedBy} forwarded a document to {destination}.", docName);
-                await TryNotify($"office-head-{fromOfficeId}", $"{forwardedBy} forwarded a document from {fromOfficeName} to {destination}.", docName);
-            }
+            await NotifyOfficeOrUnit(fromUnitId, fromOfficeId,
+            $"{forwardedBy} forwarded a document to {destination}.",
+            $"{forwardedBy} forwarded a document to {destination}.",
+            $"{forwardedBy} forwarded a document from {fromUnitName ?? fromOfficeName} of {fromOfficeName} to {destination}.",
+            docName);
 
-            if (request.NextUnitId.HasValue)
-            {
-                await TryNotify($"unit-{request.NextUnitId}", $"{forwardedBy} forwarded a document to your unit.", docName);
-                await TryNotify($"office-head-{request.NextOfficeId}", $"{forwardedBy} forwarded a document to {nextUnit?.Name} of {nextOffice?.Name}.", docName);
-            }
-            else
-            {
-                await TryNotify($"office-{request.NextOfficeId}", $"{forwardedBy} forwarded a document to your office.", docName);
-                await TryNotify($"office-head-{request.NextOfficeId}", $"{forwardedBy} forwarded a document to {nextOffice?.Name}.", docName);
-            }
+            await NotifyOfficeOrUnit(request.NextUnitId, request.NextOfficeId,
+            $"{forwardedBy} forwarded a document to your unit.",
+            $"{forwardedBy} forwarded a document to your office.",
+            $"{forwardedBy} forwarded a document to {nextUnit?.Name ?? nextOffice?.Name}.",
+            docName);
 
             return Ok();
         }
 
         [HttpPut("{id}/finish")]
-        public async Task<IActionResult> FinishDocument(int id)
+        public async Task<IActionResult> FinishDocument(int id, [FromBody] FinishRequest request)
         {
             var doc = await _context.Documents
                 .Include(d => d.Creator)
@@ -390,6 +372,7 @@ namespace DocTracking.Controllers
 
             doc.Status = "Completed";
             doc.LastActionDate = DateTime.UtcNow;
+            doc.Comment = request.Comment;
 
             var finishedAtOffice = doc.CurrentOfficeId;
             var finishedAtUnit = doc.CurrentUnitId;
@@ -413,7 +396,7 @@ namespace DocTracking.Controllers
                 UnitId = finishedAtUnit,
                 AppUserId = appUser?.Id,
                 TimeStamp = DateTime.UtcNow,
-                Comment = doc.Comment
+                Comment = request.Comment
             });
 
             await _context.SaveChangesAsync();
@@ -424,16 +407,11 @@ namespace DocTracking.Controllers
             if (doc.CreatorId.HasValue)
                 await TryNotify($"user-{doc.CreatorId}", $"Your document has been completed by {finishedBy}.", docName);
 
-            if (finishedAtUnit.HasValue)
-            {
-                await TryNotify($"unit-{finishedAtUnit}", $"{finishedBy} completed a document in your unit.", docName);
-                await TryNotify($"office-head-{finishedAtOffice}", $"{finishedBy} completed a document in {finishedUnitName} of {finishedOfficeName}.", docName);
-            }
-            else if (finishedAtOffice.HasValue)
-            {
-                await TryNotify($"office-{finishedAtOffice}", $"{finishedBy} completed a document.", docName);
-                await TryNotify($"office-head-{finishedAtOffice}", $"{finishedBy} completed a document in {finishedOfficeName}.", docName);
-            }
+            await NotifyOfficeOrUnit(finishedAtUnit, finishedAtOffice,
+            $"{finishedBy} completed a document in your unit.",
+            $"{finishedBy} completed a document.",
+            $"{finishedBy} completed a document in {finishedUnitName ?? finishedOfficeName} of {finishedOfficeName}.",
+            docName);
 
             return Ok();
         }
@@ -574,12 +552,31 @@ namespace DocTracking.Controllers
                 .FirstOrDefaultAsync(d => d.ReferenceNumber == referenceNumber);
             return doc == null ? NotFound() : Ok(doc);
         }
+
+        private async Task NotifyOfficeOrUnit(int? unitId, int? officeId,string unitMsg, string officeMsg, string headMsg, string docName)
+        {
+            if (unitId.HasValue)
+            {
+                await TryNotify($"unit-{unitId}", unitMsg, docName);
+                await TryNotify($"office-head-{officeId}", headMsg, docName);
+            }
+            else if (officeId.HasValue)
+            {
+                await TryNotify($"office-{officeId}", officeMsg, docName);
+                await TryNotify($"office-head-{officeId}", headMsg, docName);
+            }
+        }
     }
 
     public class ForwardRequest
     {
         public int NextOfficeId { get; set; }
         public int? NextUnitId { get; set; }
+        public string? Comment { get; set; }
+    }
+
+    public class FinishRequest
+    {
         public string? Comment { get; set; }
     }
 }

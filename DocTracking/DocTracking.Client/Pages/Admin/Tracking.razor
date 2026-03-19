@@ -1,8 +1,10 @@
 @page "/document-tracking"
 @attribute [Authorize(Roles = "Admin")]
+@using DocTracking.Client
 @using DocTracking.Client.Models
 @using DocTracking.Client.Pages
 @using DocTracking.Client.Services
+@using DocTracking.Client.Services.Helpers
 @inject DocumentService DocumentService
 @inject IDialogService DialogService
 @rendermode InteractiveAuto
@@ -13,41 +15,7 @@
             <MudIcon Icon="@Icons.Material.Filled.TrackChanges" Size="Size.Large" Class="mr-3" Color="Color.Primary" />
             <MudText Typo="Typo.h4" Class="font-weight-bold">Tracking List</MudText>
         </div>
-        <MudGrid>
-            <MudItem xs="12" sm="4">
-                <MudPaper Style="border-top: 4px solid var(--mud-palette-warning);" Elevation="2" Class="pa-4 rounded-lg">
-                    <div class="d-flex align-center justify-space-between">
-                        <div>
-                            <MudText Typo="Typo.h3" Class="font-weight-bold" Color="Color.Warning">@allDocuments.Count(d => d.Status != "Received" && d.Status != "Completed")</MudText>
-                            <MudText Typo="Typo.body2" Color="Color.Warning">In Motion</MudText>
-                        </div>
-                        <MudIcon Icon="@Icons.Material.Filled.DirectionsWalk" Size="Size.Large" Color="Color.Warning" />
-                    </div>
-                </MudPaper>
-            </MudItem>
-            <MudItem xs="12" sm="4">
-                <MudPaper Style="border-top: 4px solid var(--mud-palette-success);" Elevation="2" Class="pa-4 rounded-lg">
-                    <div class="d-flex align-center justify-space-between">
-                        <div>
-                            <MudText Typo="Typo.h3" Class="font-weight-bold" Color="Color.Success">@allDocuments.Count(d => d.Status == "Received")</MudText>
-                            <MudText Typo="Typo.body2" Color="Color.Success">Received</MudText>
-                        </div>
-                        <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Large" Color="Color.Success" />
-                    </div>
-                </MudPaper>
-            </MudItem>
-            <MudItem xs="12" sm="4">
-                <MudPaper Style="border-top: 4px solid var(--mud-palette-info);" Elevation="2" Class="pa-4 rounded-lg">
-                    <div class="d-flex align-center justify-space-between">
-                        <div>
-                            <MudText Typo="Typo.h3" Class="font-weight-bold" Color="Color.Info">@allDocuments.Count(d => d.Status == "Completed")</MudText>
-                            <MudText Typo="Typo.body2" Color="Color.Info">Completed</MudText>
-                        </div>
-                        <MudIcon Icon="@Icons.Material.Filled.Description" Size="Size.Large" Color="Color.Info" />
-                    </div>
-                </MudPaper>
-            </MudItem>
-        </MudGrid>
+        <DocStatCards Documents="allDocuments" />
     </div>
 
     @if (loading)
@@ -95,7 +63,7 @@
                             }
                         </MudTd>
                         <MudTd DataLabel="Status">
-                            <MudChip T="string" Color="@GetStatusColor(context.Status)" Size="Size.Small" Variant="Variant.Filled">@context.Status</MudChip>
+                            <MudChip T="string" Color="@DocHelpers.GetStatusColor(context.Status)" Size="Size.Small" Variant="Variant.Filled">@context.Status</MudChip>
                         </MudTd>
                         <MudTd DataLabel="Date">@context.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")</MudTd>
                         <MudTd DataLabel="Actions">
@@ -120,23 +88,26 @@
                 </MudTable>
             </MudHidden>
 
-            <MudHidden Breakpoint="Breakpoint.MdAndUp">
-                @if (!allDocuments.Where(d => FilterFunc(d)).Any())
-                {
-                    <div class="pa-8 text-center">
-                        <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Large" Style="opacity: 0.3; font-size: 4rem;" Class="mb-4" />
-                        <MudText Typo="Typo.h6" Class="mud-text-secondary">No documents found</MudText>
-                    </div>
-                }
-                else
-                {
-                    @foreach (var doc in allDocuments.Where(d => FilterFunc(d)))
+                <MudHidden Breakpoint="Breakpoint.MdAndUp">
+                    @{
+                        var mobileDocs = allDocuments.Where(d => FilterFunc(d)).ToList();
+                    }
+                    @if (!mobileDocs.Any())
                     {
+                        <div class="pa-8 text-center">
+                            <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Large" Style="opacity: 0.3; font-size: 4rem;" Class="mb-4" />
+                            <MudText Typo="Typo.h6" Class="mud-text-secondary">No documents found</MudText>
+                        </div>
+                    }
+                    else
+                    {
+                        @foreach (var doc in mobileDocs)
+                        {
                         <MudCard Elevation="2" Class="mb-3">
                             <MudCardContent Class="pa-4">
                                 <div class="d-flex justify-space-between align-start mb-2">
                                     <MudText Typo="Typo.subtitle1" Class="font-weight-bold">@doc.Name</MudText>
-                                    <MudChip T="string" Color="@GetStatusColor(doc.Status)" Size="Size.Small" Variant="Variant.Filled">@doc.Status</MudChip>
+                                    <MudChip T="string" Color="@DocHelpers.GetStatusColor(doc.Status)" Size="Size.Small" Variant="Variant.Filled">@doc.Status</MudChip>
                                 </div>
                                 <MudText Typo="Typo.body2" Class="mb-2">Sender: <strong>@(doc.Creator?.Name ?? "—")</strong></MudText>
                                 @if (doc.CurrentOffice != null)
@@ -266,15 +237,6 @@
         if (element.NextUnit?.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
         return false;
     }
-
-    private Color GetStatusColor(string? status) => status switch
-    {
-        "Completed" => Color.Success,
-        "Received" => Color.Info,
-        "In Motion" => Color.Warning,
-        "Archived" => Color.Dark,
-        _ => Color.Default
-    };
 
     private async Task OpenViewDialog(Document doc)
     {

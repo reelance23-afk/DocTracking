@@ -1,0 +1,33 @@
+﻿@using DocTracking.Client.Models
+@using DocTracking.Client.Pages.Offices
+@using DocTracking.Client.Services.Helpers
+
+<MudCard Elevation="2" Class="mb-3">
+    <MudCardContent Class="pa-4">
+        <div class="d-flex justify-space-between align-start mb-2">
+            <MudText Typo="Typo.subtitle1" Class="font-weight-bold">@Doc.Name</MudText>
+            <MudChip T="string" Color="@DocHelpers.GetPriorityColor(Doc.Priority)" Size="Size.Small" Variant="Variant.Filled">@Doc.Priority</MudChip>
+        </div>
+        <MudChip T="string" Color="Color.Info" Size="Size.Small" Variant="Variant.Outlined" Class="mb-2">@Doc.Type</MudChip>
+        @ChildContent
+    </MudCardContent>
+    <MudCardActions Class="pa-4 pt-0">
+        <div class="d-flex gap-2" style="width:100%">
+            <MudButton Color="Color.Primary" Variant="Variant.Filled" Style="flex:1" Size="Size.Large"
+                       StartIcon="@Icons.Material.Filled.Visibility"
+                       OnClick="@(() => OnView.InvokeAsync(Doc))">
+                View Details
+            </MudButton>
+            <MudIconButton Variant="Variant.Outlined" Color="Color.Secondary"
+                           Icon="@Icons.Material.Filled.QrCode"
+                           OnClick="@(() => OnQR.InvokeAsync(Doc))" />
+        </div>
+    </MudCardActions>
+</MudCard>
+
+@code {
+    [Parameter, EditorRequired] public Document Doc { get; set; } = new();
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public EventCallback<Document> OnView { get; set; }
+    [Parameter] public EventCallback<Document> OnQR { get; set; }
+}

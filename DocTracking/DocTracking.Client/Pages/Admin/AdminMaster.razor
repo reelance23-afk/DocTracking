@@ -1,8 +1,11 @@
 @page "/admin-dashboard"
 @attribute [Authorize(Roles = "Admin")]
+@using DocTracking.Client
 @using DocTracking.Client.Models
 @using DocTracking.Client.Services
+@using DocTracking.Client.Services.Helpers
 @inject DocumentService DocumentService
+@implements IDisposable
 @rendermode InteractiveAuto
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
@@ -81,7 +84,7 @@
                                     <MudPaper Elevation="1" Class="pa-3 mb-2">
                                         <MudText Typo="Typo.body2" Class="font-weight-bold mb-1">@doc.Name</MudText>
                                         <div class="d-flex justify-space-between align-center">
-                                            <MudChip T="string" Size="Size.Small" Color="@GetPriorityColor(doc.Priority)" Variant="Variant.Filled">@doc.Priority</MudChip>
+                                            <MudChip T="string" Size="Size.Small" Color="@DocHelpers.GetPriorityColor(doc.Priority)" Variant="Variant.Filled">@doc.Priority</MudChip>
                                             <MudIconButton Icon="@Icons.Material.Filled.OpenInNew" Size="Size.Small" Color="Color.Primary" Href="@($"/track-document/{doc.Id}?ReturnUrl=admin-dashboard")" />
                                         </div>
                                     </MudPaper>
@@ -174,6 +177,7 @@
     private int totalDocuments, totalOffices, totalUsers;
     private bool isLoading = true;
     private List<OfficeWorkLoad> officeWorkLoads = new();
+    private PeriodicTimer? _pollTimer;
 
     public class OfficeWorkLoad
     {
@@ -183,6 +187,12 @@
     }
 
     protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+        StartPolling();
+    }
+
+    private async Task LoadData()
     {
         try
         {
@@ -219,16 +229,21 @@
         finally
         {
             isLoading = false;
-            StateHasChanged();
         }
     }
 
-    private Color GetPriorityColor(string? priority) => priority switch
+    private async void StartPolling()
     {
-        "Emergency" => Color.Error,
-        "Urgent" => Color.Warning,
-        "Medium" => Color.Info,
-        "Low" => Color.Success,
-        _ => Color.Default
-    };
+        _pollTimer = new PeriodicTimer(TimeSpan.FromSeconds(30));
+        while (await _pollTimer.WaitForNextTickAsync())
+        {
+            await LoadData();
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    public void Dispose()
+    {
+        _pollTimer?.Dispose();
+    }
 }

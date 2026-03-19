@@ -1,20 +1,22 @@
 @attribute [Authorize]
+@using System.Security.Claims
+@using DocTracking.Client
 @using DocTracking.Client.Models
 @using DocTracking.Client.Services
+@using DocTracking.Client.Services.Helpers
 @using Microsoft.AspNetCore.Components.Authorization
-@using System.Security.Claims
+@inject NotificationService NotifService
 @inject AuthenticationStateProvider AuthStateProvider
 @inject DocumentService DocService
+@implements IDisposable
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
 
-    <!-- Header -->
     <div class="d-flex align-center mb-6">
         <MudIcon Icon="@Icons.Material.Filled.Dashboard" Size="Size.Large" Color="Color.Primary" Class="mr-3" />
         <MudText Typo="Typo.h4" Class="font-weight-bold">Dashboard</MudText>
     </div>
 
-    <!-- Stats -->
     <MudGrid Class="mb-6">
         <MudItem xs="12" sm="4">
             <MudPaper Elevation="2" Class="pa-4" Style="border-top: 4px solid var(--mud-palette-warning);">
@@ -51,10 +53,8 @@
         </MudItem>
     </MudGrid>
 
-    <!-- Split: Kanban + Timeline -->
     <MudGrid Class="mb-6">
 
-        <!-- Kanban -->
         <MudItem xs="12" md="7">
             <MudPaper Elevation="2" Class="pa-4" Style="height: 100%;">
                 <div class="d-flex align-center mb-4">
@@ -70,7 +70,7 @@
                                 <MudPaper Elevation="1" Class="pa-3 mb-2">
                                     <MudText Typo="Typo.body2" Class="font-weight-bold mb-1">@doc.Name</MudText>
                                     <div class="d-flex justify-space-between align-center">
-                                        <MudChip T="string" Size="Size.Small" Color="@GetPriorityColor(doc.Priority)" Variant="Variant.Filled">@doc.Priority</MudChip>
+                                        <MudChip T="string" Size="Size.Small" Color="@DocHelpers.GetPriorityColor(doc.Priority)" Variant="Variant.Filled">@doc.Priority</MudChip>
                                         <MudIconButton Icon="@Icons.Material.Filled.OpenInNew" Size="Size.Small" Color="Color.Primary" Href="@($"/track-document/{doc.Id}")" />
                                     </div>
                                 </MudPaper>
@@ -104,7 +104,6 @@
             </MudPaper>
         </MudItem>
 
-        <!-- Timeline -->
         <MudItem xs="12" md="5">
             <MudPaper Elevation="2" Class="pa-4" Style="height: 100%;">
                 <div class="d-flex align-center mb-4">
@@ -162,16 +161,19 @@
     private List<Document> pendingDocs = new();
     private List<Document> completedDocs = new();
 
+    private string _userEmail = "";
+    private readonly DebounceHelper _debounce = new();
+
     protected override async Task OnInitializedAsync()
     {
         try
         {
             var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-            string email = authState.User.FindFirst(ClaimTypes.Email)?.Value ?? authState.User.Identity?.Name ?? "";
+            _userEmail = authState.User.FindFirst(ClaimTypes.Email)?.Value ?? authState.User.Identity?.Name ?? "";
 
-            if (!string.IsNullOrEmpty(email))
+            if (!string.IsNullOrEmpty(_userEmail))
             {
-                var allDocs = await DocService.GetUserDocumentsAsync(email);
+                var allDocs = await DocService.GetUserDocumentsAsync(_userEmail);
                 if (allDocs != null)
                 {
                     myDocsCount = allDocs.Count;
@@ -189,12 +191,35 @@
         }
     }
 
-    private Color GetPriorityColor(string? priority) => priority switch
+    protected override Task OnAfterRenderAsync(bool firstRender)
     {
-        "Emergency" => Color.Error,
-        "Urgent" => Color.Warning,
-        "Medium" => Color.Info,
-        "Low" => Color.Success,
-        _ => Color.Default
-    };
+        if (firstRender)
+            NotifService.OnChange += OnNotificationReceived;
+        return Task.CompletedTask;
+    }
+
+    private void OnNotificationReceived() =>
+    _debounce.Trigger(async () =>
+    {
+        if (!string.IsNullOrEmpty(_userEmail))
+        {
+            var allDocs = await DocService.GetUserDocumentsAsync(_userEmail);
+            if (allDocs != null)
+            {
+                myDocsCount = allDocs.Count;
+                pendingCount = allDocs.Count(d => d.Status != "Completed");
+                completedCount = allDocs.Count(d => d.Status == "Completed");
+                pendingDocs = allDocs.Where(d => d.Status != "Completed").Take(5).ToList();
+                completedDocs = allDocs.Where(d => d.Status == "Completed").Take(5).ToList();
+                recentDocs = allDocs.OrderByDescending(d => d.LastActionDate).Take(5).ToList();
+            }
+        }
+        await InvokeAsync(StateHasChanged);
+    });
+
+    public void Dispose()
+    {
+        NotifService.OnChange -= OnNotificationReceived;
+        _debounce.Dispose();
+    }
 }

@@ -1,0 +1,41 @@
+﻿@using DocTracking.Client.Models
+
+<MudGrid>
+    <MudItem xs="12" sm="4">
+        <MudPaper Style="border-top: 4px solid var(--mud-palette-warning);" Elevation="2" Class="pa-4 rounded-lg">
+            <div class="d-flex align-center justify-space-between">
+                <div>
+                    <MudText Typo="Typo.h3" Class="font-weight-bold" Color="Color.Warning">@Documents.Count(d => d.Status == "In Motion")</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Warning">In Motion</MudText>
+                </div>
+                <MudIcon Icon="@Icons.Material.Filled.DirectionsWalk" Size="Size.Large" Color="Color.Warning" />
+            </div>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" sm="4">
+        <MudPaper Style="border-top: 4px solid var(--mud-palette-success);" Elevation="2" Class="pa-4 rounded-lg">
+            <div class="d-flex align-center justify-space-between">
+                <div>
+                    <MudText Typo="Typo.h3" Class="font-weight-bold" Color="Color.Success">@Documents.Count(d => d.Status == "Received")</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Success">Received</MudText>
+                </div>
+                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Large" Color="Color.Success" />
+            </div>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" sm="4">
+        <MudPaper Style="border-top: 4px solid var(--mud-palette-info);" Elevation="2" Class="pa-4 rounded-lg">
+            <div class="d-flex align-center justify-space-between">
+                <div>
+                    <MudText Typo="Typo.h3" Class="font-weight-bold" Color="Color.Info">@Documents.Count(d => d.Status == "Completed")</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Info">Completed</MudText>
+                </div>
+                <MudIcon Icon="@Icons.Material.Filled.Description" Size="Size.Large" Color="Color.Info" />
+            </div>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+@code {
+    [Parameter, EditorRequired] public List<Document> Documents { get; set; } = new();
+}

@@ -1,15 +1,18 @@
 @page "/office-desk"
 @attribute [Authorize(Roles = "Office")]
 @using System.Security.Claims
-@using Microsoft.AspNetCore.Components.Authorization
+@using DocTracking.Client
 @using DocTracking.Client.Models
-@using DocTracking.Client.Services
 @using DocTracking.Client.Pages.Offices
-@using System.Security.Claims
+@using DocTracking.Client.Services
+@using DocTracking.Client.Services.Helpers
+@using Microsoft.AspNetCore.Components.Authorization
 @inject DocumentService DocService
 @inject ISnackbar Snackbar
 @inject AuthenticationStateProvider AuthStateProvider
 @inject IDialogService DialogService
+@inject NotificationService NotifService
+@implements IDisposable
 @rendermode InteractiveAuto
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
@@ -110,7 +113,7 @@
                                 <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Info">@context.Type</MudChip>
                             </MudTd>
                             <MudTd DataLabel="Priority">
-                                <MudChip T="string" Color="@GetPriorityColor(context.Priority)" Size="Size.Small" Variant="Variant.Filled">@context.Priority</MudChip>
+                                <MudChip T="string" Color="@DocHelpers.GetPriorityColor(context.Priority)" Size="Size.Small" Variant="Variant.Filled">@context.Priority</MudChip>
                             </MudTd>
                             <MudTd DataLabel="Sender">@context.Creator?.Name</MudTd>
                             <MudTd DataLabel="Date">@context.CreatedAt.ToLocalTime().ToString("MMM dd, hh:mm tt")</MudTd>
@@ -158,7 +161,7 @@
                                 <MudCardContent Class="pa-4">
                                     <div class="d-flex justify-space-between align-start mb-2">
                                         <MudText Typo="Typo.subtitle1" Class="font-weight-bold">@doc.Name</MudText>
-                                        <MudChip T="string" Color="@GetPriorityColor(doc.Priority)" Size="Size.Small" Variant="Variant.Filled">@doc.Priority</MudChip>
+                                        <MudChip T="string" Color="@DocHelpers.GetPriorityColor(doc.Priority)" Size="Size.Small" Variant="Variant.Filled">@doc.Priority</MudChip>
                                     </div>
                                     <MudChip T="string" Color="Color.Info" Size="Size.Small" Variant="Variant.Outlined" Class="mb-2">@doc.Type</MudChip>
                                     <MudText Typo="Typo.body2" Class="mb-2">
@@ -204,7 +207,7 @@
                                 <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Info">@context.Type</MudChip>
                             </MudTd>
                             <MudTd DataLabel="Priority">
-                                <MudChip T="string" Color="@GetPriorityColor(context.Priority)" Size="Size.Small" Variant="Variant.Filled">@context.Priority</MudChip>
+                                <MudChip T="string" Color="@DocHelpers.GetPriorityColor(context.Priority)" Size="Size.Small" Variant="Variant.Filled">@context.Priority</MudChip>
                             </MudTd>
                             <MudTd DataLabel="Actions">
                                 <div class="d-flex gap-2">
@@ -249,7 +252,7 @@
                                 <MudCardContent Class="pa-4">
                                     <div class="d-flex justify-space-between align-start mb-2">
                                         <MudText Typo="Typo.subtitle1" Class="font-weight-bold">@doc.Name</MudText>
-                                        <MudChip T="string" Color="@GetPriorityColor(doc.Priority)" Size="Size.Small" Variant="Variant.Filled">@doc.Priority</MudChip>
+                                        <MudChip T="string" Color="@DocHelpers.GetPriorityColor(doc.Priority)" Size="Size.Small" Variant="Variant.Filled">@doc.Priority</MudChip>
                                     </div>
                                     <MudChip T="string" Color="Color.Info" Size="Size.Small" Variant="Variant.Outlined">@doc.Type</MudChip>
                                 </MudCardContent>
@@ -288,7 +291,7 @@
                                 <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Info">@context.Type</MudChip>
                             </MudTd>
                             <MudTd DataLabel="Priority">
-                                <MudChip T="string" Color="@GetPriorityColor(context.Priority)" Size="Size.Small" Variant="Variant.Filled">@context.Priority</MudChip>
+                                <MudChip T="string" Color="@DocHelpers.GetPriorityColor(context.Priority)" Size="Size.Small" Variant="Variant.Filled">@context.Priority</MudChip>
                             </MudTd>
                             <MudTd DataLabel="Destination">
                                 <strong>@context.NextOffice?.Name</strong>
@@ -333,7 +336,7 @@
                                             <MudText Typo="Typo.subtitle1" Class="font-weight-bold mb-1">@doc.Name</MudText>
                                             <MudChip T="string" Color="Color.Info" Size="Size.Small" Variant="Variant.Text" Class="pa-0">@doc.Type</MudChip>
                                         </div>
-                                        <MudChip T="string" Color="@GetPriorityColor(doc.Priority)" Size="Size.Small" Variant="Variant.Filled">@doc.Priority</MudChip>
+                                        <MudChip T="string" Color="@DocHelpers.GetPriorityColor(doc.Priority)" Size="Size.Small" Variant="Variant.Filled">@doc.Priority</MudChip>
                                     </div>
                                     <MudDivider Class="mb-3" />
                                     <div class="d-flex flex-column gap-2">
@@ -377,6 +380,7 @@
     private List<Document> incomingDocs = new();
     private List<Document> deskDocs = new();
     private List<Document> outgoingDocs = new();
+    private readonly DebounceHelper _debounce = new();
     private string userEmail = "";
     private string? myUnitName;
     private bool isLoadingInitial = true;
@@ -418,6 +422,9 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (firstRender)
+            NotifService.OnChange += OnNotificationReceived;
+
         if (!dialogOpened && !isLoadingInitial && !string.IsNullOrEmpty(RefParam))
         {
             var allDocs = incomingDocs.Concat(deskDocs).Concat(outgoingDocs);
@@ -504,12 +511,17 @@
         }
     }
 
-    private Color GetPriorityColor(string? priority) => priority switch
+    private void OnNotificationReceived() =>
+    _debounce.Trigger(async () =>
     {
-        "Emergency" => Color.Error,
-        "Urgent" => Color.Warning,
-        "Medium" => Color.Info,
-        "Low" => Color.Success,
-        _ => Color.Default
-    };
+        await RefreshQueues();
+        await InvokeAsync(StateHasChanged);
+    });
+
+    public void Dispose()
+    {
+        NotifService.OnChange -= OnNotificationReceived;
+        _debounce.Dispose();
+    }
+
 }

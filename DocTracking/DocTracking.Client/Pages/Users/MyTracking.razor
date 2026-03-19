@@ -1,12 +1,16 @@
 @page "/my-tracking"
 @attribute [Authorize]
+@using System.Security.Claims
+@using DocTracking.Client
 @using DocTracking.Client.Models
 @using DocTracking.Client.Services
+@using DocTracking.Client.Services.Helpers
 @using Microsoft.AspNetCore.Components.Authorization
-@using System.Security.Claims
+@inject NotificationService NotifService
 @inject DocumentService DocService
 @inject AuthenticationStateProvider AuthStateProvider
 @inject IDialogService DialogService
+@implements IDisposable
 @rendermode InteractiveAuto
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
@@ -127,7 +131,7 @@
                             </MudChip>
                         </MudTd>
                         <MudTd center;" DataLabel="Priority">
-                            <MudChip T="string" Color="@GetPriorityColor(context.Priority)" Size="Size.Small" Variant="Variant.Filled">
+                            <MudChip T="string" Color="@DocHelpers.GetPriorityColor(context.Priority)" Size="Size.Small" Variant="Variant.Filled">
                                 @context.Priority
                             </MudChip>
                         </MudTd>
@@ -219,7 +223,7 @@
                             <MudCardContent Class="pa-4">
                                 <div class="d-flex justify-space-between align-start mb-2">
                                     <MudText Typo="Typo.subtitle1" Class="font-weight-bold">@doc.Name</MudText>
-                                    <MudChip T="string" Color="@GetPriorityColor(doc.Priority)" Size="Size.Small" Variant="Variant.Filled">
+                                    <MudChip T="string" Color="@DocHelpers.GetPriorityColor(doc.Priority)" Size="Size.Small" Variant="Variant.Filled">
                                         @doc.Priority
                                     </MudChip>
                                 </div>
@@ -275,9 +279,13 @@
     [SupplyParameterFromQuery(Name = "ref")] public string? RefParam { get; set; }
 
     private List<Document> myDocuments = new();
+    private CancellationTokenSource? _debounceCts;
     private bool isLoading = true;
     private string? errorMessage;
+    private string email = "";
+
     private string searchString = "";
+
     private string priorityFilter = "";
     private readonly string[] priorityFilters = { "", "Emergency", "Urgent", "Medium", "Low" };
     private int priorityFilterIndex = 0;
@@ -287,14 +295,17 @@
     private string statusFilter = "";
     private readonly string[] statusFilters = { "", "In Motion", "Received", "Completed" };
     private int statusFilterIndex = 0;
+
     private bool dialogOpened = false;
 
     protected override async Task OnInitializedAsync()
     {
         try
         {
+
             var authState = await AuthStateProvider.GetAuthenticationStateAsync();
             var user = authState.User;
+
             string email = user.FindFirst(ClaimTypes.Email)?.Value ?? user.Identity?.Name ?? "";
             if (!string.IsNullOrEmpty(email))
                 myDocuments = await DocService.GetUserDocumentsAsync(email);
@@ -315,6 +326,9 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (firstRender)
+            NotifService.OnChange += OnNotificationReceived;
+
         if (!dialogOpened && !isLoading && !string.IsNullOrEmpty(RefParam))
         {
             var doc = myDocuments.FirstOrDefault(d => d.ReferenceNumber == RefParam);
@@ -337,15 +351,6 @@
                document.CurrentOffice?.Name?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true ||
                document.NextOffice?.Name?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true;
     }
-
-    private Color GetPriorityColor(string? priority) => priority switch
-    {
-        "Emergency" => Color.Error,
-        "Urgent" => Color.Warning,
-        "Medium" => Color.Info,
-        "Low" => Color.Success,
-        _ => Color.Default
-    };
 
     private IEnumerable<Document> filteredDocuments => myDocuments
         .Where(FilterFunc)
@@ -391,5 +396,24 @@
         var options = new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true, CloseButton = true };
         await DialogService.ShowAsync<QRCodeDialog>("QR Code", parameters, options);
     }
+
+    private async void OnNotificationReceived()
+    {
+        _debounceCts?.Cancel();
+        _debounceCts = new CancellationTokenSource();
+        try {
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (TaskCanceledException) { } 
+    }
+
+    public void Dispose()
+    {
+        NotifService.OnChange -= OnNotificationReceived;
+        _debounceCts?.Cancel();
+        _debounceCts?.Dispose();
+    }
 }
 
+
+         

@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace DocTracking.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260318083238_wow")]
-    partial class wow
+    [Migration("20260319062130_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

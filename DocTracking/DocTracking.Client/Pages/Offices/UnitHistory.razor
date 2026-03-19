@@ -2,6 +2,7 @@
 @attribute [Authorize(Roles = "Office")]
 @using DocTracking.Client.Models
 @using DocTracking.Client.Services
+@using DocTracking.Client.Services.Helpers
 @using Microsoft.AspNetCore.Components.Authorization
 @inject DocumentService DocService
 @inject IDialogService DialogService
@@ -16,41 +17,7 @@
             <MudText Typo="Typo.h4" Class="font-weight-bold">@(isOfficeHead ? "Office History" : "Unit History")</MudText>
         </div>
         <MudText Typo="Typo.body1" Class="mud-text-secondary mb-4">A complete record of all documents processed by @myUnitName.</MudText>
-        <MudGrid>
-            <MudItem xs="12" sm="4">
-                <MudPaper Style="border-top: 4px solid var(--mud-palette-warning);" Elevation="2" Class="pa-4 rounded-lg">
-                    <div class="d-flex align-center justify-space-between">
-                        <div>
-                            <MudText Typo="Typo.h3" Class="font-weight-bold" Color="Color.Warning">@historyDocs.Count(d => d.Status != "Received" && d.Status != "Completed")</MudText>
-                            <MudText Typo="Typo.body2" Color="Color.Warning">In Motion</MudText>
-                        </div>
-                        <MudIcon Icon="@Icons.Material.Filled.DirectionsWalk" Size="Size.Large" Color="Color.Warning" />
-                    </div>
-                </MudPaper>
-            </MudItem>
-            <MudItem xs="12" sm="4">
-                <MudPaper Style="border-top: 4px solid var(--mud-palette-success);" Elevation="2" Class="pa-4 rounded-lg">
-                    <div class="d-flex align-center justify-space-between">
-                        <div>
-                            <MudText Typo="Typo.h3" Class="font-weight-bold" Color="Color.Success">@historyDocs.Count(d => d.Status == "Received")</MudText>
-                            <MudText Typo="Typo.body2" Color="Color.Success">Received</MudText>
-                        </div>
-                        <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Large" Color="Color.Success" />
-                    </div>
-                </MudPaper>
-            </MudItem>
-            <MudItem xs="12" sm="4">
-                <MudPaper Style="border-top: 4px solid var(--mud-palette-info);" Elevation="2" Class="pa-4 rounded-lg">
-                    <div class="d-flex align-center justify-space-between">
-                        <div>
-                            <MudText Typo="Typo.h3" Class="font-weight-bold" Color="Color.Info">@historyDocs.Count(d => d.Status == "Completed")</MudText>
-                            <MudText Typo="Typo.body2" Color="Color.Info">Completed</MudText>
-                        </div>
-                        <MudIcon Icon="@Icons.Material.Filled.Description" Size="Size.Large" Color="Color.Info" />
-                    </div>
-                </MudPaper>
-            </MudItem>
-        </MudGrid>
+        <DocStatCards Documents="historyDocs" />
     </div>
 
     @if (isLoading)
@@ -85,10 +52,10 @@
                         <MudTd DataLabel="Document Title"><strong>@context.Name</strong></MudTd>
                         <MudTd DataLabel="Type">@context.Type</MudTd>
                         <MudTd DataLabel="Priority">
-                            <MudChip T="string" Color="@GetPriorityColor(context.Priority)" Size="Size.Small" Variant="Variant.Filled">@context.Priority</MudChip>
+                            <MudChip T="string" Color="@DocHelpers.GetPriorityColor(context.Priority)" Size="Size.Small" Variant="Variant.Filled">@context.Priority</MudChip>
                         </MudTd>
                         <MudTd DataLabel="Status">
-                            <MudChip T="string" Color="@(context.Status == "Completed" ? Color.Success : context.Status == "Received" ? Color.Info : Color.Warning)" Size="Size.Small" Variant="Variant.Filled">@context.Status</MudChip>
+                            <MudChip T="string" Color="@DocHelpers.GetStatusColor(context.Status)" Size="Size.Small" Variant="Variant.Filled">@context.Status</MudChip>
                         </MudTd>
                         <MudTd DataLabel="Created On">@context.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")</MudTd>
                         <MudTd DataLabel="Current Location">
@@ -139,11 +106,11 @@
                             <MudCardContent Class="pa-4">
                                 <div class="d-flex justify-space-between align-start mb-2">
                                     <MudText Typo="Typo.subtitle1" Class="font-weight-bold">@doc.Name</MudText>
-                                    <MudChip T="string" Color="@GetPriorityColor(doc.Priority)" Size="Size.Small" Variant="Variant.Filled">@doc.Priority</MudChip>
+                                    <MudChip T="string" Color="@DocHelpers.GetPriorityColor(doc.Priority)" Size="Size.Small" Variant="Variant.Filled">@doc.Priority</MudChip>
                                 </div>
                                 <div class="d-flex gap-2 mb-2">
                                     <MudChip T="string" Color="Color.Info" Size="Size.Small" Variant="Variant.Outlined">@doc.Type</MudChip>
-                                    <MudChip T="string" Color="@(doc.Status == "Completed" ? Color.Success : doc.Status == "Received" ? Color.Info : Color.Warning)" Size="Size.Small" Variant="Variant.Filled">@doc.Status</MudChip>
+                                    <MudChip T="string" Color="@DocHelpers.GetStatusColor(doc.Status)" Size="Size.Small" Variant="Variant.Filled">@doc.Status</MudChip>
                                 </div>
                                 <MudText Typo="Typo.caption" Class="mud-text-secondary mb-2">
                                     <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" Class="mr-1" />
@@ -259,16 +226,6 @@
             }
         }
     }
-
-
-    private Color GetPriorityColor(string? priority) => priority switch
-    {
-        "Emergency" => Color.Error,
-        "Urgent" => Color.Warning,
-        "Medium" => Color.Info,
-        "Low" => Color.Success,
-        _ => Color.Default
-    };
 
     private async Task OpenViewDialog(Document doc)
     {
