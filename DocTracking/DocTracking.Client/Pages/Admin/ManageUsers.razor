@@ -259,7 +259,7 @@
     private List<Document> activityDocs = new();
     private bool isActivityDialogOpen = false;
     private bool activityLoading = false;
-    private DialogOptions activityDialogOptions = new() { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
+    private DialogOptions activityDialogOptions = new() { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
 
     private IEnumerable<AppUser> FilteredUsers => string.IsNullOrWhiteSpace(searchString)
         ? users
