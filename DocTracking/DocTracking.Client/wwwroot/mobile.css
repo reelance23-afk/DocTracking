@@ -12,12 +12,10 @@
         min-width: 44px;
     }
 
-    /* Mobile-friendly spacing */
     .mobile-spacing {
         padding: 8px !important;
     }
 
-    /* Responsive text sizing */
     .mud-typography-h4 {
         font-size: 1.5rem !important;
     }
@@ -26,87 +24,76 @@
         font-size: 1.25rem !important;
     }
 
-    /* Mobile card improvements */
     .mud-card {
         margin-bottom: 12px;
     }
 
-    /* Better mobile table handling */
     .mud-table-container {
         overflow-x: auto;
     }
 
-    /* Mobile-friendly form elements */
     .mud-input-control {
         margin-bottom: 16px;
     }
 
-    /* Mobile navigation improvements */
     .mud-drawer-temporary {
         z-index: 1300;
     }
 
-    /* Better mobile dialog sizing */
     .mud-dialog {
         margin: 16px;
         max-height: calc(100vh - 32px);
     }
 
-    /* Mobile-friendly tabs */
     .mud-tabs .mud-tab {
         min-width: auto;
         padding: 8px 12px;
     }
 
-    /* Responsive container padding */
     .mud-container {
         padding-left: 16px !important;
         padding-right: 16px !important;
     }
 
-    /* Page headers with title + action button — stack on mobile */
     .page-header-row {
         flex-direction: column !important;
         align-items: flex-start !important;
         gap: 8px !important;
     }
 
-    .page-header-row .mud-button {
-        align-self: flex-start;
-    }
+        .page-header-row .mud-button {
+            align-self: flex-start;
+        }
 
-    /* Toolbar rows (title + search) — stack on mobile */
     .toolbar-row {
         flex-direction: column !important;
         align-items: flex-start !important;
         gap: 8px !important;
     }
 
-    .toolbar-row .mud-input-control,
-    .toolbar-row .mud-text-field {
-        width: 100% !important;
-    }
+        .toolbar-row .mud-input-control,
+        .toolbar-row .mud-text-field {
+            width: 100% !important;
+        }
 
-    /* Filter button rows — wrap instead of overflow */
     .filter-row {
         flex-wrap: wrap !important;
         gap: 4px !important;
     }
 
-    /* ManageOffice add-unit input row — stack on mobile */
     .unit-input-row {
         flex-direction: column !important;
         align-items: stretch !important;
         gap: 8px !important;
     }
 
-    .unit-input-row .mud-button {
-        width: 100% !important;
-    }
+        .unit-input-row .mud-button {
+            width: 100% !important;
+        }
 
-    .unit-input-row input {
-        width: 100% !important;
-    }
+        .unit-input-row input {
+            width: 100% !important;
+        }
 }
 
 /* Extra small devices */
@@ -128,7 +115,6 @@
         padding: 12px !important;
     }
 
-    /* Stat card numbers — prevent overflow on small screens */
     .mud-typography-h3 {
         font-size: 2rem !important;
         line-height: 1.1 !important;
@@ -175,9 +161,126 @@
         padding: 12px !important;
     }
 
+    /* Stat card numbers */
+    .mud-typography-h3 {
+        font-size: 1.75rem !important;
+    }
+
+    /* Appbar icons */
+    .mud-appbar .mud-icon-button {
+        padding: 4px !important;
+    }
+
+    /* Filter rows — override min-width so selects fit 2-per-row at 420px */
+    .filter-row .mud-input-control,
+    .filter-row .mud-select,
+    .filter-row .mud-picker {
+        min-width: 0 !important;
+        flex: 1 1 calc(50% - 4px) !important;
+    }
+
+    /* Full-width buttons in card actions */
+    .mud-card-actions .mud-button {
+        font-size: 0.8rem !important;
+        padding: 6px 10px !important;
+    }
+
+    /* Dialog actions — stack vertically, full width */
+    .mud-dialog-actions {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        flex-wrap: wrap !important;
+        gap: 6px !important;
+        padding: 8px 12px !important;
+    }
+
+        .mud-dialog-actions .mud-button {
+            width: 100% !important;
+            justify-content: center !important;
+            font-size: 0.8rem !important;
+            padding: 5px 10px !important;
+        }
+
+    /* Dialog title — truncate long doc names, keep chip visible */
+    .mud-dialog-title {
+        display: flex !important;
+        align-items: center !important;
+        gap: 6px !important;
+        overflow: hidden !important;
+    }
+
+        .mud-dialog-title .mud-typography {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            min-width: 0;
+            flex: 1;
+        }
+
+        .mud-dialog-title .mud-chip {
+            flex-shrink: 0;
+        }
+
+    /* Attached file row in dialogs — stack filename below icon+button */
+    .mud-dialog-content .d-flex.align-center.gap-2:has(.mud-button) {
+        flex-wrap: wrap !important;
+    }
+
+    /* Timeline card header — wrap action + timestamp */
+    .mud-card-header .mud-card-header-content > div {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+
+    /* Timeline timestamp — keep compact */
+    .mud-card .mud-typography-caption {
+        font-size: 0.65rem !important;
+        white-space: nowrap;
+    }
+
+    /* Dashboard Recent Activity — truncate doc name */
+    .mud-timeline .mud-card .mud-typography-body2.font-weight-bold {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        min-width: 0;
+        flex: 1;
+    }
+
+    .mud-timeline .mud-card .mud-chip {
+        flex-shrink: 0;
+    }
+
+    /* Dashboard timeline second row — wrap */
+    .mud-timeline .mud-card-content > div {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+
+    /* Kanban mini-cards — truncate doc name */
+    .mud-paper .mud-typography-body2.font-weight-bold {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    /* OfficeDesk schedule chip */
+    .mud-chip .mud-chip-label {
+        font-size: 0.65rem !important;
+    }
+
+    /* ManageOffice expansion panel title */
+    .mud-expansion-panel-header .mud-typography-body1 {
+        font-size: 0.85rem !important;
+        word-break: break-word;
+    }
+
     .mud-tabs .mud-tab {
         padding: 6px 8px !important;
         font-size: 0.75rem !important;
+        white-space: normal !important;
+        text-align: center !important;
+        line-height: 1.2 !important;
     }
 
     .mud-chip {
@@ -192,116 +295,9 @@
     .mud-grid {
         gap: 8px !important;
     }
-
-    /* Stat cards tighter on tiny screens */
-    .mud-typography-h3 {
-        font-size: 1.75rem !important;
-    }
-
-    /* Appbar icons closer together */
-    .mud-appbar .mud-icon-button {
-        padding: 4px !important;
-    }
-
-    /* Full-width buttons in actions */
-    .mud-card-actions .mud-button {
-        font-size: 0.8rem !important;
-        padding: 6px 10px !important;
-    }
-
-    /* Dialog action rows — wrap so 3+ buttons don't overflow */
-    .mud-dialog-actions {
-        flex-wrap: wrap !important;
-        gap: 6px !important;
-        padding: 8px 12px !important;
-    }
-
-        .mud-dialog-actions .mud-button {
-            font-size: 0.8rem !important;
-            padding: 5px 10px !important;
-        }
-
-    /* Dialog title — allow name to shrink, chip stays visible */
-    .mud-dialog-title .mud-chip {
-        flex-shrink: 0;
-    }
-
-    .mud-dialog-title .mud-typography {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        min-width: 0;
-    }
-
-    /* QRScanDialog tab labels — allow wrapping so Upload Photo fits */
-    .mud-tabs .mud-tab-panel .mud-tab {
-        white-space: normal !important;
-        text-align: center !important;
-        line-height: 1.2 !important;
-    }
-
-    /* Timeline card header — action + timestamp row: wrap so timestamp drops below on tiny screens */
-    .mud-card-header .mud-card-header-content > div {
-        flex-wrap: wrap;
-        gap: 4px;
-    }
-
-    /* Timeline timestamp — keep compact */
-    .mud-card .mud-typography-caption {
-        font-size: 0.65rem !important;
-        white-space: nowrap;
-    }
-
-    /* Dashboard Recent Activity timeline cards — truncate doc name, don't shrink chip */
-    .mud-timeline .mud-card .mud-typography-body2.font-weight-bold {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        min-width: 0;
-        flex: 1;
-    }
-
-    .mud-timeline .mud-card .mud-chip {
-        flex-shrink: 0;
-    }
-
-    /* Dashboard timeline second row (date + location) — wrap instead of overflow */
-    .mud-timeline .mud-card-content > div {
-        flex-wrap: wrap;
-        gap: 4px;
-    }
-
-    /* Kanban mini-cards — truncate doc name */
-    .mud-paper .mud-typography-body2.font-weight-bold {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    /* OfficeDesk schedule chip — shrink text if needed */
-    .mud-chip .mud-chip-label {
-        font-size: 0.65rem !important;
-    }
-
-    /* ManageOffice expansion panel title — wrap on tiny screens */
-    .mud-expansion-panel-header .mud-typography-body1 {
-        font-size: 0.85rem !important;
-        word-break: break-word;
-    }
-
-    /* ManageUsers / dialogs — stack action buttons vertically */
-    .mud-dialog-actions {
-        flex-direction: column !important;
-        align-items: stretch !important;
-    }
-
-    .mud-dialog-actions .mud-button {
-        width: 100% !important;
-        justify-content: center !important;
-    }
 }
 
-/* Landscape mobile adjustments */
+/* Landscape mobile */
 @media (max-width: 768px) and (orientation: landscape) {
     .mud-appbar {
         height: 48px;
