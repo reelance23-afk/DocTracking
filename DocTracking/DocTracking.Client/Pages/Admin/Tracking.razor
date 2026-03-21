@@ -29,12 +29,22 @@
     else
     {
         <MudPaper Elevation="3" Class="pa-4 pa-md-6 rounded-lg">
-            <div class="d-flex justify-space-between align-center mb-4 toolbar-row">
-                <MudText Typo="Typo.h6">All Documents</MudText>
-                <MudTextField @bind-Value="searchString" Placeholder="Search documents, senders, or locations..."
-                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
-                              IconSize="Size.Medium" Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" />
+            <div class="d-flex justify-space-between align-center mb-4 page-header-row">
+                <div>
+                    <MudText Typo="Typo.h6" Class="font-weight-bold">All Documents</MudText>
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary">Browse, filter and export all documents.</MudText>
+                </div>
+                <MudButton Variant="Variant.Outlined" Color="Color.Success"
+                           StartIcon="@Icons.Material.Filled.Download" OnClick="ExportCsv"
+                           Class="d-none d-md-flex">
+                    Export CSV
+                </MudButton>
             </div>
+
+            <MudTextField @bind-Value="searchString" Placeholder="Search documents, senders, or locations..."
+                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                          IconSize="Size.Medium" Variant="Variant.Outlined" Margin="Margin.Dense"
+                          Immediate="true" Class="mb-4" />
 
             <div class="d-flex gap-2 flex-wrap align-center mb-4">
                 <MudSelect Value="statusFilter" Label="Status" Variant="Variant.Outlined"
@@ -45,7 +55,6 @@
                     <MudSelectItem T="string" Value="@("Received")">Received</MudSelectItem>
                     <MudSelectItem T="string" Value="@("Completed")">Completed</MudSelectItem>
                 </MudSelect>
-
                 <MudSelect Value="officeFilter" Label="Office" Variant="Variant.Outlined"
                            Margin="Margin.Dense" T="string" Style="min-width:160px;"
                            ValueChanged="@((string v) => { officeFilter = v; StateHasChanged(); })">
@@ -58,7 +67,6 @@
                 <MudDatePicker Date="dateFrom" Label="From" Variant="Variant.Outlined"
                                Margin="Margin.Dense" Style="min-width:140px;"
                                DateChanged="@((DateTime? v) => { dateFrom = v; StateHasChanged(); })" />
-
                 <MudDatePicker Date="dateTo" Label="To" Variant="Variant.Outlined"
                                Margin="Margin.Dense" Style="min-width:140px;"
                                DateChanged="@((DateTime? v) => { dateTo = v; StateHasChanged(); })" />
@@ -69,10 +77,13 @@
                 }
                 <MudSpacer />
                 <MudButton Variant="Variant.Outlined" Color="Color.Success"
-                           StartIcon="@Icons.Material.Filled.Download" OnClick="ExportCsv">
+                           StartIcon="@Icons.Material.Filled.Download" OnClick="ExportCsv"
+                           Class="d-md-none">
                     Export CSV
                 </MudButton>
             </div>
+
+
 
             <MudHidden Breakpoint="Breakpoint.SmAndDown">
                 <MudTable Items="@FilteredDocuments" Hover="true" T="Document">
@@ -182,9 +193,6 @@
                                     <MudIconButton Variant="Variant.Outlined" Color="Color.Secondary"
                                                    Icon="@Icons.Material.Filled.QrCode"
                                                    OnClick="@(async () => await OpenQRDialog(doc))" />
-                                    <MudIconButton Variant="Variant.Outlined" Color="Color.Warning"
-                                                   Icon="@Icons.Material.Filled.Edit"
-                                                   OnClick="@(async () => await OpenEditDialog(doc))" />
                                     <MudIconButton Variant="Variant.Outlined" Color="Color.Error"
                                                    Icon="@Icons.Material.Filled.Delete"
                                                    OnClick="@(async () => await DeleteDocument(doc))" />

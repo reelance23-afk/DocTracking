@@ -9,12 +9,16 @@
 @rendermode InteractiveAuto
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
-    <div class="d-flex justify-space-between align-center mb-4 toolbar-row">
-        <MudText Typo="Typo.h4" Class="font-weight-bold">Manage Users</MudText>
-        <MudTextField @bind-Value="searchString" Placeholder="Search users..."
-                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
-                      Variant="Variant.Outlined" Immediate="true" />
+    <div class="d-flex justify-space-between align-center mb-4 page-header-row">
+        <div>
+            <MudText Typo="Typo.h4" Class="font-weight-bold">Manage Users</MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">View and manage all registered users.</MudText>
+        </div>
     </div>
+
+    <MudTextField @bind-Value="searchString" Placeholder="Search users..."
+                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                  Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" Class="mb-6" />
 
     @if (isLoading)
     {

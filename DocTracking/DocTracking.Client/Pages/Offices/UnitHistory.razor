@@ -30,12 +30,17 @@
     else
     {
         <MudPaper Elevation="3" Class="pa-4 pa-md-6 rounded-lg">
-            <div class="d-flex justify-space-between align-center mb-4 toolbar-row">
-                <MudText Typo="Typo.h6">@myUnitName Records</MudText>
-                <MudTextField @bind-Value="searchString" Placeholder="Search documents..."
-                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
-                              IconSize="Size.Medium" Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" />
+            <div class="d-flex justify-space-between align-center mb-4 page-header-row">
+                <div>
+                    <MudText Typo="Typo.h6" Class="font-weight-bold">@myUnitName Records</MudText>
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary">All documents processed by @myUnitName.</MudText>
+                </div>
             </div>
+
+            <MudTextField @bind-Value="searchString" Placeholder="Search documents..."
+                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                          IconSize="Size.Medium" Variant="Variant.Outlined" Margin="Margin.Dense"
+                          Immediate="true" Class="mb-4" />
 
             <MudHidden Breakpoint="Breakpoint.SmAndDown">
                 <MudTable Items="@filteredDocs" Hover="true" T="Document">

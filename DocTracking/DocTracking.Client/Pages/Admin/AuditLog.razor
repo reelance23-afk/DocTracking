@@ -5,117 +5,126 @@
 @inject DocumentService DocService
 @attribute [Authorize(Roles = "Admin")]
 
-<MudText Typo="Typo.h5" class="mb-4">Audit Log</MudText>
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
 
-<MudPaper Class="pa-3 mb-3" Elevation="1">
-    <MudGrid Spacing="2">
-        <MudItem xs="12" sm="4">
-            <MudTextField @bind-Value="searchText" Label="Search document / user / action"
-                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
-                          Immediate="true" Clearable="true" />
-        </MudItem>
-        <MudItem xs="12" sm="3">
-            <MudSelect T="string" @bind-Value="filterAction" Label="Action" Clearable="true">
-                @foreach (var a in actions)
-                {
-                    <MudSelectItem Value="@a">@a</MudSelectItem>
-                }
-            </MudSelect>
-        </MudItem>
-        <MudItem xs="12" sm="3">
-            <MudDatePicker @bind-Date="filterDate" Label="Date" Clearable="true" />
-        </MudItem>
-        <MudItem xs="12" sm="2" Class="d-flex align-end">
-            <MudButton OnClick="ClearFilters" Variant="Variant.Outlined" Size="Size.Small" FullWidth="true">Clear</MudButton>
-        </MudItem>
-    </MudGrid>
-</MudPaper>
+    <div class="d-flex justify-space-between align-center mb-4 page-header-row">
+        <div>
+            <MudText Typo="Typo.h4" Class="font-weight-bold">Audit Log</MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">System-wide record of all document actions.</MudText>
+        </div>
+    </div>
 
-@if (loading)
-{
-    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
-}
-else
-{
-    <MudTable Items="FilteredLogs" Dense="true" Hover="true" Striped="true" Breakpoint="Breakpoint.Sm">
-        <HeaderContent>
-            <MudTh>Timestamp</MudTh>
-            <MudTh>Document</MudTh>
-            <MudTh>Action</MudTh>
-            <MudTh>By</MudTh>
-            <MudTh>Office / Unit</MudTh>
-            <MudTh>Comment</MudTh>
-        </HeaderContent>
-        <RowTemplate>
-            <MudTd>@context.TimeStamp.ToLocalTime().ToString("MMM dd, yyyy hh:mm tt")</MudTd>
-            <MudTd>
-                <MudText Typo="Typo.body2">@context.Document?.Name</MudText>
-                <MudText Typo="Typo.caption" Class="mud-text-secondary">@context.Document?.ReferenceNumber</MudText>
-            </MudTd>
-            <MudTd>
-                <MudChip T="string" Size="Size.Small" Color="@GetActionColor(context.Action)">@context.Action</MudChip>
-            </MudTd>
-            <MudTd>@(context.AppUser?.Name ?? "—")</MudTd>
-            <MudTd>
-                @if (context.Unit != null)
-                {
-                    <span>@context.Unit.Name <MudText Typo="Typo.caption" Class="mud-text-secondary">(@context.Office?.Name)</MudText></span>
-                }
-                else
-                {
-                    <span>@(context.Office?.Name ?? "—")</span>
-                }
-            </MudTd>
-            <MudTd>@(context.Comment ?? "—")</MudTd>
-        </RowTemplate>
-        <NoRecordsContent>
-            <MudText Class="pa-4 mud-text-secondary">No log entries found.</MudText>
-        </NoRecordsContent>
-        <PagerContent>
-            <MudTablePager PageSizeOptions="new int[] { 25, 50, 100 }" />
-        </PagerContent>
-    </MudTable>
-}
+    <MudTextField @bind-Value="searchText" Placeholder="Search document, user, or action..."
+                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                  Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" Class="mb-4" />
 
-@code{
-	private List<DocumentLog> logs = new();
-	private bool loading = true;
-	private string searchText = "";
-	private string? filterAction;
-	private DateTime? filterDate;
+    <div class="d-flex gap-2 flex-wrap align-center mb-4">
+        <MudSelect T="string" Value="filterAction" Label="Action" Variant="Variant.Outlined"
+                   Margin="Margin.Dense" Style="min-width:160px;"
+                   ValueChanged="@((string v) => { filterAction = v; StateHasChanged(); })">
+            <MudSelectItem T="string" Value="@("")">All Actions</MudSelectItem>
+            @foreach (var a in actions)
+            {
+                <MudSelectItem T="string" Value="@a">@a</MudSelectItem>
+            }
+        </MudSelect>
+        <MudDatePicker Date="filterDate" Label="Date" Variant="Variant.Outlined"
+                       Margin="Margin.Dense" Style="min-width:160px;"
+                       DateChanged="@((DateTime? v) => { filterDate = v; StateHasChanged(); })" />
+        @if (filterAction != null || filterDate != null)
+        {
+            <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="ClearFilters"
+                       StartIcon="@Icons.Material.Filled.Clear">Clear</MudButton>
+        }
+    </div>
 
-	private static readonly string[] actions = { "Created", "Received", "Forwarded", "Completed", "Admin Override" };
+    @if (loading)
+    {
+        <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+    }
+    else
+    {
+        <MudTable Items="FilteredLogs" Dense="true" Hover="true" Striped="true" Breakpoint="Breakpoint.Sm" Elevation="3">
+            <HeaderContent>
+                <MudTh>Timestamp</MudTh>
+                <MudTh>Document</MudTh>
+                <MudTh>Action</MudTh>
+                <MudTh>By</MudTh>
+                <MudTh>Office / Unit</MudTh>
+                <MudTh>Comment</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>@context.TimeStamp.ToLocalTime().ToString("MMM dd, yyyy hh:mm tt")</MudTd>
+                <MudTd>
+                    <MudText Typo="Typo.body2">@context.Document?.Name</MudText>
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">@context.Document?.ReferenceNumber</MudText>
+                </MudTd>
+                <MudTd>
+                    <MudChip T="string" Size="Size.Small" Color="@GetActionColor(context.Action)">@context.Action</MudChip>
+                </MudTd>
+                <MudTd>@(context.AppUser?.Name ?? "—")</MudTd>
+                <MudTd>
+                    @if (context.Unit != null)
+                    {
+                        <span>@context.Unit.Name <MudText Typo="Typo.caption" Class="mud-text-secondary">(@context.Office?.Name)</MudText></span>
+                    }
+                    else
+                    {
+                        <span>@(context.Office?.Name ?? "—")</span>
+                    }
+                </MudTd>
+                <MudTd>@(context.Comment ?? "—")</MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <MudText Class="pa-4 mud-text-secondary">No log entries found.</MudText>
+            </NoRecordsContent>
+            <PagerContent>
+                <MudTablePager PageSizeOptions="new int[] { 25, 50, 100 }" />
+            </PagerContent>
+        </MudTable>
+    }
 
-	private IEnumerable<DocumentLog> FilteredLogs => logs.Where(l =>
-		(string.IsNullOrEmpty(searchText) ||
-			(l.Document?.Name?.Contains(searchText, StringComparison.OrdinalIgnoreCase) == true) ||
-			(l.Document?.ReferenceNumber?.Contains(searchText, StringComparison.OrdinalIgnoreCase) == true) ||
-			(l.AppUser?.Name?.Contains(searchText, StringComparison.OrdinalIgnoreCase) == true) ||
-			(l.Action?.Contains(searchText, StringComparison.OrdinalIgnoreCase) == true)) &&
-		(filterAction == null || l.Action == filterAction) &&
-		(filterDate == null || l.TimeStamp.Date == filterDate.Value.Date)
-	);
+</MudContainer>
 
-	protected override async Task OnInitializedAsync()
-	{
-		logs = await DocService.GetAuditLogsAsync();
-		loading = false;
-	}
+@code {
+    private List<DocumentLog> logs = new();
+    private bool loading = true;
+    private string searchText = "";
+    private string? filterAction;
+    private DateTime? filterDate;
 
-	private void ClearFilters()
-	{
-		searchText = "";
-		filterAction = null;
-		filterDate = null;
-	}
+    private static readonly string[] actions = { "Created", "Received", "Forwarded", "Completed", "Admin Override" };
 
-	private Color GetActionColor(string? action) => action switch
-	{
-		"Created" => Color.Success,
-		"Received" => Color.Info,
-		"Forwarded" => Color.Warning,
-		"Completed" => Color.Primary,
-		"Admin Override" => Color.Error,
-		_ => Color.Default
-	};
+    private IEnumerable<DocumentLog> FilteredLogs => logs.Where(l =>
+        (string.IsNullOrEmpty(searchText) ||
+            (l.Document?.Name?.Contains(searchText, StringComparison.OrdinalIgnoreCase) == true) ||
+            (l.Document?.ReferenceNumber?.Contains(searchText, StringComparison.OrdinalIgnoreCase) == true) ||
+            (l.AppUser?.Name?.Contains(searchText, StringComparison.OrdinalIgnoreCase) == true) ||
+            (l.Action?.Contains(searchText, StringComparison.OrdinalIgnoreCase) == true)) &&
+        (filterAction == null || string.IsNullOrEmpty(filterAction) || l.Action == filterAction) &&
+        (filterDate == null || l.TimeStamp.Date == filterDate.Value.Date));
+
+    protected override async Task OnInitializedAsync()
+    {
+        logs = await DocService.GetAuditLogsAsync();
+        loading = false;
+    }
+
+    private void ClearFilters()
+    {
+        searchText = "";
+        filterAction = null;
+        filterDate = null;
+        StateHasChanged();
+    }
+
+    private Color GetActionColor(string? action) => action switch
+    {
+        "Created" => Color.Success,
+        "Received" => Color.Info,
+        "Forwarded" => Color.Warning,
+        "Completed" => Color.Primary,
+        "Admin Override" => Color.Error,
+        _ => Color.Default
+    };
 }
