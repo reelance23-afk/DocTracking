@@ -118,6 +118,12 @@
                             <MudText Typo="Typo.body2">My Tracking</MudText>
                         }
                     </MudNavLink>
+                    <MudNavLink Href="/admin-audit-log" Icon="@Icons.Material.Filled.ManageSearch" IconColor="Color.Warning">
+                        @if (ShowText)
+                        {
+                            <MudText Typo="Typo.body2">Audit Log</MudText>
+                        }
+                    </MudNavLink>
                 </div>
             }
         </Authorized>

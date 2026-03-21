@@ -33,5 +33,18 @@ namespace DocTracking.Controllers
                 .ToListAsync();
         }
 
+        [HttpGet("audit")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<IEnumerable<DocumentLog>>> GetAuditLogs()
+        {
+            return await _context.DocumentLogs
+                .Include(m => m.Document)
+                .Include(m => m.Office)
+                .Include(m => m.Unit)
+                .Include(m => m.AppUser)
+                .OrderByDescending(m => m.TimeStamp)
+                .ToListAsync();
+        }
+
     }
 }

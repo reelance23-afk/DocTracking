@@ -5,6 +5,7 @@
 @using DocTracking.Client.Services
 @using DocTracking.Client.Services.Helpers
 @inject DocumentService DocumentService
+@inject ISnackbar Snackbar
 @implements IDisposable
 @rendermode InteractiveAuto
 
@@ -62,6 +63,40 @@
                 </MudPaper>
             </MudItem>
         </MudGrid>
+
+        <MudPaper Elevation="2" Class="pa-4 mb-6" Style="border-top: 4px solid var(--mud-palette-secondary);">
+            <div class="d-flex align-center mb-3">
+                <MudIcon Icon="@Icons.Material.Filled.Campaign" Class="mr-2" Color="Color.Secondary" />
+                <MudText Typo="Typo.h6">Broadcast Notification</MudText>
+            </div>
+            <MudGrid Spacing="2">
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="broadcastMessage" Label="Message" Variant="Variant.Outlined"
+                                  Placeholder="Type your announcement..." Lines="2" MaxLength="300"
+                                  Counter="300" Immediate="true" />
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudSelect T="int?" @bind-Value="broadcastOfficeId" Label="Target Office (optional)"
+                               Variant="Variant.Outlined" Clearable="true">
+                        @foreach (var office in allOffices)
+                        {
+                            <MudSelectItem T="int?" Value="@((int?)office.Id)">@office.Name</MudSelectItem>
+                        }
+                    </MudSelect>
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary mt-1">
+                        Leave blank to send to all users
+                    </MudText>
+                </MudItem>
+                <MudItem xs="12" sm="2" Class="d-flex align-center">
+                    <MudButton Variant="Variant.Filled" Color="Color.Secondary" FullWidth="true"
+                               StartIcon="@Icons.Material.Filled.Send"
+                               Disabled="@(string.IsNullOrWhiteSpace(broadcastMessage) || isBroadcasting)"
+                               OnClick="SendBroadcast">
+                        @(isBroadcasting ? "Sending..." : "Send")
+                    </MudButton>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
 
         <MudGrid Class="mb-6">
             <MudItem xs="12" md="7">
@@ -174,10 +209,15 @@
     private List<Document> allDocuments = new();
     private List<Document> recentDocuments = new();
     private List<Document> inMotionDocs = new();
+    private List<Office> allOffices = new();
     private int totalDocuments, totalOffices, totalUsers;
     private bool isLoading = true;
     private List<OfficeWorkLoad> officeWorkLoads = new();
     private PeriodicTimer? _pollTimer;
+
+    private string broadcastMessage = "";
+    private int? broadcastOfficeId;
+    private bool isBroadcasting;
 
     public class OfficeWorkLoad
     {
@@ -198,7 +238,7 @@
         {
             allDocuments = await DocumentService.GetAllDocumentsAsync();
             var allAppUsers = await DocumentService.GetAppUserAsync();
-            var allOffices = await DocumentService.GetOfficesAsync();
+            allOffices = await DocumentService.GetOfficesAsync();
 
             totalDocuments = allDocuments.Count;
             totalOffices = allOffices.Count;
@@ -230,6 +270,21 @@
         {
             isLoading = false;
         }
+    }
+
+    private async Task SendBroadcast()
+    {
+        if (string.IsNullOrWhiteSpace(broadcastMessage)) return;
+        isBroadcasting = true;
+        try
+        {
+            var (ok, error) = await DocumentService.BroadcastNotificationAsync(broadcastMessage, broadcastOfficeId);
+            if (!ok) { Snackbar.Add(error ?? "Failed to send broadcast.", Severity.Error); return; }
+            Snackbar.Add("Broadcast sent successfully.", Severity.Success);
+            broadcastMessage = "";
+            broadcastOfficeId = null;
+        }
+        finally { isBroadcasting = false; }
     }
 
     private async void StartPolling()

@@ -14,14 +14,17 @@
         .desktop-table {
             display: none !important;
         }
+
         .mobile-units {
             display: block !important;
         }
     }
+
     @@media (min-width: 600px) {
         .desktop-table {
             display: block !important;
         }
+
         .mobile-units {
             display: none !important;
         }
@@ -44,6 +47,7 @@
     <MudTextField @bind-Value="searchString" Placeholder="Search Offices..." Adornment="Adornment.Start"
                   AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mb-6"
                   Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" />
+
     @if (loading)
     {
         <div class="d-flex justify-center mt-8">
@@ -149,6 +153,12 @@
                                             }
                                         </MudTd>
                                         <MudTd Style="text-align:right">
+                                            <MudTooltip Text="Reassign All Users">
+                                                <MudIconButton Icon="@Icons.Material.Filled.SwapHoriz" Size="Size.Small"
+                                                               Color="Color.Info"
+                                                               Disabled="@(!unitWorkers.Any())"
+                                                               OnClick="@(() => OpenReassignDialog(unit, office))" />
+                                            </MudTooltip>
                                             <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
                                                            Color="Color.Warning" OnClick="@(() => OpenEditUnitDialog(unit))" />
                                             <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
@@ -169,15 +179,19 @@
                                                     <MudText Typo="Typo.body1" Class="font-weight-bold">@unit.Name</MudText>
                                                 </div>
                                                 <div class="d-flex gap-1">
+                                                    <MudIconButton Icon="@Icons.Material.Filled.SwapHoriz" Size="Size.Small"
+                                                                   Color="Color.Info"
+                                                                   Disabled="@(!unitWorkers.Any())"
+                                                                   OnClick="@(() => OpenReassignDialog(unit, office))" />
                                                     <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
                                                                    Color="Color.Warning" OnClick="@(() => OpenEditUnitDialog(unit))" />
                                                     <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
                                                                    Color="Color.Error" OnClick="@(() => DeleteUnit(unit))" />
                                                 </div>
                                             </div>
-                                            
+
                                             <MudDivider Class="my-2" />
-                                            
+
                                             <div>
                                                 <MudText Typo="Typo.caption" Class="mud-text-secondary mb-1">Workers:</MudText>
                                                 @if (unitWorkers.Any())
@@ -221,11 +235,45 @@
 
 </MudContainer>
 
-<MudFab Color="Color.Primary" 
-       StartIcon="@Icons.Material.Filled.Add" 
-       OnClick="OpenAddOfficeDialog"
-       Class="d-md-none"
-       Style="position: fixed; bottom: 24px; right: 24px; z-index: 1000;" />
+<MudFab Color="Color.Primary"
+        StartIcon="@Icons.Material.Filled.Add"
+        OnClick="OpenAddOfficeDialog"
+        Class="d-md-none"
+        Style="position: fixed; bottom: 24px; right: 24px; z-index: 1000;" />
+
+@if (isReassignOpen)
+{
+    <MudDialog @bind-IsVisible="isReassignOpen" Options="@(new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true })">
+        <TitleContent>
+            <MudText Typo="Typo.h6">Reassign All Users from <strong>@reassignFromUnit?.Name</strong></MudText>
+        </TitleContent>
+        <DialogContent>
+            <MudText Typo="Typo.body2" Class="mb-3 mud-text-secondary">
+                Move all @(allUsers.Count(u => u.UnitId == reassignFromUnit?.Id)) user(s) to a different unit.
+            </MudText>
+            <MudSelect T="int?" Label="Target Unit" @bind-Value="reassignToUnitId" Variant="Variant.Outlined">
+                @foreach (var office in offices)
+                {
+                    @if (office.Units != null)
+                    {
+                        @foreach (var unit in office.Units.Where(u => u.Id != reassignFromUnit?.Id))
+                        {
+                            <MudSelectItem T="int?" Value="@((int?)unit.Id)">@office.Name — @unit.Name</MudSelectItem>
+                        }
+                    }
+                }
+            </MudSelect>
+        </DialogContent>
+        <DialogActions>
+            <MudButton OnClick="@(() => isReassignOpen = false)">Cancel</MudButton>
+            <MudButton Color="Color.Info" Variant="Variant.Filled"
+                       Disabled="@(reassignToUnitId == null || isReassigning)"
+                       OnClick="ConfirmReassign">
+                @(isReassigning ? "Moving..." : "Reassign All")
+            </MudButton>
+        </DialogActions>
+    </MudDialog>
+}
 
 @code {
     private List<Office> offices = new();
@@ -237,6 +285,11 @@
     private bool isSubmittingUnit;
     private bool isSubmitting;
     private DialogOptions dialogOptions = new() { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
+
+    private bool isReassignOpen;
+    private bool isReassigning;
+    private Unit? reassignFromUnit;
+    private int? reassignToUnitId;
 
     private IEnumerable<Office> FilteredOffices => string.IsNullOrWhiteSpace(searchString)
         ? offices
@@ -261,6 +314,27 @@
         }
     }
 
+    private void OpenReassignDialog(Unit unit, Office office)
+    {
+        reassignFromUnit = unit;
+        reassignToUnitId = null;
+        isReassignOpen = true;
+    }
+
+    private async Task ConfirmReassign()
+    {
+        if (reassignFromUnit == null || reassignToUnitId == null) return;
+        isReassigning = true;
+        try
+        {
+            var (ok, error) = await DocService.BulkReassignUsersAsync(reassignFromUnit.Id, reassignToUnitId.Value);
+            if (!ok) { Snackbar.Add(error ?? "Error reassigning users.", Severity.Error); return; }
+            Snackbar.Add("Users reassigned successfully.", Severity.Success);
+            isReassignOpen = false;
+            await LoadOffices(showSpinner: false);
+        }
+        finally { isReassigning = false; }
+    }
 
     private async Task OpenAddOfficeDialog()
     {
@@ -387,4 +461,3 @@
         finally { isSubmittingUnit = false; }
     }
 }
-

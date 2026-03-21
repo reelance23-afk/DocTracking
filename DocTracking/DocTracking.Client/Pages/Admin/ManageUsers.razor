@@ -2,6 +2,7 @@
 @attribute [Authorize(Roles = "Admin")]
 @using DocTracking.Client.Models
 @using DocTracking.Client.Services
+@using DocTracking.Client.Services.Helpers
 @inject DocumentService DocService
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
@@ -58,10 +59,13 @@
                     </MudTd>
                     <MudTd>
                         <div class="d-flex gap-1">
+                            <MudIconButton Icon="@Icons.Material.Filled.History" Size="Size.Small" Color="Color.Info"
+                                           Title="View Activity"
+                                           OnClick="@(async () => await OpenActivityDialog(context))" />
                             <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Warning"
                                            OnClick="@(() => OpenEditDialog(context))" />
                             <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
-                                           OnClick="@(() => DeleteUser(context))" />
+                                           OnClick="@(async () => await DeleteUser(context))" />
                         </div>
                     </MudTd>
                 </RowTemplate>
@@ -105,12 +109,15 @@
                         </MudCardContent>
                         <MudCardActions Class="pa-4 pt-0">
                             <div class="d-flex gap-2" style="width:100%">
+                                <MudButton Variant="Variant.Outlined" Color="Color.Info" Style="flex:1"
+                                           StartIcon="@Icons.Material.Filled.History"
+                                           OnClick="@(async () => await OpenActivityDialog(user))">Activity</MudButton>
                                 <MudButton Variant="Variant.Outlined" Color="Color.Warning" Style="flex:1"
                                            StartIcon="@Icons.Material.Filled.Edit"
                                            OnClick="@(() => OpenEditDialog(user))">Edit</MudButton>
                                 <MudButton Variant="Variant.Outlined" Color="Color.Error" Style="flex:1"
                                            StartIcon="@Icons.Material.Filled.Delete"
-                                           OnClick="@(() => DeleteUser(user))">Delete</MudButton>
+                                           OnClick="@(async () => await DeleteUser(user))">Delete</MudButton>
                             </div>
                         </MudCardActions>
                     </MudCard>
@@ -182,6 +189,55 @@
     </DialogActions>
 </MudDialog>
 
+<MudDialog @bind-Visible="isActivityDialogOpen" Options="activityDialogOptions">
+    <TitleContent>
+        <div class="d-flex align-center gap-2">
+            <MudIcon Icon="@Icons.Material.Filled.History" Color="Color.Info" />
+            <MudText Typo="Typo.h6" Class="font-weight-bold">@activityUser?.Name — Document Activity</MudText>
+        </div>
+    </TitleContent>
+    <DialogContent>
+        @if (activityLoading)
+        {
+            <div class="d-flex justify-center pa-8">
+                <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+            </div>
+        }
+        else if (!activityDocs.Any())
+        {
+            <div class="text-center pa-8">
+                <MudIcon Icon="@Icons.Material.Filled.Inbox" Size="Size.Large" Style="opacity:0.3;" />
+                <MudText Typo="Typo.body2" Class="mud-text-secondary mt-2">No document activity found.</MudText>
+            </div>
+        }
+        else
+        {
+            <MudTable Items="@activityDocs" Dense="true" Hover="true" Elevation="0">
+                <HeaderContent>
+                    <MudTh>Name</MudTh>
+                    <MudTh>Status</MudTh>
+                    <MudTh>Priority</MudTh>
+                    <MudTh>Last Action</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Name"><strong>@context.Name</strong></MudTd>
+                    <MudTd DataLabel="Status">
+                        <MudChip T="string" Color="@DocHelpers.GetStatusColor(context.Status)" Size="Size.Small" Variant="Variant.Filled">@context.Status</MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="Priority">
+                        <MudChip T="string" Color="@DocHelpers.GetPriorityColor(context.Priority)" Size="Size.Small" Variant="Variant.Filled">@context.Priority</MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="Last Action">@((context.LastActionDate ?? context.CreatedAt).ToLocalTime().ToString("MMM dd, yyyy"))</MudTd>
+                </RowTemplate>
+                <PagerContent><MudTablePager /></PagerContent>
+            </MudTable>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => isActivityDialogOpen = false)">Close</MudButton>
+    </DialogActions>
+</MudDialog>
+
 @code {
     private List<AppUser> users = new();
     private List<Office> offices = new();
@@ -194,6 +250,12 @@
     private AppUser? editingUser;
     private bool isEditDialogOpen = false;
     private DialogOptions dialogOptions = new() { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
+
+    private AppUser? activityUser;
+    private List<Document> activityDocs = new();
+    private bool isActivityDialogOpen = false;
+    private bool activityLoading = false;
+    private DialogOptions activityDialogOptions = new() { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
 
     private IEnumerable<AppUser> FilteredUsers => string.IsNullOrWhiteSpace(searchString)
         ? users
@@ -208,6 +270,16 @@
         users = await DocService.GetAppUserAsync();
         offices = await DocService.GetOfficesAsync();
         isLoading = false;
+    }
+
+    private async Task OpenActivityDialog(AppUser user)
+    {
+        activityUser = user;
+        activityDocs = new();
+        isActivityDialogOpen = true;
+        activityLoading = true;
+        activityDocs = await DocService.GetUserActivityAsync(user.Id);
+        activityLoading = false;
     }
 
     private void OpenEditDialog(AppUser user)
