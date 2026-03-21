@@ -1,10 +1,12 @@
 @page "/admin-dashboard"
 @attribute [Authorize(Roles = "Admin")]
 @using DocTracking.Client
+@using DocTracking.Client.Pages
 @using DocTracking.Client.Models
 @using DocTracking.Client.Services
 @using DocTracking.Client.Services.Helpers
 @inject DocumentService DocumentService
+@inject IDialogService DialogService
 @inject ISnackbar Snackbar
 @implements IDisposable
 @rendermode InteractiveAuto
@@ -120,7 +122,7 @@
                                         <MudText Typo="Typo.body2" Class="font-weight-bold mb-1">@doc.Name</MudText>
                                         <div class="d-flex justify-space-between align-center">
                                             <MudChip T="string" Size="Size.Small" Color="@DocHelpers.GetPriorityColor(doc.Priority)" Variant="Variant.Filled">@doc.Priority</MudChip>
-                                            <MudIconButton Icon="@Icons.Material.Filled.OpenInNew" Size="Size.Small" Color="Color.Primary" Href="@($"/track-document/{doc.Id}?ReturnUrl=admin-dashboard")" />
+                                            <MudIconButton Icon="@Icons.Material.Filled.OpenInNew" Size="Size.Small" Color="Color.Primary" OnClick="@(async () => await OpenViewDialog(doc))" />
                                         </div>
                                     </MudPaper>
                                 }
@@ -295,6 +297,16 @@
             await LoadData();
             await InvokeAsync(StateHasChanged);
         }
+    }
+
+    private async Task OpenViewDialog(Document doc)
+    {
+        var parameters = new DialogParameters<DocumentViewDialog>
+        {
+            {x => x.Doc, doc}
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true};
+        await DialogService.ShowAsync<DocumentViewDialog>("Document Details", parameters, options);
     }
 
     public void Dispose()

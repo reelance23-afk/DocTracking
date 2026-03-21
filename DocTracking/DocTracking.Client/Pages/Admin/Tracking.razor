@@ -29,7 +29,7 @@
     else
     {
         <MudPaper Elevation="3" Class="pa-4 pa-md-6 rounded-lg">
-            <div class="d-flex justify-space-between align-center mb-4 page-header-row">
+            <div class="d-flex justify-space-between align-center mb-4">
                 <div>
                     <MudText Typo="Typo.h6" Class="font-weight-bold">All Documents</MudText>
                     <MudText Typo="Typo.body2" Class="mud-text-secondary">Browse, filter and export all documents.</MudText>
@@ -296,7 +296,7 @@
             { x => x.DocumentId, doc.Id },
             { x => x.ReferenceNumber, doc.ReferenceNumber }
         };
-        var options = new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true, CloseButton = true };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
         await DialogService.ShowAsync<QRCodeDialog>("QR Code", parameters, options);
     }
 

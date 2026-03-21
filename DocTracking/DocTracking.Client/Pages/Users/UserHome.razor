@@ -8,16 +8,19 @@
 @inject NotificationService NotifService
 @inject AuthenticationStateProvider AuthStateProvider
 @inject DocumentService DocService
+@inject IDialogService DialogService
 @implements IDisposable
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
 
-    <div class="d-flex align-center mb-6">
-        <MudIcon Icon="@Icons.Material.Filled.Dashboard" Size="Size.Large" Color="Color.Primary" Class="mr-3" />
-        <MudText Typo="Typo.h4" Class="font-weight-bold">Dashboard</MudText>
+    <div class="d-flex align-center mb-4">
+        <div>
+            <MudText Typo="Typo.h5" Class="font-weight-bold">@_greeting, @(_profile?.Name ?? "there")</MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">Here's what's happening with your documents.</MudText>
+        </div>
     </div>
 
-    <MudGrid Class="mb-6">
+    <MudGrid Class="mb-4">
         <MudItem xs="12" sm="4">
             <MudPaper Elevation="2" Class="pa-4" Style="border-top: 4px solid var(--mud-palette-warning);">
                 <div class="d-flex justify-space-between align-center">
@@ -53,6 +56,29 @@
         </MudItem>
     </MudGrid>
 
+    @if (stuckDocs.Any())
+    {
+        <MudAlert Severity="Severity.Warning" Class="mb-4" Icon="@Icons.Material.Filled.Warning">
+            <MudText Typo="Typo.subtitle2" Class="font-weight-bold mb-2">
+                @stuckDocs.Count document@(stuckDocs.Count > 1 ? "s have" : " has") been idle for more than 1 day
+            </MudText>
+            @foreach (var doc in stuckDocs)
+            {
+                var idleDays = (int)(DateTime.UtcNow - (doc.LastActionDate ?? doc.CreatedAt)).TotalDays;
+                <div class="d-flex align-center justify-space-between mb-1">
+                    <MudText Typo="Typo.body2">@doc.Name</MudText>
+                    <div class="d-flex align-center gap-2">
+                        <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">
+                            @idleDays day@(idleDays > 1 ? "s" : "") idle
+                        </MudChip>
+                        <MudIconButton Icon="@Icons.Material.Filled.OpenInNew" Size="Size.Small" Color="Color.Warning"
+                                       OnClick="@(async () => await OpenViewDialog(doc))" />
+                    </div>
+                </div>
+            }
+        </MudAlert>
+    }
+
     <MudGrid Class="mb-6">
 
         <MudItem xs="12" md="7">
@@ -62,16 +88,31 @@
                     <MudText Typo="Typo.h6">Kanban</MudText>
                 </div>
                 <MudGrid>
-                    <MudItem xs="6">
+                    <MudItem xs="12" md="6">
                         <MudPaper Elevation="0" Class="pa-3" Style="background: rgba(var(--mud-palette-warning-rgb), 0.08); border-radius: 8px; min-height: 200px;">
                             <MudText Typo="Typo.subtitle2" Color="Color.Warning" Class="mb-3 font-weight-bold">In Progress</MudText>
                             @foreach (var doc in pendingDocs)
                             {
                                 <MudPaper Elevation="1" Class="pa-3 mb-2">
                                     <MudText Typo="Typo.body2" Class="font-weight-bold mb-1">@doc.Name</MudText>
+                                    @if (doc.NextOfficeId != null)
+                                    {
+                                        <div class="d-flex align-center mb-1">
+                                            <MudIcon Icon="@Icons.Material.Filled.ArrowForward" Size="Size.Small" Color="Color.Info" Class="mr-1" />
+                                            <MudText Typo="Typo.caption" Color="Color.Info">@(doc.NextOffice?.Name ?? "Forwarded")</MudText>
+                                        </div>
+                                    }
+                                    else if (doc.CurrentOffice != null)
+                                    {
+                                        <div class="d-flex align-center mb-1">
+                                            <MudIcon Icon="@Icons.Material.Filled.LocationOn" Size="Size.Small" Color="Color.Default" Class="mr-1" />
+                                            <MudText Typo="Typo.caption" Class="mud-text-secondary">@doc.CurrentOffice.Name</MudText>
+                                        </div>
+                                    }
                                     <div class="d-flex justify-space-between align-center">
                                         <MudChip T="string" Size="Size.Small" Color="@DocHelpers.GetPriorityColor(doc.Priority)" Variant="Variant.Filled">@doc.Priority</MudChip>
-                                        <MudIconButton Icon="@Icons.Material.Filled.OpenInNew" Size="Size.Small" Color="Color.Primary" Href="@($"/track-document/{doc.Id}")" />
+                                        <MudIconButton Icon="@Icons.Material.Filled.OpenInNew" Size="Size.Small" Color="Color.Primary"
+                                                       OnClick="@(async () => await OpenViewDialog(doc))" />
                                     </div>
                                 </MudPaper>
                             }
@@ -81,16 +122,24 @@
                             }
                         </MudPaper>
                     </MudItem>
-                    <MudItem xs="6">
+                    <MudItem xs="12" md="6">
                         <MudPaper Elevation="0" Class="pa-3" Style="background: rgba(var(--mud-palette-success-rgb), 0.08); border-radius: 8px; min-height: 200px;">
                             <MudText Typo="Typo.subtitle2" Color="Color.Success" Class="mb-3 font-weight-bold">Completed</MudText>
                             @foreach (var doc in completedDocs)
                             {
                                 <MudPaper Elevation="1" Class="pa-3 mb-2">
                                     <MudText Typo="Typo.body2" Class="font-weight-bold mb-1">@doc.Name</MudText>
+                                    @if (doc.CurrentOffice != null)
+                                    {
+                                        <div class="d-flex align-center mb-1">
+                                            <MudIcon Icon="@Icons.Material.Filled.LocationOn" Size="Size.Small" Color="Color.Default" Class="mr-1" />
+                                            <MudText Typo="Typo.caption" Class="mud-text-secondary">@doc.CurrentOffice.Name</MudText>
+                                        </div>
+                                    }
                                     <div class="d-flex justify-space-between align-center">
                                         <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Outlined">Done</MudChip>
-                                        <MudIconButton Icon="@Icons.Material.Filled.OpenInNew" Size="Size.Small" Color="Color.Primary" Href="@($"/track-document/{doc.Id}")" />
+                                        <MudIconButton Icon="@Icons.Material.Filled.OpenInNew" Size="Size.Small" Color="Color.Primary"
+                                                       OnClick="@(async () => await OpenViewDialog(doc))" />
                                     </div>
                                 </MudPaper>
                             }
@@ -152,7 +201,9 @@
                 }
             </MudPaper>
         </MudItem>
+
     </MudGrid>
+
 </MudContainer>
 
 @code {
@@ -160,7 +211,9 @@
     private List<Document> recentDocs = new();
     private List<Document> pendingDocs = new();
     private List<Document> completedDocs = new();
-
+    private List<Document> stuckDocs = new();
+    private AppUser? _profile;
+    private string _greeting = "Hello";
     private string _userEmail = "";
     private readonly DebounceHelper _debounce = new();
 
@@ -168,8 +221,13 @@
     {
         try
         {
+            var hour = DateTime.Now.Hour;
+            _greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+
             var authState = await AuthStateProvider.GetAuthenticationStateAsync();
             _userEmail = authState.User.FindFirst(ClaimTypes.Email)?.Value ?? authState.User.Identity?.Name ?? "";
+
+            _profile = await DocService.GetProfileAsync();
 
             if (!string.IsNullOrEmpty(_userEmail))
             {
@@ -182,6 +240,11 @@
                     pendingDocs = allDocs.Where(d => d.Status != "Completed").Take(5).ToList();
                     completedDocs = allDocs.Where(d => d.Status == "Completed").Take(5).ToList();
                     recentDocs = allDocs.OrderByDescending(d => d.LastActionDate).Take(5).ToList();
+                    stuckDocs = allDocs
+                        .Where(d => d.Status != "Completed" &&
+                               (DateTime.UtcNow - (d.LastActionDate ?? d.CreatedAt)).TotalDays >= 1)
+                        .OrderByDescending(d => d.LastActionDate ?? d.CreatedAt)
+                        .ToList();
                 }
             }
         }
@@ -198,24 +261,39 @@
         return Task.CompletedTask;
     }
 
-    private void OnNotificationReceived() =>
-    _debounce.Trigger(async () =>
+    private async Task OpenViewDialog(Document doc)
     {
-        if (!string.IsNullOrEmpty(_userEmail))
+        var parameters = new DialogParameters<DocumentViewDialog>
         {
-            var allDocs = await DocService.GetUserDocumentsAsync(_userEmail);
-            if (allDocs != null)
+            { x => x.Doc, doc }
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
+        await DialogService.ShowAsync<DocumentViewDialog>("Document Details", parameters, options);
+    }
+
+    private void OnNotificationReceived() =>
+        _debounce.Trigger(async () =>
+        {
+            if (!string.IsNullOrEmpty(_userEmail))
             {
-                myDocsCount = allDocs.Count;
-                pendingCount = allDocs.Count(d => d.Status != "Completed");
-                completedCount = allDocs.Count(d => d.Status == "Completed");
-                pendingDocs = allDocs.Where(d => d.Status != "Completed").Take(5).ToList();
-                completedDocs = allDocs.Where(d => d.Status == "Completed").Take(5).ToList();
-                recentDocs = allDocs.OrderByDescending(d => d.LastActionDate).Take(5).ToList();
+                var allDocs = await DocService.GetUserDocumentsAsync(_userEmail);
+                if (allDocs != null)
+                {
+                    myDocsCount = allDocs.Count;
+                    pendingCount = allDocs.Count(d => d.Status != "Completed");
+                    completedCount = allDocs.Count(d => d.Status == "Completed");
+                    pendingDocs = allDocs.Where(d => d.Status != "Completed").Take(5).ToList();
+                    completedDocs = allDocs.Where(d => d.Status == "Completed").Take(5).ToList();
+                    recentDocs = allDocs.OrderByDescending(d => d.LastActionDate).Take(5).ToList();
+                    stuckDocs = allDocs
+                        .Where(d => d.Status != "Completed" &&
+                               (DateTime.UtcNow - (d.LastActionDate ?? d.CreatedAt)).TotalDays >= 1)
+                        .OrderByDescending(d => d.LastActionDate ?? d.CreatedAt)
+                        .ToList();
+                }
             }
-        }
-        await InvokeAsync(StateHasChanged);
-    });
+            await InvokeAsync(StateHasChanged);
+        });
 
     public void Dispose()
     {

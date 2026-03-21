@@ -13,6 +13,7 @@
         <div class="d-flex align-center gap-2">
             <MudIcon Icon="@Icons.Material.Filled.Description" Color="Color.Primary" />
             <MudText Typo="Typo.h6" Class="font-weight-bold">@Doc.Name</MudText>
+            <MudChip T="string" Color="@DocHelpers.GetPriorityColor(Doc.Priority)" Size="Size.Small" Variant="Variant.Filled">@Doc.Priority</MudChip>
         </div>
     </TitleContent>
     <DialogContent>
@@ -22,12 +23,12 @@
                 <MudText Typo="Typo.body1">@Doc.Type</MudText>
             </MudItem>
             <MudItem xs="12" sm="6">
-                <MudText Typo="Typo.caption" Color="Color.Secondary">Priority</MudText>
-                <MudChip T="string" Color="@DocHelpers.GetPriorityColor(Doc.Priority)" Size="Size.Small">@Doc.Priority</MudChip>
-            </MudItem>
-            <MudItem xs="12" sm="6">
                 <MudText Typo="Typo.caption" Color="Color.Secondary">Status</MudText>
                 <MudChip T="string" Color="@DocHelpers.GetStatusColor(Doc.Status)" Size="Size.Small">@Doc.Status</MudChip>
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudText Typo="Typo.caption" Color="Color.Secondary">Sender</MudText>
+                <MudText Typo="Typo.body1">@(Doc.Creator?.Name ?? "—")</MudText>
             </MudItem>
             <MudItem xs="12" sm="6">
                 <MudText Typo="Typo.caption" Color="Color.Secondary">Created On</MudText>
@@ -51,7 +52,7 @@
                 }
                 else
                 {
-                    <MudText Typo="Typo.body2" Color="Color.Default"><em>None</em></MudText>
+                    <MudText Typo="Typo.body2"><em>None</em></MudText>
                 }
             </MudItem>
             <MudItem xs="12" sm="6">
@@ -72,7 +73,7 @@
                 }
                 else
                 {
-                    <MudText Typo="Typo.body2" Color="Color.Default"><em>None</em></MudText>
+                    <MudText Typo="Typo.body2"><em>None</em></MudText>
                 }
             </MudItem>
             @if (!string.IsNullOrEmpty(Doc.Description))
@@ -91,100 +92,17 @@
                     <div class="d-flex align-center mt-1 gap-2">
                         <MudIcon Icon="@Icons.Material.Filled.AttachFile" Size="Size.Small" />
                         <MudText Typo="Typo.body2">@Doc.FileName</MudText>
-                        <MudButton Href="@Doc.FilePath" Target="_blank" Variant="Variant.Outlined"
-                                   Size="Size.Small" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Download">
-                            Download
-                        </MudButton>
+                        <MudIconButton Href="@Doc.FilePath" Target="_blank"
+                                       Size="Size.Small" Color="Color.Primary" Icon="@Icons.Material.Filled.Download" />
+
                     </div>
                 </MudItem>
             }
-            <MudItem xs="12">
-                <MudDivider Class="my-2" />
-                <MudText Typo="Typo.subtitle1" Class="font-weight-bold mb-3">
-                    <MudIcon Icon="@Icons.Material.Filled.Timeline" Size="Size.Small" Class="mr-1" />
-                    Tracking Timeline
-                </MudText>
-                @if (logsLoading)
-                {
-                    <div class="d-flex justify-center pa-4">
-                        <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
-                    </div>
-                }
-                else if (!logs.Any())
-                {
-                    <MudText Typo="Typo.body2" Class="mud-text-secondary pa-2">No tracking history yet.</MudText>
-                }
-                else
-                {
-                    <MudTimeline TimelinePosition="TimelinePosition.Start" Class="w-100">
-                        @for (int i = 0; i < Math.Min(2, logs.Count); i++)
-                        {
-                            var log = logs[i];
-                            bool isCurrent = (i == 0);
-                            <MudTimelineItem Color="@DocHelpers.GetTimelineColor(log.Action, isCurrent)" Size="Size.Small">
-                                <ItemContent>
-                                    <MudCard Elevation="@(isCurrent ? 4 : 1)" Class="mb-3">
-                                        <MudCardContent Class="pa-3">
-                                            <div class="d-flex align-center gap-2 mb-1">
-                                                <MudIcon Icon="@DocHelpers.GetIconForAction(log.Action)" Color="@DocHelpers.GetActionColor(log.Action)" Size="Size.Small" />
-                                                <MudText Typo="Typo.body1" Class="font-weight-bold">@log.Action</MudText>
-                                                @if (isCurrent && log.Action != "Completed")
-                                                {
-                                                    <MudChip T="string" Color="Color.Primary" Size="Size.Small" Variant="Variant.Filled">CURRENT</MudChip>
-                                                }
-                                            </div>
-                                            <MudText Typo="Typo.caption" Class="mud-text-secondary mb-1">
-                                                @log.TimeStamp.ToLocalTime().ToString("MMM dd • hh:mm tt")
-                                            </MudText>
-                                            <div class="d-flex align-center mb-1">
-                                                <MudIcon Icon="@Icons.Material.Filled.AccountCircle" Size="Size.Small" Class="mr-2 mud-text-secondary" />
-                                                <MudText Typo="Typo.body2"><span class="mud-text-secondary">By:</span> <strong>@(log.AppUser?.Name ?? log.UserName ?? "System")</strong></MudText>
-                                            </div>
-                                            @if (log.Office != null || !string.IsNullOrEmpty(log.OfficeName))
-                                            {
-                                                <div class="d-flex align-center">
-                                                    <MudIcon Icon="@Icons.Material.Filled.LocationOn" Size="Size.Small" Class="mr-2 mud-text-secondary" />
-                                                    <div>
-                                                        <MudText Typo="Typo.body2">
-                                                            <span class="mud-text-secondary">@DocHelpers.GetLocationLabel(log.Action):</span>
-                                                            <strong> @(log.Office?.Name ?? log.OfficeName)</strong>
-                                                            @if (log.Office == null && !string.IsNullOrEmpty(log.OfficeName))
-                                                            {
-                                                                <span class="mud-text-secondary" style="font-style: italic;"> (deleted)</span>
-                                                            }
-                                                        </MudText>
-                                                        @if (log.Unit != null || !string.IsNullOrEmpty(log.UnitName))
-                                                        {
-                                                            <MudText Typo="Typo.caption" Class="mud-text-secondary">
-                                                                ↳ @(log.Unit?.Name ?? log.UnitName)
-                                                                @if (log.Unit == null && !string.IsNullOrEmpty(log.UnitName))
-                                                                {
-                                                                    <span style="font-style: italic;"> (deleted)</span>
-                                                                }
-                                                            </MudText>
-                                                        }
-                                                    </div>
-                                                </div>
-                                            }
-                                        </MudCardContent>
-                                    </MudCard>
-                                </ItemContent>
-                            </MudTimelineItem>
-                        }
-                    </MudTimeline>
-                    @if (logs.Count > 2)
-                    {
-                        <MudText Typo="Typo.caption" Class="mud-text-secondary pa-2">
-                            +@(logs.Count - 2) more — click View Full Timeline to see all
-                        </MudText>
-                    }
-                }
-            </MudItem>
         </MudGrid>
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="OpenFullTimeline" Variant="Variant.Outlined" Color="Color.Primary"
-                   StartIcon="@Icons.Material.Filled.OpenInFull">View Full Timeline</MudButton>
+                   StartIcon="@Icons.Material.Filled.OpenInFull" FullWidth="true">View Full Timeline</MudButton>
         <MudSpacer />
         <AuthorizeView Roles="Admin">
             <Authorized>
@@ -192,22 +110,12 @@
                            StartIcon="@Icons.Material.Filled.Edit" OnClick="EditDocument">Edit</MudButton>
             </Authorized>
         </AuthorizeView>
-        <MudButton OnClick="@(() => MudDialog.Cancel())" Variant="Variant.Text">Close</MudButton>
     </DialogActions>
 </MudDialog>
 
 @code {
     [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
     [Parameter] public Document Doc { get; set; } = new();
-
-    private List<DocumentLog> logs = new();
-    private bool logsLoading = true;
-
-    protected override async Task OnInitializedAsync()
-    {
-        logs = await DocService.GetDocumentLogsAsync(Doc.Id);
-        logsLoading = false;
-    }
 
     private async Task OpenFullTimeline()
     {

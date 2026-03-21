@@ -1,5 +1,6 @@
 @attribute [Authorize(Roles = "Office")]
 @using DocTracking.Client
+@using DocTracking.Client.Pages.Offices
 @using DocTracking.Client.Models
 @using DocTracking.Client.Services
 @using DocTracking.Client.Services.Helpers
@@ -7,6 +8,7 @@
 @inject ISnackbar Snackbar
 @inject AuthenticationStateProvider AuthStateProvider
 @inject NotificationService NotifService
+@inject IDialogService DialogService
 @implements IDisposable
 @rendermode InteractiveAuto
 
@@ -94,7 +96,8 @@
                                         <MudText Typo="Typo.body2" Class="font-weight-bold mb-1">@doc.Name</MudText>
                                         <div class="d-flex justify-space-between align-center">
                                             <MudChip T="string" Size="Size.Small" Color="@DocHelpers.GetPriorityColor(doc.Priority)" Variant="Variant.Filled">@doc.Priority</MudChip>
-                                            <MudIconButton Icon="@Icons.Material.Filled.OpenInNew" Size="Size.Small" Color="Color.Primary" Href="@($"/track-document/{doc.Id}")" />
+                                            <MudIconButton Icon="@Icons.Material.Filled.OpenInNew" Size="Size.Small" Color="Color.Primary"
+                                                           OnClick="@(async () => await OpenDeskDialog(doc, OfficeDeskViewDialog.DeskTab.Incoming))" />
                                         </div>
                                     </MudPaper>
                                 }
@@ -113,7 +116,9 @@
                                         <MudText Typo="Typo.body2" Class="font-weight-bold mb-1">@doc.Name</MudText>
                                         <div class="d-flex justify-space-between align-center">
                                             <MudChip T="string" Size="Size.Small" Color="@DocHelpers.GetPriorityColor(doc.Priority)" Variant="Variant.Filled">@doc.Priority</MudChip>
-                                            <MudIconButton Icon="@Icons.Material.Filled.OpenInNew" Size="Size.Small" Color="Color.Primary" Href="@($"/track-document/{doc.Id}")" />
+                                            <MudIconButton Icon="@Icons.Material.Filled.OpenInNew" Size="Size.Small" Color="Color.Primary"
+                                                           OnClick="@(async () => await OpenDeskDialog(doc, OfficeDeskViewDialog.DeskTab.OnDesk))" />
+
                                         </div>
                                     </MudPaper>
                                 }
@@ -251,6 +256,21 @@
         .Where(d => d.CurrentOfficeId == myOffice.Id || d.NextOfficeId == myOffice.Id)
         .OrderByDescending(d => d.LastActionDate)
         .Take(5).ToList();
+    }  
+
+    private async Task OpenDeskDialog(Document doc, OfficeDeskViewDialog.DeskTab tab)
+    {
+        var parameters = new DialogParameters<OfficeDeskViewDialog>
+        {
+            {x => x.Doc, doc},
+            {x => x.Tab, tab},
+            {x => x.AllOffices, allOffices}
+        };
+        var options = new DialogOptions {MaxWidth = MaxWidth.Small,FullWidth = true, CloseButton = true};
+        var dialog = await DialogService.ShowAsync<OfficeDeskViewDialog>("Document Details",parameters, options);
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+            await RefreshData();
     }
 
     public void Dispose()

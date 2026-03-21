@@ -161,17 +161,14 @@
         padding: 12px !important;
     }
 
-    /* Stat card numbers */
     .mud-typography-h3 {
         font-size: 1.75rem !important;
     }
 
-    /* Appbar icons */
     .mud-appbar .mud-icon-button {
         padding: 4px !important;
     }
 
-    /* Filter rows — override min-width so selects fit 2-per-row at 420px */
     .filter-row .mud-input-control,
     .filter-row .mud-select,
     .filter-row .mud-picker {
@@ -179,13 +176,11 @@
         flex: 1 1 calc(50% - 4px) !important;
     }
 
-    /* Full-width buttons in card actions */
     .mud-card-actions .mud-button {
         font-size: 0.8rem !important;
         padding: 6px 10px !important;
     }
 
-    /* Dialog actions — stack vertically, full width */
     .mud-dialog-actions {
         flex-direction: column !important;
         align-items: stretch !important;
@@ -201,7 +196,6 @@
             padding: 5px 10px !important;
         }
 
-    /* Dialog title — truncate long doc names, keep chip visible */
     .mud-dialog-title {
         display: flex !important;
         align-items: center !important;
@@ -221,24 +215,20 @@
             flex-shrink: 0;
         }
 
-    /* Attached file row in dialogs — stack filename below icon+button */
     .mud-dialog-content .d-flex.align-center.gap-2:has(.mud-button) {
         flex-wrap: wrap !important;
     }
 
-    /* Timeline card header — wrap action + timestamp */
     .mud-card-header .mud-card-header-content > div {
         flex-wrap: wrap;
         gap: 4px;
     }
 
-    /* Timeline timestamp — keep compact */
     .mud-card .mud-typography-caption {
         font-size: 0.65rem !important;
         white-space: nowrap;
     }
 
-    /* Dashboard Recent Activity — truncate doc name */
     .mud-timeline .mud-card .mud-typography-body2.font-weight-bold {
         overflow: hidden;
         text-overflow: ellipsis;
@@ -251,25 +241,21 @@
         flex-shrink: 0;
     }
 
-    /* Dashboard timeline second row — wrap */
     .mud-timeline .mud-card-content > div {
         flex-wrap: wrap;
         gap: 4px;
     }
 
-    /* Kanban mini-cards — truncate doc name */
     .mud-paper .mud-typography-body2.font-weight-bold {
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
     }
 
-    /* OfficeDesk schedule chip */
     .mud-chip .mud-chip-label {
         font-size: 0.65rem !important;
     }
 
-    /* ManageOffice expansion panel title */
     .mud-expansion-panel-header .mud-typography-body1 {
         font-size: 0.85rem !important;
         word-break: break-word;
@@ -287,14 +273,6 @@
         height: 22px !important;
         font-size: 0.7rem !important;
     }
-
-    .mud-paper {
-        padding: 10px !important;
-    }
-
-    .mud-grid {
-        gap: 8px !important;
-    }
 }
 
 /* Landscape mobile */
@@ -307,3 +285,74 @@
         margin-top: 48px !important;
     }
 }
+
+@media (max-width: 420px) {
+    .doc-view-grid .mud-grid-item {
+        flex: 0 0 50% !important;
+        max-width: 50% !important;
+        width: 50% !important;
+        min-width: 0 !important;
+    }
+
+        .doc-view-grid .mud-grid-item.mud-grid-item-xs-12 {
+            flex: 0 0 100% !important;
+            max-width: 100% !important;
+            width: 100% !important;
+        }
+}
+
+@media (max-width: 768px) {
+    .mud-tabs .mud-tabs-tabbar-inner {
+        display: flex !important;
+        width: 100% !important;
+        overflow: visible !important;
+    }
+
+    .mud-tabs .mud-tabs-tabbar {
+        overflow: visible !important;
+    }
+
+    .mud-tabs .mud-tabs-tabbar-wrapper {
+        overflow: visible !important;
+    }
+
+    .mud-tabs .mud-tab {
+        flex: 1 1 0 !important;
+        max-width: none !important;
+        min-width: 0 !important;
+        overflow: visible !important;
+        justify-content: center !important;
+        font-size: 0.7rem !important;
+    }
+
+    .mud-tabs .mud-badge-wrapper {
+        overflow: visible !important;
+    }
+
+    .mud-tabs .mud-badge {
+        z-index: 10 !important;
+        transform: translate(-8px, -10%) !important;
+    }
+
+    .mud-tabs .mud-tabs-tabbar-inner {
+        display: flex !important;
+        width: 100% !important;
+        flex-grow: 1 !important;
+        overflow: visible !important;
+    }
+
+    .mud-tabs .mud-tabs-tabbar-wrapper {
+        width: 100% !important;
+        overflow: visible !important;
+    }
+
+    .mud-tabs .mud-tabs-tabbar {
+        width: 100% !important;
+        overflow: visible !important;
+    }
+
+
+
+}
+
+

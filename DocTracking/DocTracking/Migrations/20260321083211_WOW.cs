@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace DocTracking.Migrations
 {
     /// <inheritdoc />
-    public partial class DeV : Migration
+    public partial class WOW : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)

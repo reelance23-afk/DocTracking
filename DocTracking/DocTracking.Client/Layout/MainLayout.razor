@@ -92,25 +92,38 @@
                Variant="DrawerVariant.Responsive"
                ClipMode="DrawerClipMode.Never">
 
-        <MudDrawerHeader Class="pa-4">
-            <AuthorizeView>
-                <Authorized>
-                    <MudPaper Outlined="true" Class="d-flex align-center pa-2 rounded-lg w-100" Elevation="0"
-                              Style="background-color: var(--mud-palette-background-grey);">
-                        <MudAvatar Color="Color.Dark" Variant="Variant.Filled" Size="Size.Medium" Class="mr-3 font-weight-bold">
-                            @(displayName?.Length > 0 ? displayName[0].ToString().ToUpper() : "?")
-                        </MudAvatar>
-                        @if (_showText)
-                        {
-                            <div class="d-flex flex-column overflow-hidden" style="animation: fadeIn 0.4s ease-out;">
-                                <MudText Typo="Typo.subtitle2" Class="font-weight-bold text-truncate">@(displayName ?? "User")</MudText>
-                                <MudText Typo="Typo.caption" Color="Color.Secondary">@(displayRole ?? "—")</MudText>
-                            </div>
-                        }
-                    </MudPaper>
-                </Authorized>
-            </AuthorizeView>
-        </MudDrawerHeader>
+        <MudDrawer @bind-Open="_drawerOpen"
+                   Elevation="1"
+                   Variant="DrawerVariant.Responsive"
+                   ClipMode="DrawerClipMode.Never">
+
+            <MudDrawerHeader Class="pa-4">
+                <AuthorizeView>
+                    <Authorized>
+                        <MudPaper Outlined="true" Class="d-flex align-center pa-2 rounded-lg w-100" Elevation="0"
+                                  Style="background-color: var(--mud-palette-background-grey);">
+                            <MudAvatar Color="Color.Dark" Variant="Variant.Filled" Size="Size.Medium" Class="mr-3 font-weight-bold">
+                                @(displayName?.Length > 0 ? displayName[0].ToString().ToUpper() : "?")
+                            </MudAvatar>
+                            @if (_showText)
+                            {
+                                <div class="d-flex flex-column overflow-hidden" style="animation: fadeIn 0.4s ease-out;">
+                                    <MudText Typo="Typo.subtitle2" Class="font-weight-bold text-truncate">@(displayName ?? "User")</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@(displayRole ?? "—")</MudText>
+                                </div>
+                            }
+                        </MudPaper>
+                    </Authorized>
+                </AuthorizeView>
+            </MudDrawerHeader>
+
+            <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 0;">
+                <CascadingValue Value="_showText">
+                    <NavMenu />
+                </CascadingValue>
+            </div>
+
+        </MudDrawer>
 
         <CascadingValue Value="_showText">
             <NavMenu />
