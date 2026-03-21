@@ -286,4 +286,196 @@
 @code {
     private List<Office> offices = new();
     private List<AppUser> allUsers = new();
-    private bool loading = true
+    private bool loading = true;
+    private string searchString { get; set; } = "";
+
+    private Dictionary<int, string> unitNames = new();
+    private bool isSubmittingUnit;
+    private bool isSubmitting;
+    private DialogOptions dialogOptions = new() { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
+
+    private bool isReassignOpen;
+    private bool isReassigning;
+    private Unit? reassignFromUnit;
+    private int? reassignToUnitId;
+    private List<AppUser> reassignUnitUsers = new();
+    private HashSet<int> selectedUserIds = new();
+
+    private IEnumerable<Office> FilteredOffices => string.IsNullOrWhiteSpace(searchString)
+        ? offices
+        : offices.Where(o => o.Name?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true);
+
+    protected override async Task OnInitializedAsync() => await LoadOffices();
+
+    private string GetUnitName(int officeId) => unitNames.TryGetValue(officeId, out var name) ? name : "";
+    private void SetUnitName(int officeId, string value) => unitNames[officeId] = value;
+
+    private async Task LoadOffices(bool showSpinner = true)
+    {
+        if (showSpinner) loading = true;
+        try
+        {
+            offices = await DocService.GetOfficesAsync();
+            allUsers = await DocService.GetAppUserAsync();
+        }
+        finally
+        {
+            if (showSpinner) loading = false;
+        }
+    }
+
+    private void OpenReassignDialog(Unit unit, Office office)
+    {
+        reassignFromUnit = unit;
+        reassignToUnitId = null;
+        reassignUnitUsers = allUsers.Where(u => u.UnitId == unit.Id).ToList();
+        selectedUserIds = reassignUnitUsers.Select(u => u.Id).ToHashSet();
+        isReassignOpen = true;
+    }
+
+    private void ToggleUser(int userId, bool selected)
+    {
+        if (selected) selectedUserIds.Add(userId);
+        else selectedUserIds.Remove(userId);
+    }
+
+    private async Task ConfirmReassign()
+    {
+        if (!selectedUserIds.Any() || reassignToUnitId == null) return;
+        isReassigning = true;
+        try
+        {
+            var (ok, error) = await DocService.SelectiveReassignUsersAsync(selectedUserIds.ToList(), reassignToUnitId.Value);
+            if (!ok) { Snackbar.Add(error ?? "Error reassigning users.", Severity.Error); return; }
+            Snackbar.Add($"{selectedUserIds.Count} user(s) reassigned successfully.", Severity.Success);
+            isReassignOpen = false;
+            await LoadOffices(showSpinner: false);
+        }
+        finally { isReassigning = false; }
+    }
+
+    private async Task OpenAddOfficeDialog()
+    {
+        var parameters = new DialogParameters { { "OfficeName", "" } };
+        var dialog = await DialogService.ShowAsync<OfficeFormDialog>("Add New Office", parameters, dialogOptions);
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: string name })
+        {
+            isSubmitting = true;
+            try
+            {
+                var (ok, error) = await DocService.AddOfficeAsync(new Office { Name = name });
+                if (!ok) { Snackbar.Add(error ?? "Error adding office.", Severity.Error); return; }
+                Snackbar.Add($"Office '{name}' added successfully!", Severity.Success);
+                await LoadOffices(showSpinner: false);
+            }
+            finally { isSubmitting = false; }
+        }
+    }
+
+    private async Task OpenEditOfficeDialog(Office office)
+    {
+        var parameters = new DialogParameters { { "OfficeName", office.Name ?? "" } };
+        var dialog = await DialogService.ShowAsync<OfficeFormDialog>("Edit Office", parameters, dialogOptions);
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: string name })
+        {
+            isSubmitting = true;
+            try
+            {
+                var (ok, error) = await DocService.UpdateOfficeAsync(new Office { Id = office.Id, Name = name, ReceivingSchedule = office.ReceivingSchedule });
+                if (!ok) { Snackbar.Add(error ?? "Error updating office.", Severity.Error); return; }
+                Snackbar.Add("Office updated.", Severity.Success);
+                await LoadOffices(showSpinner: false);
+            }
+            finally { isSubmitting = false; }
+        }
+    }
+
+    private async Task OpenScheduleDialog(Office office)
+    {
+        var parameters = new DialogParameters<ReceivingScheduleDialog>
+        {
+            { x => x.OfficeId, office.Id },
+            { x => x.OfficeName, office.Name ?? "" },
+            { x => x.CurrentSchedule, office.ReceivingSchedule }
+        };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
+        var dialog = await DialogService.ShowAsync<ReceivingScheduleDialog>("Receiving Schedule", parameters, options);
+        var result = await dialog.Result;
+        if (!result.Canceled)
+        {
+            office.ReceivingSchedule = result.Data as string;
+            StateHasChanged();
+        }
+    }
+
+    private async Task OpenEditUnitDialog(Unit unit)
+    {
+        var parameters = new DialogParameters { { "UnitName", unit.Name ?? "" } };
+        var dialog = await DialogService.ShowAsync<UnitFormDialog>("Edit Unit", parameters, dialogOptions);
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: string name })
+        {
+            isSubmittingUnit = true;
+            try
+            {
+                var (ok, error) = await DocService.UpdateUnitAsync(new Unit { Id = unit.Id, Name = name, OfficeId = unit.OfficeId });
+                if (!ok) { Snackbar.Add(error ?? "Error updating unit.", Severity.Error); return; }
+                Snackbar.Add("Unit updated.", Severity.Success);
+                await LoadOffices(showSpinner: false);
+            }
+            finally { isSubmittingUnit = false; }
+        }
+    }
+
+    private async Task DeleteOffice(Office office)
+    {
+        var parameters = new DialogParameters
+        {
+            { "Message", $"Delete '{office.Name}'? This cannot be undone." },
+            { "YesText", "Delete" },
+            { "CancelText", "Cancel" }
+        };
+        var dialog = await DialogService.ShowAsync<MudMessageBox>("Delete Office", parameters);
+        var result = await dialog.Result;
+        if (result.Canceled) return;
+        var (ok, error) = await DocService.DeleteOfficeAsync(office.Id);
+        if (!ok) { Snackbar.Add(error ?? "Error deleting office.", Severity.Error); return; }
+        Snackbar.Add("Office deleted.", Severity.Success);
+        await LoadOffices(showSpinner: false);
+    }
+
+    private async Task DeleteUnit(Unit unit)
+    {
+        var parameters = new DialogParameters
+        {
+            { "Message", $"Delete '{unit.Name}'? This cannot be undone." },
+            { "YesText", "Delete" },
+            { "CancelText", "Cancel" }
+        };
+        var dialog = await DialogService.ShowAsync<MudMessageBox>("Delete Unit", parameters);
+        var result = await dialog.Result;
+        if (result.Canceled) return;
+        var (ok, error) = await DocService.DeleteUnitAsync(unit.Id);
+        if (!ok) { Snackbar.Add(error ?? "Error deleting unit.", Severity.Error); return; }
+        Snackbar.Add("Unit deleted.", Severity.Success);
+        await LoadOffices(showSpinner: false);
+    }
+
+    private async Task SubmitUnit(Office office)
+    {
+        if (string.IsNullOrWhiteSpace(GetUnitName(office.Id))) return;
+        isSubmittingUnit = true;
+        try
+        {
+            var unitName = unitNames[office.Id];
+            var (ok, error) = await DocService.AddUnitAsync(new Unit { Name = unitName, OfficeId = office.Id });
+            if (!ok) { Snackbar.Add(error ?? "Error adding unit.", Severity.Error); return; }
+            Snackbar.Add($"Unit '{unitName}' added to {office.Name}!", Severity.Success);
+            unitNames[office.Id] = "";
+            await LoadOffices(showSpinner: false);
+        }
+        finally { isSubmittingUnit = false; }
+    }
+}
