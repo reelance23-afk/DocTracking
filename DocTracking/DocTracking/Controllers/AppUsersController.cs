@@ -102,11 +102,40 @@ namespace DocTracking.Controllers
             await _context.SaveChangesAsync();
             return Ok(new { moved = users.Count });
         }
+
+        [HttpPut("selective-reassign")]
+        public async Task<IActionResult> SelectiveReassign([FromBody] SelectiveReassignRequest request)
+        {
+            if (request.UserIds == null || !request.UserIds.Any())
+                return BadRequest("No users selected.");
+
+            var targetUnit = await _context.Units.FindAsync(request.ToUnitId);
+            if (targetUnit == null) return BadRequest("Target unit not found.");
+
+            var users = await _context.AppUsers
+                .Where(u => request.UserIds.Contains(u.Id))
+                .ToListAsync();
+
+            foreach (var user in users)
+            {
+                user.UnitId = request.ToUnitId;
+                user.OfficeId = targetUnit.OfficeId;
+            }
+
+            await _context.SaveChangesAsync();
+            return Ok(new { moved = users.Count });
+        }
     }
 
     public class BulkReassignRequest
     {
         public int FromUnitId { get; set; }
+        public int ToUnitId { get; set; }
+    }
+
+    public class SelectiveReassignRequest
+    {
+        public List<int> UserIds { get; set; } = new();
         public int ToUnitId { get; set; }
     }
 }

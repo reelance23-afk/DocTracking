@@ -14,7 +14,7 @@ namespace DocTracking.Client.Services
         {
             _http = http;
         }
-                                                                            
+
         private async Task<T?> GetJsonAsync<T>(string url)
         {
             var response = await _http.GetAsync(url);
@@ -69,8 +69,6 @@ namespace DocTracking.Client.Services
 
         public async Task<List<AppUser>> GetAppUserAsync() =>
             await GetJsonAsync<List<AppUser>>("api/appusers") ?? new();
-
-  
 
         public async Task<List<Unit>> GetUnitsAsync() =>
             await GetJsonAsync<List<Unit>>("api/units") ?? new();
@@ -149,6 +147,9 @@ namespace DocTracking.Client.Services
 
         public Task<(bool Success, string? Error)> BulkReassignUsersAsync(int fromUnitId, int toUnitId) =>
             ToResult(_http.PutAsJsonAsync("api/appusers/bulk-reassign", new { FromUnitId = fromUnitId, ToUnitId = toUnitId }));
+
+        public Task<(bool Success, string? Error)> SelectiveReassignUsersAsync(List<int> userIds, int toUnitId) =>
+            ToResult(_http.PutAsJsonAsync("api/appusers/selective-reassign", new { UserIds = userIds, ToUnitId = toUnitId }));
 
         public Task<(bool Success, string? Error)> BroadcastNotificationAsync(string message, int? officeId = null) =>
             ToResult(_http.PostAsJsonAsync("api/notifications/broadcast", new { Message = message, OfficeId = officeId }));
