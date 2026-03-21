@@ -37,25 +37,31 @@
             </div>
 
             <div class="d-flex gap-2 flex-wrap align-center mb-4">
-                <MudSelect @bind-Value="statusFilter" Label="Status" Variant="Variant.Outlined"
-                           Margin="Margin.Dense" T="string" Style="min-width:140px;">
+                <MudSelect Value="statusFilter" Label="Status" Variant="Variant.Outlined"
+                           Margin="Margin.Dense" T="string" Style="min-width:140px;"
+                           ValueChanged="@((string v) => { statusFilter = v; StateHasChanged(); })">
                     <MudSelectItem T="string" Value="@("")">All Statuses</MudSelectItem>
                     <MudSelectItem T="string" Value="@("In Motion")">In Motion</MudSelectItem>
                     <MudSelectItem T="string" Value="@("Received")">Received</MudSelectItem>
                     <MudSelectItem T="string" Value="@("Completed")">Completed</MudSelectItem>
                 </MudSelect>
-                <MudSelect @bind-Value="officeFilter" Label="Office" Variant="Variant.Outlined"
-                           Margin="Margin.Dense" T="string" Style="min-width:160px;">
+
+                <MudSelect Value="officeFilter" Label="Office" Variant="Variant.Outlined"
+                           Margin="Margin.Dense" T="string" Style="min-width:160px;"
+                           ValueChanged="@((string v) => { officeFilter = v; StateHasChanged(); })">
                     <MudSelectItem T="string" Value="@("")">All Offices</MudSelectItem>
                     @foreach (var office in allOffices)
                     {
                         <MudSelectItem T="string" Value="@office.Name">@office.Name</MudSelectItem>
                     }
                 </MudSelect>
-                <MudDatePicker @bind-Date="dateFrom" Label="From" Variant="Variant.Outlined"
-                               Margin="Margin.Dense" Style="min-width:140px;" />
-                <MudDatePicker @bind-Date="dateTo" Label="To" Variant="Variant.Outlined"
-                               Margin="Margin.Dense" Style="min-width:140px;" />
+                <MudDatePicker Date="dateFrom" Label="From" Variant="Variant.Outlined"
+                               Margin="Margin.Dense" Style="min-width:140px;"
+                               DateChanged="@((DateTime? v) => { dateFrom = v; StateHasChanged(); })" />
+
+                <MudDatePicker Date="dateTo" Label="To" Variant="Variant.Outlined"
+                               Margin="Margin.Dense" Style="min-width:140px;"
+                               DateChanged="@((DateTime? v) => { dateTo = v; StateHasChanged(); })" />
                 @if (!string.IsNullOrEmpty(statusFilter) || !string.IsNullOrEmpty(officeFilter) || dateFrom != null || dateTo != null)
                 {
                     <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="ClearFilters"
@@ -244,6 +250,7 @@
         officeFilter = "";
         dateFrom = null;
         dateTo = null;
+        StateHasChanged();
     }
 
     private async Task ExportCsv()
