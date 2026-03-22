@@ -281,48 +281,6 @@
     </DialogActions>
 </MudDialog>
 
-<MudDialog @bind-Visible="isReassignOpen" Options="@(new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true })">
-    <TitleContent>
-        <MudText Typo="Typo.h6">Reassign Users from <strong>@reassignFromUnit?.Name</strong></MudText>
-    </TitleContent>
-    <DialogContent>
-        <MudText Typo="Typo.subtitle2" Class="mb-2 font-weight-bold">Select Users to Reassign</MudText>
-        <MudPaper Elevation="0" Class="mb-4" Style="max-height: 220px; overflow-y: auto;">
-            @foreach (var user in reassignUnitUsers)
-            {
-                <MudCheckBox T="bool"
-                             Value="@selectedUserIds.Contains(user.Id)"
-                             ValueChanged="@(v => ToggleUser(user.Id, v))"
-                             Label="@user.Name"
-                             Color="Color.Primary"
-                             Class="d-block" />
-            }
-        </MudPaper>
-        <MudDivider Class="mb-3" />
-        <MudText Typo="Typo.subtitle2" Class="mb-2 font-weight-bold">Move To</MudText>
-        <MudSelect T="int?" Label="Target Unit" @bind-Value="reassignToUnitId" Variant="Variant.Outlined">
-            @foreach (var office in offices)
-            {
-                @if (office.Units != null)
-                {
-                    @foreach (var unit in office.Units.Where(u => u.Id != reassignFromUnit?.Id))
-                    {
-                        <MudSelectItem T="int?" Value="@((int?)unit.Id)">@office.Name — @unit.Name</MudSelectItem>
-                    }
-                }
-            }
-        </MudSelect>
-    </DialogContent>
-    <DialogActions>
-        <MudButton OnClick="@(() => isReassignOpen = false)">Cancel</MudButton>
-        <MudButton Color="Color.Info" Variant="Variant.Filled"
-                   Disabled="@(!selectedUserIds.Any() || reassignToUnitId == null || isReassigning)"
-                   OnClick="ConfirmReassign">
-            @(isReassigning ? "Moving..." : $"Reassign ({selectedUserIds.Count})")
-        </MudButton>
-    </DialogActions>
-</MudDialog>
-
 @code {
     private List<Office> offices = new();
     private List<AppUser> allUsers = new();
@@ -407,35 +365,6 @@
         finally { isAssigning = false; }
     }
 
-    private void OpenReassignDialog(Unit unit, Office office)
-    {
-        reassignFromUnit = unit;
-        reassignToUnitId = null;
-        reassignUnitUsers = allUsers.Where(u => u.UnitId == unit.Id).ToList();
-        selectedUserIds = reassignUnitUsers.Select(u => u.Id).ToHashSet();
-        isReassignOpen = true;
-    }
-
-    private void ToggleUser(int userId, bool selected)
-    {
-        if (selected) selectedUserIds.Add(userId);
-        else selectedUserIds.Remove(userId);
-    }
-
-    private async Task ConfirmReassign()
-    {
-        if (!selectedUserIds.Any() || reassignToUnitId == null) return;
-        isReassigning = true;
-        try
-        {
-            var (ok, error) = await DocService.SelectiveReassignUsersAsync(selectedUserIds.ToList(), reassignToUnitId.Value);
-            if (!ok) { Snackbar.Add(error ?? "Error reassigning users.", Severity.Error); return; }
-            Snackbar.Add($"{selectedUserIds.Count} user(s) reassigned successfully.", Severity.Success);
-            isReassignOpen = false;
-            await LoadOffices(showSpinner: false);
-        }
-        finally { isReassigning = false; }
-    }
 
     private async Task OpenAddOfficeDialog()
     {
