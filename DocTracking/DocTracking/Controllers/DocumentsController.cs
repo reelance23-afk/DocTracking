@@ -316,6 +316,9 @@ namespace DocTracking.Controllers
             if (doc == null) return NotFound();
             if (doc.Status != "Received") return Conflict("Document has already been forwarded");
 
+            if (!await _context.Offices.AnyAsync(o => o.Id == request.NextOfficeId))
+                return BadRequest("Destination office does not exist.");
+
             var email = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email);
             var appUser = await _context.AppUsers.Include(u => u.Unit).FirstOrDefaultAsync(u => u.Email == email);
             int? callerOfficeId = appUser?.Unit?.OfficeId ?? appUser?.OfficeId;

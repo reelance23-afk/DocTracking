@@ -325,6 +325,11 @@
             offices = await DocService.GetOfficesAsync();
             allUsers = await DocService.GetAppUserAsync();
         }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ManageOffice] LoadOffices error: {ex.Message}");
+            Snackbar.Add("Failed to load offices.", Severity.Error);
+        }
         finally
         {
             if (showSpinner) loading = false;
@@ -382,7 +387,9 @@
                     OfficeId = null,
                     IsOfficeHead = false
                 };
-                await DocService.UpdateAppUserAsync(updated);
+                var (removeOk, removeErr) = await DocService.UpdateAppUserAsync(updated);
+                if (!removeOk)
+                    Snackbar.Add($"Failed to remove {user.Name}: {removeErr ?? "Unknown error"}", Severity.Warning);
             }
 
             var total = assignSelectedIds.Count;

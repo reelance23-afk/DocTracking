@@ -198,9 +198,9 @@
     private async Task ForwardAsync()
     {
         if (!selectedOfficeId.HasValue) return;
-        if (Doc.CurrentOfficeId == selectedOfficeId)
+        if (Doc.CurrentOfficeId == selectedOfficeId && Doc.CurrentUnitId == selectedUnitId)
         {
-            Snackbar.Add("Cannot forward to the same office and unit", Severity.Warning);
+            Snackbar.Add("Cannot forward to the same office and unit.", Severity.Warning);
             return;
         }
         var dest = AllOffices.FirstOrDefault(o => o.Id == selectedOfficeId)?.Name;

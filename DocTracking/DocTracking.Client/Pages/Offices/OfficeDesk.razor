@@ -498,12 +498,16 @@
         if (myOffice == null) return;
         isLoading = true;
         StateHasChanged();
-
         try
         {
             incomingDocs = await DocService.GetIncomingAsync(myOffice.Id, myUnitId);
             deskDocs = await DocService.GetDeskDocumentsAsync(myOffice.Id, isOfficeHead ? null : myUnitId);
             outgoingDocs = await DocService.GetOutgoingAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[OfficeDesk] RefreshQueues error: {ex.Message}");
+            Snackbar.Add("Failed to refresh documents.", Severity.Warning);
         }
         finally
         {

@@ -112,78 +112,85 @@
 
     protected override async Task OnInitializedAsync()
     {
-        doc = await DocService.GetDocumentByRefAsync(ReferenceNumber);
-        if (doc == null) { isLoading = false; return; }
-
-        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        var user = authState.User;
-
-        if (user.Identity?.IsAuthenticated == true)
+        try
         {
-            var email = user.FindFirst(ClaimTypes.Email)?.Value ?? user.FindFirst("email")?.Value;
-            var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            var officeIdClaim = user.FindFirst("OfficeId")?.Value;
-            var unitIdClaim = user.FindFirst("UnitId")?.Value;
-            bool isAdmin = user.IsInRole("Admin");
-            bool isOfficeHead = user.FindFirst("IsOfficeHead")?.Value == "True";
-            int.TryParse(officeIdClaim, out var myOfficeId);
-            int.TryParse(unitIdClaim, out var myUnitId);
+            doc = await DocService.GetDocumentByRefAsync(ReferenceNumber);
+            if (doc == null) { isLoading = false; return; }
 
-            if (doc.Creator?.Email == email || (int.TryParse(userId, out var creatorId) && doc.CreatorId == creatorId))
-            {
-                Navigation.NavigateTo($"/my-tracking?ref={ReferenceNumber}");
-                return;
-            }
-            else if (isAdmin)
-            {
-                Navigation.NavigateTo($"/document-tracking?ref={ReferenceNumber}");
-                return;
-            }
-            else if (myOfficeId != 0)
-            {
-                logs = await DocService.GetDocumentLogsAsync(doc.Id);
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
 
-                if (doc.Status == "In Motion" && doc.NextOfficeId == myOfficeId)
+            if (user.Identity?.IsAuthenticated == true)
+            {
+                var email = user.FindFirst(ClaimTypes.Email)?.Value ?? user.FindFirst("email")?.Value;
+                var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var officeIdClaim = user.FindFirst("OfficeId")?.Value;
+                var unitIdClaim = user.FindFirst("UnitId")?.Value;
+                bool isAdmin = user.IsInRole("Admin");
+                bool isOfficeHead = user.FindFirst("IsOfficeHead")?.Value == "True";
+                int.TryParse(officeIdClaim, out var myOfficeId);
+                int.TryParse(unitIdClaim, out var myUnitId);
+
+                if (doc.Creator?.Email == email || (int.TryParse(userId, out var creatorId) && doc.CreatorId == creatorId))
                 {
-                    bool unitMatch = string.IsNullOrEmpty(unitIdClaim)
-                        ? !doc.NextUnitId.HasValue
-                        : !doc.NextUnitId.HasValue || doc.NextUnitId == myUnitId;
+                    Navigation.NavigateTo($"/my-tracking?ref={ReferenceNumber}");
+                    return;
+                }
+                else if (isAdmin)
+                {
+                    Navigation.NavigateTo($"/document-tracking?ref={ReferenceNumber}");
+                    return;
+                }
+                else if (myOfficeId != 0)
+                {
+                    logs = await DocService.GetDocumentLogsAsync(doc.Id);
 
-                    if (unitMatch || isOfficeHead)
+                    if (doc.Status == "In Motion" && doc.NextOfficeId == myOfficeId)
                     {
-                        Navigation.NavigateTo($"/office-desk?ref={ReferenceNumber}&tab=Incoming");
+                        bool unitMatch = string.IsNullOrEmpty(unitIdClaim)
+                            ? !doc.NextUnitId.HasValue
+                            : !doc.NextUnitId.HasValue || doc.NextUnitId == myUnitId;
+
+                        if (unitMatch || isOfficeHead)
+                        {
+                            Navigation.NavigateTo($"/office-desk?ref={ReferenceNumber}&tab=Incoming");
+                            return;
+                        }
+                    }
+
+                    var lastForward = logs.FirstOrDefault(l => l.Action == "Forwarded");
+                    bool isRecipient = doc.NextOfficeId == myOfficeId &&
+                                       (isOfficeHead || !doc.NextUnitId.HasValue || doc.NextUnitId == myUnitId);
+                    bool isSender = lastForward?.OfficeId == myOfficeId;
+                    bool isOnDesk = doc.CurrentOfficeId == myOfficeId &&
+                                    (isOfficeHead || !doc.CurrentUnitId.HasValue || doc.CurrentUnitId == myUnitId);
+
+                    if (isRecipient) { isLoading = false; return; }
+
+                    if (isSender || isOnDesk)
+                    {
+                        Navigation.NavigateTo($"/office-desk?ref={ReferenceNumber}&tab={(isOnDesk ? "OnDesk" : "Outgoing")}");
                         return;
                     }
-                }
 
-                var lastForward = logs.FirstOrDefault(l => l.Action == "Forwarded");
-                bool isRecipient = doc.NextOfficeId == myOfficeId &&
-                                   (isOfficeHead || !doc.NextUnitId.HasValue || doc.NextUnitId == myUnitId);
-                bool isSender = lastForward?.OfficeId == myOfficeId;
-                bool isOnDesk = doc.CurrentOfficeId == myOfficeId &&
-                                (isOfficeHead || !doc.CurrentUnitId.HasValue || doc.CurrentUnitId == myUnitId);
+                    if (logs.Any(l => l.OfficeId == myOfficeId))
+                    {
+                        Navigation.NavigateTo($"/unit-history?ref={ReferenceNumber}");
+                        return;
+                    }
 
-                if (isRecipient) { isLoading = false; return; }
-
-                if (isSender || isOnDesk)
-                {
-                    Navigation.NavigateTo($"/office-desk?ref={ReferenceNumber}&tab={(isOnDesk ? "OnDesk" : "Outgoing")}");
+                    isLoading = false;
                     return;
                 }
-
-                if (logs.Any(l => l.OfficeId == myOfficeId))
-                {
-                    Navigation.NavigateTo($"/unit-history?ref={ReferenceNumber}");
-                    return;
-                }
-
-                isLoading = false;
-                return;
             }
+
+            logs = await DocService.GetDocumentLogsAsync(doc.Id);
         }
-
-        logs = await DocService.GetDocumentLogsAsync(doc.Id);
-        isLoading = false;
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Track] Load error: {ex.Message}");
+        }
+        finally { isLoading = false; }
     }
-
 }
+

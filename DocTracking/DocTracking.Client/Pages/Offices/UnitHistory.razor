@@ -5,6 +5,7 @@
 @using DocTracking.Client.Services.Helpers
 @using Microsoft.AspNetCore.Components.Authorization
 @inject DocumentService DocService
+@inject ISnackbar Snackbar
 @inject IDialogService DialogService
 @inject NavigationManager Navigation
 @inject IJSRuntime JSRuntime
@@ -203,8 +204,11 @@
             if (!string.IsNullOrEmpty(RefParam))
                 allOffices = await DocService.GetOfficesAsync();
         }
-        catch (Exception ex) { Console.WriteLine($"Error loading history: {ex.Message}"); }
-        finally { isLoading = false; StateHasChanged(); }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading history: {ex.Message}");
+            Snackbar.Add("Failed to load document history.", Severity.Error);
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)

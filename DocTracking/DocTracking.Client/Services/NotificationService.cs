@@ -88,7 +88,8 @@ namespace DocTracking.Client.Services
         {
             Notifications.ForEach(n => n.IsRead = true);
             OnChange?.Invoke();
-            await _http.PutAsync("api/notifications/read-all", null);
+            try { await _http.PutAsync("api/notifications/read-all", null); }
+            catch (Exception ex) { Console.WriteLine($"[NotifService] MarkAllRead failed: {ex.Message}"); }
         }
 
         public async ValueTask DisposeAsync()

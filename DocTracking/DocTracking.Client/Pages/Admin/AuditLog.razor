@@ -3,6 +3,7 @@
 @using DocTracking.Client.Services
 @using DocTracking.Client.Services.Helpers
 @inject DocumentService DocService
+@inject ISnackbar Snackbar
 @attribute [Authorize(Roles = "Admin")]
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
@@ -106,8 +107,16 @@
 
     protected override async Task OnInitializedAsync()
     {
-        logs = await DocService.GetAuditLogsAsync();
-        loading = false;
+        try
+        {
+            logs = await DocService.GetAuditLogsAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[AuditLog] Load error: {ex.Message}");
+            Snackbar.Add("Failed to load audit logs.", Severity.Error);
+        }
+        finally { loading = false; }
     }
 
     private void ClearFilters()

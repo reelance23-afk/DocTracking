@@ -126,16 +126,19 @@
 
     private async Task EditDocument()
     {
-        var offices = await DocService.GetOfficesAsync();
-        var parameters = new DialogParameters<EditDocumentDialog>
-        {
-            { x => x.Doc, Doc },
-            { x => x.Offices, offices }
-        };
+        List<Office> officeList;
+        try { officeList = await DocService.GetOfficesAsync(); }
+        catch { officeList = new(); }
+        var parameters = new DialogParameters
+    {
+        { "Doc", Doc },
+        { "Offices", officeList }
+    };
         var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
         var dialog = await DialogService.ShowAsync<EditDocumentDialog>("Edit Document", parameters, options);
         var result = await dialog.Result;
         if (!result.Canceled)
             MudDialog.Close(DialogResult.Ok(result.Data));
     }
+
 }

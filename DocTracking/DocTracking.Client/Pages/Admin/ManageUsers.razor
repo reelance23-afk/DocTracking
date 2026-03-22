@@ -271,9 +271,17 @@
     private async Task LoadData()
     {
         isLoading = true;
-        users = await DocService.GetAppUserAsync();
-        offices = await DocService.GetOfficesAsync();
-        isLoading = false;
+        try
+        {
+            users = await DocService.GetAppUserAsync();
+            offices = await DocService.GetOfficesAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ManageUsers] LoadData error: {ex.Message}");
+            Snackbar.Add("Failed to load users.", Severity.Error);
+        }
+        finally { isLoading = false; }
     }
 
     private async Task OpenActivityDialog(AppUser user)
@@ -282,8 +290,16 @@
         activityDocs = new();
         isActivityDialogOpen = true;
         activityLoading = true;
-        activityDocs = await DocService.GetUserActivityAsync(user.Id);
-        activityLoading = false;
+        try
+        {
+            activityDocs = await DocService.GetUserActivityAsync(user.Id);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ManageUsers] Activity error: {ex.Message}");
+            Snackbar.Add("Failed to load activity.", Severity.Error);
+        }
+        finally { activityLoading = false; }
     }
 
     private void OpenEditDialog(AppUser user)
@@ -358,7 +374,11 @@
             isEditDialogOpen = false;
             await LoadData();
         }
-        catch { Snackbar.Add("Failed to update user.", Severity.Error); }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ManageUsers] SaveUser error: {ex.Message}");
+            Snackbar.Add("Failed to update user.", Severity.Error);
+        }
         finally { isSaving = false; }
     }
 

@@ -247,16 +247,24 @@
     private async Task RefreshData()
     {
         if (myOffice == null) return;
-        incomingDocs = await DocService.GetIncomingAsync(myOffice.Id, myUnitId);
-        deskDocs = await DocService.GetDeskDocumentsAsync(myOffice.Id, myUnitId.HasValue ? myUnitId : null);
-        outgoingDocs = await DocService.GetOutgoingAsync();
+        try
+        {
+            incomingDocs = await DocService.GetIncomingAsync(myOffice.Id, myUnitId);
+            deskDocs = await DocService.GetDeskDocumentsAsync(myOffice.Id, myUnitId.HasValue ? myUnitId : null);
+            outgoingDocs = await DocService.GetOutgoingAsync();
 
-        var allDocs = await DocService.GetAllDocumentsAsync();
-        recentDocs = allDocs
-        .Where(d => d.CurrentOfficeId == myOffice.Id || d.NextOfficeId == myOffice.Id)
-        .OrderByDescending(d => d.LastActionDate)
-        .Take(5).ToList();
-    }  
+            var allDocs = await DocService.GetAllDocumentsAsync();
+            recentDocs = allDocs
+                .Where(d => d.CurrentOfficeId == myOffice.Id || d.NextOfficeId == myOffice.Id)
+                .OrderByDescending(d => d.LastActionDate)
+                .Take(5).ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[OfficeHome] RefreshData error: {ex.Message}");
+            Snackbar.Add("Failed to refresh dashboard.", Severity.Warning);
+        }
+    }
 
     private async Task OpenDeskDialog(Document doc, OfficeDeskViewDialog.DeskTab tab)
     {

@@ -294,8 +294,15 @@
         _pollTimer = new PeriodicTimer(TimeSpan.FromSeconds(30));
         while (await _pollTimer.WaitForNextTickAsync())
         {
-            await LoadData();
-            await InvokeAsync(StateHasChanged);
+            try
+            {
+                await LoadData();
+                await InvokeAsync(StateHasChanged);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[AdminMaster] Poll error: {ex.Message}");
+            }
         }
     }
 

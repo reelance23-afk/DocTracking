@@ -290,6 +290,8 @@
             }
             else
             {
+                if (uploadedPath != null)
+                    await DocService.DeleteUploadAsync(uploadedPath);
                 Snackbar.Add("Failed to create document. Please try again.", Severity.Error);
             }
         }

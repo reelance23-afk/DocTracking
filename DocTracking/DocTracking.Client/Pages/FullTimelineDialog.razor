@@ -46,8 +46,15 @@
 
     protected override async Task OnInitializedAsync()
     {
-        logs = await DocService.GetDocumentLogsAsync(Doc.Id);
-        isLoading = false;
+        try
+        {
+            logs = await DocService.GetDocumentLogsAsync(Doc.Id);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[FullTimeline] Load error: {ex.Message}");
+        }
+        finally { isLoading = false; }
     }
 
     private async Task GoBack()

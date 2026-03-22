@@ -312,12 +312,14 @@
             FileName = doc.FileName,
             FilePath = doc.FilePath
         };
-        var offices = await DocumentService.GetOfficesAsync();
-        var parameters = new DialogParameters<EditDocumentDialog>
-        {
-            { x => x.Doc, editingDoc },
-            { x => x.Offices, offices }
-        };
+        List<Office> officeList;
+        try { officeList = await DocumentService.GetOfficesAsync(); }
+        catch { officeList = new(); }
+        var parameters = new DialogParameters
+    {
+        { "Doc", editingDoc },
+        { "Offices", officeList }
+    };
         var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
         var dialog = await DialogService.ShowAsync<EditDocumentDialog>("Edit Document", parameters, options);
         var result = await dialog.Result;
@@ -327,6 +329,8 @@
             StateHasChanged();
         }
     }
+
+
 
     private async Task OpenViewDialog(Document doc)
     {

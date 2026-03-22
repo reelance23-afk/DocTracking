@@ -70,9 +70,12 @@ namespace DocTracking.Controllers
                 return BadRequest("Cannot delete office that has users assigned. Please reassign users first.");
             }
 
-            var hasUsersInUnits = await _context.Units
+            var unitIds = await _context.Units
                 .Where(u => u.OfficeId == id)
-                .AnyAsync(u => u.Users != null && u.Users.Any());
+                .Select(u => u.Id)
+                .ToListAsync();
+            var hasUsersInUnits = unitIds.Any() && await _context.AppUsers
+                .AnyAsync(u => u.UnitId != null && unitIds.Contains(u.UnitId.Value));
 
             if (hasUsersInUnits)
             {
