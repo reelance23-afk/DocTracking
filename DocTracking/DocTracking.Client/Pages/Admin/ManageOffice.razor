@@ -153,11 +153,11 @@
                                             }
                                         </MudTd>
                                         <MudTd Style="text-align:right">
-                                            <MudTooltip Text="Reassign Users">
-                                                <MudIconButton Icon="@Icons.Material.Filled.SwapHoriz" Size="Size.Small"
-                                                               Color="Color.Info"
-                                                               Disabled="@(!unitWorkers.Any())"
-                                                               OnClick="@(() => OpenReassignDialog(unit, office))" />
+                                            <MudTooltip Text="Assign Workers">
+                                                <MudIconButton Icon="@Icons.Material.Filled.PersonAdd" Size="Size.Small"
+                                                               Color="Color.Success"
+                                                               Disabled="@(!nonAdminUsers.Any())"
+                                                               OnClick="@(() => OpenAssignDialog(unit))" />
                                             </MudTooltip>
                                             <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
                                                            Color="Color.Warning" OnClick="@(() => OpenEditUnitDialog(unit))" />
@@ -179,10 +179,10 @@
                                                     <MudText Typo="Typo.body1" Class="font-weight-bold">@unit.Name</MudText>
                                                 </div>
                                                 <div class="d-flex gap-1">
-                                                    <MudIconButton Icon="@Icons.Material.Filled.SwapHoriz" Size="Size.Small"
-                                                                   Color="Color.Info"
-                                                                   Disabled="@(!unitWorkers.Any())"
-                                                                   OnClick="@(() => OpenReassignDialog(unit, office))" />
+                                                    <MudIconButton Icon="@Icons.Material.Filled.PersonAdd" Size="Size.Small"
+                                                                   Color="Color.Success"
+                                                                   Disabled="@(!nonAdminUsers.Any())"
+                                                                   OnClick="@(() => OpenAssignDialog(unit))" />
                                                     <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
                                                                    Color="Color.Warning" OnClick="@(() => OpenEditUnitDialog(unit))" />
                                                     <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
@@ -241,6 +241,46 @@
         Class="d-md-none"
         Style="position: fixed; bottom: 24px; right: 24px; z-index: 1000;" />
 
+<MudDialog @bind-Visible="isAssignOpen" Options="@(new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true })">
+    <TitleContent>
+        <div class="d-flex align-center gap-2">
+            <MudIcon Icon="@Icons.Material.Filled.PersonAdd" Color="Color.Success" />
+            <MudText Typo="Typo.h6">Assign Workers to <strong>@assignTargetUnit?.Name</strong></MudText>
+        </div>
+    </TitleContent>
+    <DialogContent>
+        <MudText Typo="Typo.caption" Class="mud-text-secondary mb-3 d-block">Select users to assign to this unit. Their current assignment is shown below their name.</MudText>
+        <MudPaper Elevation="0" Style="max-height: 320px; overflow-y: auto;">
+            @foreach (var user in nonAdminUsers)
+            {
+                <div class="d-flex align-center justify-space-between pa-1">
+                    <MudCheckBox T="bool"
+                                 Value="@assignSelectedIds.Contains(user.Id)"
+                                 ValueChanged="@(v => ToggleAssignUser(user.Id, v))"
+                                 Color="Color.Success"
+                                 Class="flex-grow-1">
+                        <div>
+                            <MudText Typo="Typo.body2" Class="font-weight-bold">@user.Name</MudText>
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                                @GetUserCurrentAssignment(user)
+                            </MudText>
+                        </div>
+                    </MudCheckBox>
+                </div>
+                <MudDivider />
+            }
+        </MudPaper>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => isAssignOpen = false)">Cancel</MudButton>
+        <MudButton Color="Color.Success" Variant="Variant.Filled"
+                   Disabled="@(!assignSelectedIds.Any() || isAssigning)"
+                   OnClick="ConfirmAssign">
+            @(isAssigning ? "Assigning..." : $"Assign ({assignSelectedIds.Count})")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
 <MudDialog @bind-Visible="isReassignOpen" Options="@(new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true })">
     <TitleContent>
         <MudText Typo="Typo.h6">Reassign Users from <strong>@reassignFromUnit?.Name</strong></MudText>
@@ -294,12 +334,11 @@
     private bool isSubmitting;
     private DialogOptions dialogOptions = new() { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
 
-    private bool isReassignOpen;
-    private bool isReassigning;
-    private Unit? reassignFromUnit;
-    private int? reassignToUnitId;
-    private List<AppUser> reassignUnitUsers = new();
-    private HashSet<int> selectedUserIds = new();
+    private bool isAssignOpen;
+    private bool isAssigning;
+    private Unit? assignTargetUnit;
+    private HashSet<int> assignSelectedIds = new();
+    private List<AppUser> nonAdminUsers => allUsers.Where(u => u.Role != "Admin").ToList();
 
     private IEnumerable<Office> FilteredOffices => string.IsNullOrWhiteSpace(searchString)
         ? offices
@@ -322,6 +361,50 @@
         {
             if (showSpinner) loading = false;
         }
+    }
+
+    private void OpenAssignDialog(Unit unit)
+    {
+        assignTargetUnit = unit;
+        assignSelectedIds = new();
+        isAssignOpen = true;
+    }
+
+    private void ToggleAssignUser(int userId, bool selected)
+    {
+        if (selected) assignSelectedIds.Add(userId);
+        else assignSelectedIds.Remove(userId);
+    }
+
+    private string GetUserCurrentAssignment(AppUser user)
+    {
+        if (user.UnitId.HasValue)
+        {
+            var unit = offices.SelectMany(o => o.Units ?? new List<Unit>()).FirstOrDefault(u => u.Id == user.UnitId);
+            var office = offices.FirstOrDefault(o => o.Units?.Any(u => u.Id == user.UnitId) == true);
+            return unit != null ? $"{office?.Name} — {unit.Name}" : "Assigned to a unit";
+        }
+        if (user.OfficeId.HasValue)
+        {
+            var office = offices.FirstOrDefault(o => o.Id == user.OfficeId);
+            return user.IsOfficeHead ? $"{office?.Name} (Office Head)" : $"{office?.Name} (No unit)";
+        }
+        return "Unassigned";
+    }
+
+    private async Task ConfirmAssign()
+    {
+        if (!assignSelectedIds.Any() || assignTargetUnit == null) return;
+        isAssigning = true;
+        try
+        {
+            var (ok, error) = await DocService.SelectiveReassignUsersAsync(assignSelectedIds.ToList(), assignTargetUnit.Id);
+            if (!ok) { Snackbar.Add(error ?? "Error assigning users.", Severity.Error); return; }
+            Snackbar.Add($"{assignSelectedIds.Count} user(s) assigned to {assignTargetUnit.Name}.", Severity.Success);
+            isAssignOpen = false;
+            await LoadOffices(showSpinner: false);
+        }
+        finally { isAssigning = false; }
     }
 
     private void OpenReassignDialog(Unit unit, Office office)
