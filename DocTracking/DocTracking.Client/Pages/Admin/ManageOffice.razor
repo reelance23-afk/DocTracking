@@ -245,7 +245,7 @@
     <TitleContent>
         <div class="d-flex align-center gap-2">
             <MudIcon Icon="@Icons.Material.Filled.PersonAdd" Color="Color.Success" />
-            <MudText Typo="Typo.h6">Assign Workers to <strong>@assignTargetUnit?.Name</strong></MudText>
+            <MudText Typo="Typo.h6"><strong>@assignTargetUnit?.Name</strong></MudText>
         </div>
     </TitleContent>
     <DialogContent>
@@ -256,7 +256,7 @@
             Check to assign, uncheck to remove from this unit.
         </MudText>
         <MudPaper Elevation="0" Style="max-height: 320px; overflow-y: auto;">
-            @foreach (var user in nonAdminUsers.Where(u =>
+            @foreach (var user in assignSortedUsers.Where(u =>
                         string.IsNullOrWhiteSpace(assignSearch) ||
                         u.Name?.Contains(assignSearch, StringComparison.OrdinalIgnoreCase) == true))
             {
@@ -295,6 +295,7 @@
     private bool loading = true;
     private string searchString { get; set; } = "";
     private string assignSearch = "";
+    private List<AppUser> assignSortedUsers = new();
 
     private Dictionary<int, string> unitNames = new();
     private bool isSubmittingUnit;
@@ -529,9 +530,15 @@
     {
         assignTargetUnit = unit;
         assignSearch = "";
-        assignSelectedIds = allUsers.Where(u => u.UnitId == unit.Id)
-                                    .Select(u => u.Id)
-                                    .ToHashSet();
+        assignSelectedIds = allUsers
+            .Where(u => u.UnitId == unit.Id)
+            .Select(u => u.Id)
+            .ToHashSet();
+        assignSortedUsers = allUsers
+            .Where(u => u.Role != "Admin")
+            .OrderByDescending(u => assignSelectedIds.Contains(u.Id))
+            .ThenBy(u => u.Name)
+            .ToList();
         isAssignOpen = true;
     }
 }
