@@ -245,15 +245,22 @@
     <TitleContent>
         <div class="d-flex align-center gap-2">
             <MudIcon Icon="@Icons.Material.Filled.PersonAdd" Color="Color.Success" />
-            <MudText Typo="Typo.h6"><strong>@assignTargetUnit?.Name</strong></MudText>
+            <MudText Typo="Typo.h6">Assign Workers to <strong>@assignTargetUnit?.Name</strong></MudText>
         </div>
     </TitleContent>
     <DialogContent>
-        <MudText Typo="Typo.caption" Class="mud-text-secondary mb-3 d-block">Select users to assign to this unit. Their current assignment is shown below their name.</MudText>
+        <MudTextField @bind-Value="assignSearch" Placeholder="Search users..."
+                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                      Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" Class="mb-3" />
+        <MudText Typo="Typo.caption" Class="mud-text-secondary mb-3 d-block">
+            Check to assign, uncheck to remove from this unit.
+        </MudText>
         <MudPaper Elevation="0" Style="max-height: 320px; overflow-y: auto;">
-            @foreach (var user in nonAdminUsers)
+            @foreach (var user in nonAdminUsers.Where(u =>
+                        string.IsNullOrWhiteSpace(assignSearch) ||
+                        u.Name?.Contains(assignSearch, StringComparison.OrdinalIgnoreCase) == true))
             {
-                <div class="d-flex align-center justify-space-between pa-1">
+                <div class="d-flex align-center pa-1">
                     <MudCheckBox T="bool"
                                  Value="@assignSelectedIds.Contains(user.Id)"
                                  ValueChanged="@(v => ToggleAssignUser(user.Id, v))"
@@ -274,18 +281,20 @@
     <DialogActions>
         <MudButton OnClick="@(() => isAssignOpen = false)">Cancel</MudButton>
         <MudButton Color="Color.Success" Variant="Variant.Filled"
-                   Disabled="@(!assignSelectedIds.Any() || isAssigning)"
+                   Disabled="@isAssigning"
                    OnClick="ConfirmAssign">
-            @(isAssigning ? "Assigning..." : $"Assign ({assignSelectedIds.Count})")
+            @(isAssigning ? "Saving..." : $"Save ({assignSelectedIds.Count} selected)")
         </MudButton>
     </DialogActions>
 </MudDialog>
+
 
 @code {
     private List<Office> offices = new();
     private List<AppUser> allUsers = new();
     private bool loading = true;
     private string searchString { get; set; } = "";
+    private string assignSearch = "";
 
     private Dictionary<int, string> unitNames = new();
     private bool isSubmittingUnit;
@@ -321,13 +330,6 @@
         }
     }
 
-    private void OpenAssignDialog(Unit unit)
-    {
-        assignTargetUnit = unit;
-        assignSelectedIds = new();
-        isAssignOpen = true;
-    }
-
     private void ToggleAssignUser(int userId, bool selected)
     {
         if (selected) assignSelectedIds.Add(userId);
@@ -352,18 +354,50 @@
 
     private async Task ConfirmAssign()
     {
-        if (!assignSelectedIds.Any() || assignTargetUnit == null) return;
+        if (assignTargetUnit == null) return;
         isAssigning = true;
         try
         {
-            var (ok, error) = await DocService.SelectiveReassignUsersAsync(assignSelectedIds.ToList(), assignTargetUnit.Id);
-            if (!ok) { Snackbar.Add(error ?? "Error assigning users.", Severity.Error); return; }
-            Snackbar.Add($"{assignSelectedIds.Count} user(s) assigned to {assignTargetUnit.Name}.", Severity.Success);
+            if (assignSelectedIds.Any())
+            {
+                var (ok, error) = await DocService.SelectiveReassignUsersAsync(
+                    assignSelectedIds.ToList(), assignTargetUnit.Id);
+                if (!ok) { Snackbar.Add(error ?? "Error assigning users.", Severity.Error); return; }
+            }
+
+            var toRemove = allUsers
+                .Where(u => u.UnitId == assignTargetUnit.Id && !assignSelectedIds.Contains(u.Id))
+                .ToList();
+
+            foreach (var user in toRemove)
+            {
+                var updated = new AppUser
+                {
+                    Id = user.Id,
+                    Name = user.Name,
+                    Email = user.Email,
+                    Role = user.Role,
+                    UnitId = null,
+                    OfficeId = null,
+                    IsOfficeHead = false
+                };
+                await DocService.UpdateAppUserAsync(updated);
+            }
+
+            var total = assignSelectedIds.Count;
+            var removed = toRemove.Count;
+            var msg = total > 0 && removed > 0
+                ? $"{total} assigned, {removed} removed from {assignTargetUnit.Name}."
+                : total > 0 ? $"{total} user(s) assigned to {assignTargetUnit.Name}."
+                : $"{removed} user(s) removed from {assignTargetUnit.Name}.";
+
+            Snackbar.Add(msg, Severity.Success);
             isAssignOpen = false;
             await LoadOffices(showSpinner: false);
         }
         finally { isAssigning = false; }
     }
+
 
 
     private async Task OpenAddOfficeDialog()
@@ -489,5 +523,15 @@
             await LoadOffices(showSpinner: false);
         }
         finally { isSubmittingUnit = false; }
+    }
+
+    private void OpenAssignDialog(Unit unit)
+    {
+        assignTargetUnit = unit;
+        assignSearch = "";
+        assignSelectedIds = allUsers.Where(u => u.UnitId == unit.Id)
+                                    .Select(u => u.Id)
+                                    .ToHashSet();
+        isAssignOpen = true;
     }
 }
