@@ -104,8 +104,9 @@ namespace DocTracking.Controllers
 
 
         public class BroadcastRequest
-    {
-        public string Message { get; set; } = "";
-        public int? OfficeId { get; set; }
+        {
+            public string Message { get; set; } = "";
+            public int? OfficeId { get; set; }
+        }
     }
 }
