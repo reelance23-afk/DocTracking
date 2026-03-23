@@ -8,7 +8,15 @@ namespace DocTracking.Hubs
     {
         public async Task JoinGroup(string groupName)
         {
-            await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
+            if (string.IsNullOrWhiteSpace(groupName)) return;
+            try
+            {
+                await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[NotificationHub] JoinGroup error for '{groupName}': {ex.Message}");
+            }
         }
     }
 }

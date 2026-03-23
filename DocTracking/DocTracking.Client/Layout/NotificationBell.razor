@@ -41,10 +41,22 @@
                         <MudListItem T="string" Style="@(!notif.IsRead ? "background: rgba(var(--mud-palette-primary-rgb), 0.06);" : "")">
                             <div class="d-flex align-start gap-2 py-1">
                                 <MudIcon Icon="@Icons.Material.Filled.Description" Color="Color.Primary" Size="Size.Small" Class="mt-1" />
-                                <div>
+                                <div style="flex:1; min-width:0;">
                                     <MudText Typo="Typo.body2" Class="font-weight-bold">@notif.DocumentName</MudText>
                                     <MudText Typo="Typo.caption">@notif.Message</MudText>
                                     <MudText Typo="Typo.caption" Class="mud-text-secondary">@notif.Time.ToLocalTime().ToString("MMM dd • hh:mm tt")</MudText>
+                                </div>
+                                <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small"
+                                               Style="opacity:0.5; margin-top:-4px;"
+                                               OnClick="@(async () => await NotifService.DismissAsync(notif))" />
+                                <div class="d-flex flex-column gap-1" style="margin-top:-4px;">
+                                    <MudIconButton Icon="@(notif.IsRead? Icons.Material.Filled.MarkEmailUnread : Icons.Material.Filled.MarkEmailRead)"
+                                                   Size="Size.Small" Style="opacity:0.5;"
+                                                   Title="@(notif.IsRead ? "Mark unread" : "Mark read")"
+                                                   OnClick="@(async () => await NotifService.ToggleReadAsync(notif))" />
+                                    <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" Style="opacity:0.5;"
+                                                   Title="Dismiss"
+                                                   OnClick="@(async () => await NotifService.DismissAsync(notif))" />
                                 </div>
                             </div>
                         </MudListItem>

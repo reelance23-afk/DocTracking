@@ -1,22 +1,25 @@
-﻿using DocTracking.Data;
-using DocTracking.Client.Models;
+﻿using DocTracking.Client.Models;
+using DocTracking.Data;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Cryptography;
-using Microsoft.AspNetCore.Authorization;
 
 namespace DocTracking.Controllers
 {
     [Authorize]
     [Route("api/[controller]")]
     [ApiController]
+    [EnableRateLimiting("api")]
     public class UnitsController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
-
-        public UnitsController(ApplicationDbContext context)
+        private readonly ILogger<UnitsController> _logger;
+        public UnitsController(ApplicationDbContext context, ILogger<UnitsController> logger)
         {
             _context = context;
+            _logger = logger;
         }
 
         [HttpGet]
@@ -41,7 +44,7 @@ namespace DocTracking.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[AddUnit] Error: {ex.Message}");
+                _logger.LogError(ex, "[AddUnit] Failed");
                 return StatusCode(500, "Failed to save unit.");
             }
             return Ok(unit);
@@ -62,7 +65,7 @@ namespace DocTracking.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[UpdateUnit] Error: {ex.Message}");
+                _logger.LogError(ex, "[UpdateUnit] Failed");
                 return StatusCode(500, "Failed to update unit.");
             }
             return Ok();
@@ -89,21 +92,24 @@ namespace DocTracking.Controllers
                 return BadRequest("Cannot delete unit that has active documents assigned. Please reassign documents first.");
             }
 
-            await _context.DocumentLogs
-                .Where(dl => dl.UnitId == id && string.IsNullOrEmpty(dl.UnitName))
-                .ExecuteUpdateAsync(dl => dl
-                    .SetProperty(x => x.UnitId, (int?)null)
-                    .SetProperty(x => x.UnitName, existing.Name)
-                    .SetProperty(x => x.OfficeName, existing.Office!.Name));
-
-            _context.Units.Remove(existing);
+            await using var tx = await _context.Database.BeginTransactionAsync();
             try
             {
+                await _context.DocumentLogs
+                    .Where(dl => dl.UnitId == id && string.IsNullOrEmpty(dl.UnitName))
+                    .ExecuteUpdateAsync(dl => dl
+                        .SetProperty(x => x.UnitId, (int?)null)
+                        .SetProperty(x => x.UnitName, existing.Name)
+                        .SetProperty(x => x.OfficeName, existing.Office!.Name));
+
+                _context.Units.Remove(existing);
                 await _context.SaveChangesAsync();
+                await tx.CommitAsync();
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[DeleteUnit] Error: {ex.Message}");
+                await tx.RollbackAsync();
+                _logger.LogError(ex, "[DeleteUnit] Failed");
                 return StatusCode(500, "Failed to delete unit.");
             }
             return Ok();

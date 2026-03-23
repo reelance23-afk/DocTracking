@@ -102,6 +102,15 @@
             </MudItem>
         </MudGrid>
 
+        @if (IdleDeskDocs.Any())
+        {
+            <MudAlert Severity="Severity.Warning" Class="mb-4" Icon="@Icons.Material.Filled.AccessTime" Dense="true">
+                <strong>@IdleDeskDocs.Count document@(IdleDeskDocs.Count > 1 ? "s have" : " has")</strong>
+                been sitting on your desk for over 24 hours:
+                @string.Join(", ", IdleDeskDocs.Select(d => d.Name))
+            </MudAlert>
+        }
+
         <MudPaper Elevation="3" Class="pa-4 pa-md-6 rounded-lg">
 
             <MudTabs Elevation="4" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-4 pa-md-6 pb-0" Color="Color.Primary" AlwaysShowScrollButtons="false">
@@ -565,5 +574,11 @@
         NotifService.OnChange -= OnNotificationReceived;
         _debounce.Dispose();
     }
+
+    private List<Document> IdleDeskDocs =>
+    deskDocs.Where(d =>
+        d.LastActionDate.HasValue &&
+        (DateTime.UtcNow - d.LastActionDate.Value).TotalHours >= 24)
+    .ToList();
 
 }

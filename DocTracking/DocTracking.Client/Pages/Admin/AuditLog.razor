@@ -17,12 +17,15 @@
 
     <MudTextField @bind-Value="searchText" Placeholder="Search document, user, or action..."
                   Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
-                  Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" Class="mb-4" />
+                  Variant="Variant.Outlined" Margin="Margin.Dense"
+                  Immediate="true" DebounceInterval="400"
+                  TextChanged="@(async (string v) => { searchText = v; await OnFilterChanged(); })"
+                  Class="mb-4" />
 
     <div class="d-flex gap-2 flex-wrap align-center mb-4">
         <MudSelect T="string" Value="filterAction" Label="Action" Variant="Variant.Outlined"
                    Margin="Margin.Dense" Style="min-width:160px;"
-                   ValueChanged="@((string v) => { filterAction = v; StateHasChanged(); })">
+                   ValueChanged="@(async (string v) => { filterAction = v; await OnFilterChanged(); })">
             <MudSelectItem T="string" Value="@("")">All Actions</MudSelectItem>
             @foreach (var a in actions)
             {
@@ -31,7 +34,7 @@
         </MudSelect>
         <MudDatePicker Date="filterDate" Label="Date" Variant="Variant.Outlined"
                        Margin="Margin.Dense" Style="min-width:160px;"
-                       DateChanged="@((DateTime? v) => { filterDate = v; StateHasChanged(); })" />
+                       DateChanged="@(async (DateTime? v) => { filterDate = v; await OnFilterChanged(); })" />
         @if (filterAction != null || filterDate != null)
         {
             <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="ClearFilters"
@@ -45,7 +48,7 @@
     }
     else
     {
-        <MudTable Items="FilteredLogs" Dense="true" Hover="true" Striped="true" Breakpoint="Breakpoint.Sm" Elevation="3">
+        <MudTable @ref="_table" ServerData="LoadServerData" Dense="true" Hover="true" Striped="true" Breakpoint="Breakpoint.Sm" Elevation="3">
             <HeaderContent>
                 <MudTh>Timestamp</MudTh>
                 <MudTh>Document</MudTh>
@@ -88,43 +91,47 @@
 </MudContainer>
 
 @code {
-    private List<DocumentLog> logs = new();
+    private MudTable<DocumentLog>? _table;
     private bool loading = true;
     private string searchText = "";
     private string? filterAction;
     private DateTime? filterDate;
 
-    private static readonly string[] actions = { "Created", "Received", "Forwarded", "Completed", "Admin Override" };
+    private static readonly string[] actions = { "Created", "Received", "Forwarded", "Completed", "Edited", "Admin Override" };
 
-    private IEnumerable<DocumentLog> FilteredLogs => logs.Where(l =>
-        (string.IsNullOrEmpty(searchText) ||
-            (l.Document?.Name?.Contains(searchText, StringComparison.OrdinalIgnoreCase) == true) ||
-            (l.Document?.ReferenceNumber?.Contains(searchText, StringComparison.OrdinalIgnoreCase) == true) ||
-            (l.AppUser?.Name?.Contains(searchText, StringComparison.OrdinalIgnoreCase) == true) ||
-            (l.Action?.Contains(searchText, StringComparison.OrdinalIgnoreCase) == true)) &&
-        (filterAction == null || string.IsNullOrEmpty(filterAction) || l.Action == filterAction) &&
-        (filterDate == null || l.TimeStamp.Date == filterDate.Value.Date));
-
-    protected override async Task OnInitializedAsync()
+    private async Task<TableData<DocumentLog>> LoadServerData(TableState state, CancellationToken ct)
     {
+        loading = true;
         try
         {
-            logs = await DocService.GetAuditLogsAsync();
+            var result = await DocService.GetAuditLogsAsync(
+                page: state.Page + 1,
+                pageSize: state.PageSize,
+                search: searchText,
+                action: filterAction,
+                date: filterDate?.ToString("yyyy-MM-dd"));
+            return new TableData<DocumentLog> { Items = result.Items, TotalItems = result.TotalCount };
         }
         catch (Exception ex)
         {
             Console.WriteLine($"[AuditLog] Load error: {ex.Message}");
             Snackbar.Add("Failed to load audit logs.", Severity.Error);
+            return new TableData<DocumentLog>();
         }
         finally { loading = false; }
     }
 
-    private void ClearFilters()
+    private async Task OnFilterChanged()
+    {
+        if (_table != null) await _table.ReloadServerData();
+    }
+
+    private async Task ClearFilters()
     {
         searchText = "";
         filterAction = null;
         filterDate = null;
-        StateHasChanged();
+        await OnFilterChanged();
     }
 
     private Color GetActionColor(string? action) => action switch
@@ -133,7 +140,9 @@
         "Received" => Color.Info,
         "Forwarded" => Color.Warning,
         "Completed" => Color.Primary,
+        "Edited" => Color.Secondary,
         "Admin Override" => Color.Error,
         _ => Color.Default
     };
 }
+

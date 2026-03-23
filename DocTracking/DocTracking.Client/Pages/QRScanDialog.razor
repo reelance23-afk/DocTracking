@@ -48,6 +48,13 @@
                     </MudTabPanel>
                 </MudTabs>
             }
+            @if (_scanSuccess)
+            {
+                <MudAlert Severity="Severity.Success" Class="mt-3" Dense="true">
+                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Class="mr-1" />
+                    QR code detected! Redirecting...
+                </MudAlert>
+            }
         </div>
     </DialogContent>
     <DialogActions>
@@ -59,6 +66,8 @@
     [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
 
     private bool _unsupported;
+    private bool _scanSuccess;
+    private string? _scannedUrl;
     private string? _imagePreview;
     private string? _imageError;
     private DotNetObjectReference<QRScanDialog>? _ref;
@@ -111,8 +120,12 @@
     }
 
     [JSInvokable]
-    public void OnScanned(string url)
+    public async void OnScanned(string url)
     {
+        _scanSuccess = true;
+        _scannedUrl = url;
+        await InvokeAsync(StateHasChanged);
+        await Task.Delay(1200);
         MudDialog.Close();
         var uri = new Uri(url);
         Navigation.NavigateTo(uri.PathAndQuery, forceLoad: true);

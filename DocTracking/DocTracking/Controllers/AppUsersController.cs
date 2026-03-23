@@ -1,7 +1,9 @@
 using DocTracking.Client.Models;
 using DocTracking.Data;
+using DocTracking.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 
 namespace DocTracking.Controllers
@@ -9,13 +11,18 @@ namespace DocTracking.Controllers
     [Route("api/[controller]")]
     [ApiController]
     [Authorize(Roles = "Admin")]
+    [EnableRateLimiting("api")]
     public class AppUsersController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        private readonly UserClaimsTransformation _claimsTransform;
+        private readonly ILogger<AppUsersController> _logger;
 
-        public AppUsersController(ApplicationDbContext context)
+        public AppUsersController(ApplicationDbContext context, UserClaimsTransformation claimsTransform, ILogger<AppUsersController> logger)
         {
             _context = context;
+            _claimsTransform = claimsTransform;
+            _logger = logger;
         }
 
         [HttpGet]
@@ -43,6 +50,7 @@ namespace DocTracking.Controllers
             try
             {
                 await _context.SaveChangesAsync();
+                if (user.Email != null) _claimsTransform.InvalidateUser(user.Email);
             }
             catch (Exception ex)
             {
@@ -51,6 +59,7 @@ namespace DocTracking.Controllers
             }
             return Ok();
         }
+
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteUser(int id)
@@ -92,16 +101,15 @@ namespace DocTracking.Controllers
                 await _context.SaveChangesAsync();
                 await tx.CommitAsync();
             }
-            catch
+            catch (Exception ex)
             {
                 await tx.RollbackAsync();
-                throw;
+                Console.WriteLine($"[DeleteUser] Error: {ex.Message}");
+                return StatusCode(500, "Failed to delete user.");
             }
 
             return Ok();
         }
-
-
 
         [HttpPut("bulk-reassign")]
         public async Task<IActionResult> BulkReassign([FromBody] BulkReassignRequest request)
@@ -124,6 +132,8 @@ namespace DocTracking.Controllers
             try
             {
                 await _context.SaveChangesAsync();
+                foreach (var user in users)
+                    if (user.Email != null) _claimsTransform.InvalidateUser(user.Email);
             }
             catch (Exception ex)
             {
@@ -155,6 +165,8 @@ namespace DocTracking.Controllers
             try
             {
                 await _context.SaveChangesAsync();
+                foreach (var user in users)
+                    if (user.Email != null) _claimsTransform.InvalidateUser(user.Email);
             }
             catch (Exception ex)
             {
@@ -165,7 +177,7 @@ namespace DocTracking.Controllers
         }
     }
 
-    public class BulkReassignRequest
+        public class BulkReassignRequest
     {
         public int FromUnitId { get; set; }
         public int ToUnitId { get; set; }

@@ -38,8 +38,19 @@ namespace DocTracking.Client.Services
         public async Task<List<Office>> GetOfficesAsync() =>
             await GetJsonAsync<List<Office>>("api/offices") ?? new();
 
-        public async Task<List<Document>> GetAllDocumentsAsync() =>
-            await GetJsonAsync<List<Document>>("api/documents") ?? new();
+        public async Task<PagedResult<Document>> GetAllDocumentsAsync(
+            int page = 1, int pageSize = 25,
+            string? search = null, string? status = null,
+            string? office = null, string? dateFrom = null, string? dateTo = null)
+        {
+            var url = $"api/documents?page={page}&pageSize={pageSize}";
+            if (!string.IsNullOrEmpty(search)) url += $"&search={Uri.EscapeDataString(search)}";
+            if (!string.IsNullOrEmpty(status)) url += $"&status={Uri.EscapeDataString(status)}";
+            if (!string.IsNullOrEmpty(office)) url += $"&office={Uri.EscapeDataString(office)}";
+            if (!string.IsNullOrEmpty(dateFrom)) url += $"&dateFrom={Uri.EscapeDataString(dateFrom)}";
+            if (!string.IsNullOrEmpty(dateTo)) url += $"&dateTo={Uri.EscapeDataString(dateTo)}";
+            return await GetJsonAsync<PagedResult<Document>>(url) ?? new();
+        }
 
         public async Task<List<Document>> GetUserDocumentsAsync(string email) =>
             await GetJsonAsync<List<Document>>($"api/documents/user/{email}") ?? new();
@@ -64,8 +75,16 @@ namespace DocTracking.Client.Services
         public async Task<List<DocumentLog>> GetDocumentLogsAsync(int id) =>
             await GetJsonAsync<List<DocumentLog>>($"api/documentlogs/{id}") ?? new();
 
-        public async Task<List<DocumentLog>> GetAuditLogsAsync() =>
-            await GetJsonAsync<List<DocumentLog>>("api/documentlogs/audit") ?? new();
+        public async Task<PagedResult<DocumentLog>> GetAuditLogsAsync(
+            int page = 1, int pageSize = 25,
+            string? search = null, string? action = null, string? date = null)
+        {
+            var url = $"api/documentlogs/audit?page={page}&pageSize={pageSize}";
+            if (!string.IsNullOrEmpty(search)) url += $"&search={Uri.EscapeDataString(search)}";
+            if (!string.IsNullOrEmpty(action)) url += $"&action={Uri.EscapeDataString(action)}";
+            if (!string.IsNullOrEmpty(date)) url += $"&date={Uri.EscapeDataString(date)}";
+            return await GetJsonAsync<PagedResult<DocumentLog>>(url) ?? new();
+        }
 
         public async Task<List<AppUser>> GetAppUserAsync() =>
             await GetJsonAsync<List<AppUser>>("api/appusers") ?? new();
@@ -109,8 +128,8 @@ namespace DocTracking.Client.Services
         public async Task DeleteUploadAsync(string path) =>
             await _http.DeleteAsync($"api/documents/upload?path={Uri.EscapeDataString(path)}");
 
-        public async Task<bool> ReceivedDocumentAsync(int id) =>
-            (await _http.PutAsync($"api/documents/{id}/receive", null)).IsSuccessStatusCode;
+        public Task<(bool Success, string? Error)> ReceivedDocumentAsync(int id) =>
+            ToResult(_http.PutAsync($"api/documents/{id}/receive", null));
 
         public Task<(bool Success, string? Error)> ForwardDocumentAsync(int id, int nextOfficeId, int? nextUnitId = null, string? comment = null) =>
             ToResult(_http.PutAsJsonAsync($"api/documents/{id}/forward", new { NextOfficeId = nextOfficeId, NextUnitId = nextUnitId, Comment = comment }));
@@ -170,6 +189,14 @@ namespace DocTracking.Client.Services
             if (content.TrimStart().StartsWith('<')) return null;
             return JsonSerializer.Deserialize<Document>(content, _jsonOptions);
         }
+
+        public Task<(bool Success, string? Error)> BulkDeleteDocumentsAsync(List<int> ids) =>
+        ToResult(_http.SendAsync(new HttpRequestMessage(HttpMethod.Delete, "api/documents/bulk")
+        {
+            Content = JsonContent.Create(ids)
+        }));
+
+
     }
 
     public class UploadResponse

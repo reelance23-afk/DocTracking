@@ -43,6 +43,21 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 });
 
 builder.Services.AddHttpClient();
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddPolicy("api", httpContext =>
+        System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.User.Identity?.Name ?? httpContext.Connection.RemoteIpAddress?.ToString() ?? "anon",
+            factory: _ => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 60,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = System.Threading.RateLimiting.QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0
+            }));
+
+    options.RejectionStatusCode = 429;
+});
 builder.Services.Configure<OpenIdConnectOptions>(OpenIdConnectDefaults.AuthenticationScheme, options =>
 {
     options.TokenValidationParameters.RoleClaimType = "roles";
@@ -102,6 +117,7 @@ builder.Services.AddMudServices();
 builder.Services.AddMudPopoverService();
 builder.Services.AddSignalR();
 builder.Services.AddTransient<IClaimsTransformation, UserClaimsTransformation>();
+builder.Services.AddTransient<UserClaimsTransformation>();
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
@@ -144,6 +160,7 @@ if (!app.Environment.IsDevelopment())
 
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();
 app.UseAntiforgery();
 
 app.MapStaticAssets();
@@ -181,7 +198,8 @@ using (var scope = app.Services.CreateScope())
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"[Startup] Migration failed: {ex.Message}");
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        logger.LogCritical(ex, "[Startup] Migration failed");
     }
 }
 

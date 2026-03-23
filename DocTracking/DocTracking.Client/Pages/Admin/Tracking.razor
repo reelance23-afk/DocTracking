@@ -7,6 +7,7 @@
 @using DocTracking.Client.Services.Helpers
 @inject DocumentService DocumentService
 @inject IDialogService DialogService
+@inject ISnackbar Snackbar
 @inject IJSRuntime JS
 @rendermode InteractiveAuto
 
@@ -16,7 +17,7 @@
             <MudIcon Icon="@Icons.Material.Filled.TrackChanges" Size="Size.Large" Class="mr-3" Color="Color.Primary" />
             <MudText Typo="Typo.h4" Class="font-weight-bold">Tracking List</MudText>
         </div>
-        <DocStatCards Documents="allDocuments" />
+        <DocStatCards Documents="_serverItems" />
     </div>
 
     @if (loading)
@@ -44,12 +45,14 @@
             <MudTextField @bind-Value="searchString" Placeholder="Search documents, senders, or locations..."
                           Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
                           IconSize="Size.Medium" Variant="Variant.Outlined" Margin="Margin.Dense"
-                          Immediate="true" Class="mb-4" />
+                          Immediate="true" DebounceInterval="400"
+                          TextChanged="@(async (string v) => { searchString = v; await OnFilterChanged(); })"
+                          Class="mb-4" />
 
             <div class="d-flex gap-2 flex-wrap align-center mb-4">
                 <MudSelect Value="statusFilter" Label="Status" Variant="Variant.Outlined"
                            Margin="Margin.Dense" T="string" Style="min-width:140px;"
-                           ValueChanged="@((string v) => { statusFilter = v; StateHasChanged(); })">
+                           ValueChanged="@(async (string v) => { statusFilter = v; await OnFilterChanged(); })">
                     <MudSelectItem T="string" Value="@("")">All Statuses</MudSelectItem>
                     <MudSelectItem T="string" Value="@("In Motion")">In Motion</MudSelectItem>
                     <MudSelectItem T="string" Value="@("Received")">Received</MudSelectItem>
@@ -57,7 +60,7 @@
                 </MudSelect>
                 <MudSelect Value="officeFilter" Label="Office" Variant="Variant.Outlined"
                            Margin="Margin.Dense" T="string" Style="min-width:160px;"
-                           ValueChanged="@((string v) => { officeFilter = v; StateHasChanged(); })">
+                           ValueChanged="@(async (string v) => { officeFilter = v; await OnFilterChanged(); })">
                     <MudSelectItem T="string" Value="@("")">All Offices</MudSelectItem>
                     @foreach (var office in allOffices)
                     {
@@ -66,10 +69,10 @@
                 </MudSelect>
                 <MudDatePicker Date="dateFrom" Label="From" Variant="Variant.Outlined"
                                Margin="Margin.Dense" Style="min-width:140px;"
-                               DateChanged="@((DateTime? v) => { dateFrom = v; StateHasChanged(); })" />
+                               DateChanged="@(async (DateTime? v) => { dateFrom = v; await OnFilterChanged(); })" />
                 <MudDatePicker Date="dateTo" Label="To" Variant="Variant.Outlined"
                                Margin="Margin.Dense" Style="min-width:140px;"
-                               DateChanged="@((DateTime? v) => { dateTo = v; StateHasChanged(); })" />
+                               DateChanged="@(async (DateTime? v) => { dateTo = v; await OnFilterChanged(); })" />
                 @if (!string.IsNullOrEmpty(statusFilter) || !string.IsNullOrEmpty(officeFilter) || dateFrom != null || dateTo != null)
                 {
                     <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="ClearFilters"
@@ -85,8 +88,23 @@
 
 
 
+
             <MudHidden Breakpoint="Breakpoint.SmAndDown">
-                <MudTable Items="@FilteredDocuments" Hover="true" T="Document">
+                @if (_selectedDocs.Any())
+                {
+                    <div class="d-flex align-center gap-2 mb-3 pa-2" style="background: rgba(var(--mud-palette-error-rgb),0.06); border-radius:8px;">
+                        <MudText Typo="Typo.body2"><strong>@_selectedDocs.Count</strong> selected</MudText>
+                        <MudSpacer />
+                        <MudButton Color="Color.Error" Variant="Variant.Filled" Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.DeleteSweep"
+                                   Disabled="@_isBulkDeleting"
+                                   OnClick="BulkDelete">
+                            @(_isBulkDeleting ? "Deleting..." : "Delete Selected")
+                        </MudButton>
+                    </div>
+                }
+                <MudTable @ref="_table" ServerData="LoadServerData" Hover="true" T="Document"
+                          MultiSelection="true" @bind-SelectedItems="_selectedDocs">
                     <HeaderContent>
                         <MudTh><MudTableSortLabel SortBy="new Func<Document, object>(x => x.Name)">Name</MudTableSortLabel></MudTh>
                         <MudTh>Sender</MudTh>
@@ -144,7 +162,7 @@
             </MudHidden>
 
             <MudHidden Breakpoint="Breakpoint.MdAndUp">
-                @if (!FilteredDocuments.Any())
+                @if (!_serverItems.Any())
                 {
                     <div class="pa-8 text-center">
                         <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Large" Style="opacity: 0.3; font-size: 4rem;" Class="mb-4" />
@@ -153,7 +171,7 @@
                 }
                 else
                 {
-                    @foreach (var doc in FilteredDocuments)
+                    @foreach (var doc in _serverItems)
                     {
                         <MudCard Elevation="2" Class="mb-3">
                             <MudCardContent Class="pa-4">
@@ -209,7 +227,8 @@
 @code {
     [SupplyParameterFromQuery(Name = "ref")] public string? RefParam { get; set; }
 
-    private List<Document> allDocuments = new();
+    private MudTable<Document>? _table;
+    private List<Document> _serverItems = new();
     private List<Office> allOffices = new();
     private bool loading = true;
     private string searchString = "";
@@ -218,32 +237,45 @@
     private DateTime? dateFrom;
     private DateTime? dateTo;
     private bool dialogOpened = false;
+    private HashSet<Document> _selectedDocs = new();
+    private bool _isBulkDeleting;
 
-    private IEnumerable<Document> FilteredDocuments => allDocuments
-        .Where(d => string.IsNullOrEmpty(searchString) || FilterFunc(d))
-        .Where(d => string.IsNullOrEmpty(statusFilter) || d.Status == statusFilter)
-        .Where(d => string.IsNullOrEmpty(officeFilter) ||
-                    d.CurrentOffice?.Name == officeFilter ||
-                    d.NextOffice?.Name == officeFilter)
-        .Where(d => dateFrom == null || d.CreatedAt.ToLocalTime().Date >= dateFrom.Value.Date)
-        .Where(d => dateTo == null || d.CreatedAt.ToLocalTime().Date <= dateTo.Value.Date);
+    private async Task<TableData<Document>> LoadServerData(TableState state, CancellationToken ct)
+    {
+        loading = true;
+        try
+        {
+            var result = await DocumentService.GetAllDocumentsAsync(
+                page: state.Page + 1,
+                pageSize: state.PageSize,
+                search: searchString,
+                status: statusFilter,
+                office: officeFilter,
+                dateFrom: dateFrom?.ToString("yyyy-MM-dd"),
+                dateTo: dateTo?.ToString("yyyy-MM-dd"));
+            _serverItems = result.Items;
+            return new TableData<Document> { Items = result.Items, TotalItems = result.TotalCount };
+        }
+        catch (Exception ex) { Console.WriteLine(ex.Message); return new TableData<Document>(); }
+        finally { loading = false; }
+    }
+
+    private async Task OnFilterChanged()
+    {
+        if (_table != null) await _table.ReloadServerData();
+    }
 
     protected override async Task OnInitializedAsync()
     {
-        try
-        {
-            allDocuments = await DocumentService.GetAllDocumentsAsync();
-            allOffices = await DocumentService.GetOfficesAsync();
-        }
+        try { allOffices = await DocumentService.GetOfficesAsync(); }
         catch (Exception ex) { Console.WriteLine(ex.Message); }
-        finally { loading = false; }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!dialogOpened && !loading && !string.IsNullOrEmpty(RefParam))
+        if (!dialogOpened && !string.IsNullOrEmpty(RefParam))
         {
-            var doc = allDocuments.FirstOrDefault(d => d.ReferenceNumber == RefParam);
+            var doc = _serverItems.FirstOrDefault(d => d.ReferenceNumber == RefParam);
             if (doc != null)
             {
                 dialogOpened = true;
@@ -252,13 +284,14 @@
         }
     }
 
-    private void ClearFilters()
+    private async Task ClearFilters()
     {
+        searchString = "";
         statusFilter = "";
         officeFilter = "";
         dateFrom = null;
         dateTo = null;
-        StateHasChanged();
+        await OnFilterChanged();
     }
 
     private async Task ExportCsv()
@@ -267,7 +300,7 @@
         {
             var sb = new System.Text.StringBuilder();
             sb.AppendLine("Name,Type,Sender,Status,Priority,Current Office,Current Unit,Next Office,Created At");
-            foreach (var doc in FilteredDocuments)
+            foreach (var doc in _serverItems)
             {
                 sb.AppendLine($"\"{doc.Name}\",\"{doc.Type}\",\"{doc.Creator?.Name}\",\"{doc.Status}\",\"{doc.Priority}\"," +
                               $"\"{doc.CurrentOffice?.Name}\",\"{doc.CurrentUnit?.Name}\",\"{doc.NextOffice?.Name}\"," +
@@ -277,25 +310,10 @@
             var base64 = Convert.ToBase64String(bytes);
             await JS.InvokeVoidAsync("downloadCsv", base64, $"documents_{DateTime.Now:yyyyMMdd}.csv");
         }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[ExportCsv] Error: {ex.Message}");
-        }
+        catch (Exception ex) { Console.WriteLine($"[ExportCsv] Error: {ex.Message}"); }
     }
 
-
-    private bool FilterFunc(Document element)
-    {
-        if (string.IsNullOrWhiteSpace(searchString)) return true;
-        if (element.Name?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
-        if (element.Creator?.Name?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
-        if (element.Status?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
-        if (element.CurrentOffice?.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
-        if (element.NextOffice?.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
-        if (element.CurrentUnit?.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
-        if (element.NextUnit?.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) return true;
-        return false;
-    }
+    private bool FilterFunc(Document element) => true; // unused, kept for safety
 
     private async Task OpenQRDialog(Document doc)
     {
@@ -324,44 +342,25 @@
         try { officeList = await DocumentService.GetOfficesAsync(); }
         catch { officeList = new(); }
         var parameters = new DialogParameters
-    {
-        { "Doc", editingDoc },
-        { "Offices", officeList }
-    };
+        {
+            { "Doc", editingDoc },
+            { "Offices", officeList }
+        };
         var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
         var dialog = await DialogService.ShowAsync<EditDocumentDialog>("Edit Document", parameters, options);
         var result = await dialog.Result;
         if (!result!.Canceled)
-        {
-            allDocuments = await DocumentService.GetAllDocumentsAsync();
-            StateHasChanged();
-        }
+            await OnFilterChanged();
     }
-
-
 
     private async Task OpenViewDialog(Document doc)
     {
-        var parameters = new DialogParameters<DocumentViewDialog>
-        {
-            { x => x.Doc, doc }
-        };
+        var parameters = new DialogParameters<DocumentViewDialog> { { x => x.Doc, doc } };
         var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
         var dialog = await DialogService.ShowAsync<DocumentViewDialog>("Document Details", parameters, options);
         var result = await dialog.Result;
-        if (!result!.Canceled && result.Data != null)
-        {
-            if (result.Data.ToString() == "deleted")
-            {
-                allDocuments.RemoveAll(d => d.Id == doc.Id);
-                StateHasChanged();
-            }
-            else
-            {
-                allDocuments = await DocumentService.GetAllDocumentsAsync();
-                StateHasChanged();
-            }
-        }
+        if (!result!.Canceled)
+            await OnFilterChanged();
     }
 
     private async Task DeleteDocument(Document doc)
@@ -375,9 +374,35 @@
         var dialog = await DialogService.ShowAsync<MudMessageBox>("Delete Document", parameters);
         var result = await dialog.Result;
         if (result is null || result.Canceled) return;
-        var (ok, _) = await DocumentService.DeleteDocumentAsync(doc.Id);
-        if (!ok) return;
-        allDocuments.RemoveAll(d => d.Id == doc.Id);
-        StateHasChanged();
+        var (ok, error) = await DocumentService.DeleteDocumentAsync(doc.Id);
+        if (!ok) { Snackbar.Add(error ?? "Failed to delete document.", Severity.Error); return; }
+        await OnFilterChanged();
+    }
+
+    private async Task BulkDelete()
+    {
+        if (!_selectedDocs.Any()) return;
+        var parameters = new DialogParameters
+    {
+        { "Message", $"Delete {_selectedDocs.Count} selected document(s)? This cannot be undone." },
+        { "YesText", "Delete All" },
+        { "CancelText", "Cancel" }
+    };
+        var dialog = await DialogService.ShowAsync<MudMessageBox>("Bulk Delete", parameters);
+        var result = await dialog.Result;
+        if (result is null || result.Canceled) return;
+
+        _isBulkDeleting = true;
+        try
+        {
+            var ids = _selectedDocs.Select(d => d.Id).ToList();
+            var (ok, error) = await DocumentService.BulkDeleteDocumentsAsync(ids);
+            if (!ok) { Snackbar.Add(error ?? "Bulk delete failed.", Severity.Error); return; }
+            Snackbar.Add($"{ids.Count} document(s) deleted.", Severity.Success);
+            _selectedDocs.Clear();
+            await OnFilterChanged();
+        }
+        finally { _isBulkDeleting = false; }
     }
 }
+

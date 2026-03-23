@@ -1,4 +1,7 @@
-﻿<div class="nav-wrapper">
+﻿@inject NavigationManager Navigation
+@using Microsoft.AspNetCore.Components.Authorization
+
+<div class="nav-wrapper">
     <div class="nav-body">
 
         @if (ShowText)
@@ -7,6 +10,21 @@
                 <MudText Typo="Typo.overline" Class="mud-text-secondary">Navigation</MudText>
             </div>
         }
+
+        <AuthorizeView>
+            <Authorized>
+                <div class="px-2 mb-2">
+                    <MudTextField @bind-Value="_refSearch" Placeholder="Track by ref no..."
+                                  Adornment="Adornment.End"
+                                  AdornmentIcon="@Icons.Material.Filled.Search"
+                                  AdornmentAriaLabel="Track"
+                                  OnAdornmentClick="GoToRef"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense"
+                                  OnKeyDown="OnSearchKeyDown" />
+                </div>
+            </Authorized>
+        </AuthorizeView>
 
         <MudNavMenu Rounded="true" Margin="Margin.Dense" Class="px-2 mb-2">
             <MudNavLink Href="/"
@@ -162,4 +180,22 @@
 @code {
     [CascadingParameter]
     public bool ShowText { get; set; } = true;
+
+    private string _refSearch = "";
+
+    private void GoToRef()
+    {
+        var trimmed = _refSearch.Trim();
+        if (!string.IsNullOrEmpty(trimmed))
+        {
+            _refSearch = "";
+            Navigation.NavigateTo($"/track/{Uri.EscapeDataString(trimmed)}", forceLoad: false);
+        }
+    }
+
+    private void OnSearchKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") GoToRef();
+    }
 }
+

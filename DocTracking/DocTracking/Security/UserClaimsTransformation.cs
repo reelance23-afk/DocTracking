@@ -18,6 +18,10 @@ namespace DocTracking.Security
             _cache = cache;
         }
 
+        public static string CacheKey(string email) => $"user-claims-{email}";
+
+        public void InvalidateUser(string email) => _cache.Remove(CacheKey(email));
+
         public async Task<ClaimsPrincipal> TransformAsync(ClaimsPrincipal principal)
         {
             if (principal.Identity is not ClaimsIdentity originalIdentity || !originalIdentity.IsAuthenticated)
@@ -29,29 +33,37 @@ namespace DocTracking.Security
 
             var name = principal.FindFirst("name")?.Value ?? email;
 
-            var cacheKey = $"user-claims-{email}";
+            var cacheKey = CacheKey(email!);
             if (!_cache.TryGetValue(cacheKey, out AppUser? dbUser))
             {
                 using var scope = _scopeFactory.CreateScope();
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-                dbUser = await db.AppUsers
-                    .Include(u => u.Unit)
-                    .FirstOrDefaultAsync(u => u.Email == email);
-
-                if (dbUser == null)
+                try
                 {
-                    dbUser = new AppUser { Email = email, Name = name, Role = "User" };
-                    db.AppUsers.Add(dbUser);
-                    await db.SaveChangesAsync();
-                }
-                else if (dbUser.Name == null)
-                {
-                    dbUser.Name = name;
-                    await db.SaveChangesAsync();
-                }
+                    dbUser = await db.AppUsers
+                        .Include(u => u.Unit)
+                        .FirstOrDefaultAsync(u => u.Email == email);
 
-                _cache.Set(cacheKey, dbUser, TimeSpan.FromMinutes(5));
+                    if (dbUser == null)
+                    {
+                        dbUser = new AppUser { Email = email, Name = name, Role = "User" };
+                        db.AppUsers.Add(dbUser);
+                        await db.SaveChangesAsync();
+                    }
+                    else if (dbUser.Name == null)
+                    {
+                        dbUser.Name = name;
+                        await db.SaveChangesAsync();
+                    }
+
+                    _cache.Set(cacheKey, dbUser, TimeSpan.FromMinutes(5));
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[ClaimsTransform] DB error for {email}: {ex.Message}");
+                    return principal;
+                }
             }
 
             var clone = principal.Clone();

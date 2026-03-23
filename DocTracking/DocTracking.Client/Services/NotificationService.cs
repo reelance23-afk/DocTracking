@@ -104,8 +104,13 @@ namespace DocTracking.Client.Services
                 }
             }
         }
-
-
+        public async Task DismissAsync(AppNotification notif)
+        {
+            Notifications.Remove(notif);
+            OnChange?.Invoke();
+            try { await _http.DeleteAsync($"api/notifications/{notif.Id}"); }
+            catch (Exception ex) { Console.WriteLine($"[NotifService] Dismiss failed: {ex.Message}"); }
+        }
 
         public async Task MarkAllReadAsync()
         {
@@ -113,6 +118,13 @@ namespace DocTracking.Client.Services
             OnChange?.Invoke();
             try { await _http.PutAsync("api/notifications/read-all", null); }
             catch (Exception ex) { Console.WriteLine($"[NotifService] MarkAllRead failed: {ex.Message}"); }
+        }
+        public async Task ToggleReadAsync(AppNotification notif)
+        {
+            notif.IsRead = !notif.IsRead;
+            OnChange?.Invoke();
+            try { await _http.PutAsync($"api/notifications/{notif.Id}/toggle-read", null); }
+            catch (Exception ex) { Console.WriteLine($"[NotifService] ToggleRead failed: {ex.Message}"); }
         }
 
         public async ValueTask DisposeAsync()

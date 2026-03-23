@@ -1,21 +1,25 @@
-﻿using DocTracking.Data;
-using DocTracking.Client.Models;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+﻿using DocTracking.Client.Models;
+using DocTracking.Data;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
 
 namespace DocTracking.Controllers
 {
     [Authorize]
     [Route("api/[controller]")]
     [ApiController]
+    [EnableRateLimiting("api")]
     public class OfficesController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        private readonly ILogger<OfficesController> _logger;
 
-        public OfficesController(ApplicationDbContext context)
+        public OfficesController(ApplicationDbContext context, ILogger<OfficesController> logger)
         {
             _context = context;
+            _logger = logger;
         }
 
         [HttpPost]
@@ -32,7 +36,7 @@ namespace DocTracking.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[AddOffice] Error: {ex.Message}");
+                _logger.LogError(ex, "[AddOffice] Failed");
                 return StatusCode(500, "Failed to save office.");
             }
             return Ok(office);
@@ -64,7 +68,7 @@ namespace DocTracking.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[UpdateOffice] Error: {ex.Message}");
+                _logger.LogError(ex, "[UpdateOffice] Failed");
                 return StatusCode(500, "Failed to update office.");
             }
             return Ok(existing);
@@ -139,14 +143,14 @@ namespace DocTracking.Controllers
                 await _context.SaveChangesAsync();
                 await tx.CommitAsync();
             }
-            catch
+            catch (Exception ex)
             {
                 await tx.RollbackAsync();
-                throw;
+                _logger.LogError(ex, "[DeleteOffice] Failed");
+                return StatusCode(500, "Failed to delete office.");
             }
 
             return Ok();
         }
-
     }
 }

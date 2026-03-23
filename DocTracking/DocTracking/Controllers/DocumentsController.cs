@@ -5,6 +5,7 @@ using DocTracking.Data;
 using DocTracking.Hubs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
@@ -14,18 +15,21 @@ namespace DocTracking.Controllers
     [Route("api/[controller]")]
     [ApiController]
     [Authorize]
+    [EnableRateLimiting("api")]
     public class DocumentsController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
         private readonly IWebHostEnvironment _env;
         private readonly IHubContext<NotificationHub> _hub;
+        private readonly ILogger<DocumentsController> _logger;
 
         public DocumentsController(ApplicationDbContext context, IWebHostEnvironment env,
-            IHubContext<NotificationHub> hub)
+            IHubContext<NotificationHub> hub, ILogger<DocumentsController> logger)
         {
             _context = context;
             _env = env;
             _hub = hub;
+            _logger = logger;
         }
 
         private async Task Notify(string group, string message, string docName)
@@ -57,7 +61,7 @@ namespace DocTracking.Controllers
         private async Task TryNotify(string group, string message, string docName)
         {
             try { await Notify(group, message, docName); }
-            catch (Exception ex) { Console.WriteLine($"[Notify] Failed for group {group}: {ex.Message}"); }
+            catch (Exception ex) { _logger.LogWarning(ex, "[Notify] Failed for group {Group}", group); }
         }
 
         [HttpPost]
@@ -71,6 +75,9 @@ namespace DocTracking.Controllers
                 var unitBelongs = await _context.Units.AnyAsync(u => u.Id == doc.NextUnitId && u.OfficeId == doc.NextOfficeId);
                 if (!unitBelongs) return BadRequest("Unit does not belong to the specified office.");
             }
+
+            if (string.IsNullOrEmpty(doc.FilePath))
+                return BadRequest("A file attachment is required.");
 
             var email = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email);
             var appuser = await _context.AppUsers.FirstOrDefaultAsync(u => u.Email == email);
@@ -101,10 +108,11 @@ namespace DocTracking.Controllers
                 await _context.SaveChangesAsync();
                 await tx.CommitAsync();
             }
-            catch
+            catch (Exception ex)
             {
                 await tx.RollbackAsync();
-                throw;
+                _logger.LogError(ex, "[CreateDocument] Failed");
+                return StatusCode(500, "Failed to create document.");
             }
 
             var creatorName = appuser?.Name ?? "Someone";
@@ -120,7 +128,6 @@ namespace DocTracking.Controllers
 
             return Ok(doc);
         }
-
 
         [HttpPost("upload")]
         public async Task<IActionResult> UploadFile(IFormFile file)
@@ -142,36 +149,116 @@ namespace DocTracking.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[UploadFile] Error: {ex.Message}");
+                _logger.LogError(ex, "[UploadFile] Failed");
                 return StatusCode(500, "Failed to save file.");
             }
-            return Ok(new { FilePath = $"/uploads/{uniqueFileName}" });
+            return Ok(new { FilePath = $"/api/documents/file/{uniqueFileName}" });
         }
 
+        [HttpGet("file/{fileName}")]
+        public IActionResult DownloadFile(string fileName)
+        {
+            if (fileName.Contains('/') || fileName.Contains('\\') || fileName.Contains(".."))
+                return BadRequest("Invalid file name.");
+
+            var uploadsFolder = Path.GetFullPath(Path.Combine(_env.WebRootPath, "uploads"));
+            var fullPath = Path.GetFullPath(Path.Combine(uploadsFolder, fileName));
+
+            if (!fullPath.StartsWith(uploadsFolder + Path.DirectorySeparatorChar))
+                return BadRequest("Invalid file name.");
+
+            if (!System.IO.File.Exists(fullPath))
+                return NotFound();
+
+            var ext = Path.GetExtension(fileName).ToLowerInvariant();
+            var contentType = ext switch
+            {
+                ".pdf" => "application/pdf",
+                ".doc" => "application/msword",
+                ".docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                ".jpg" => "image/jpeg",
+                ".png" => "image/png",
+                _ => "application/octet-stream"
+            };
+
+            return PhysicalFile(fullPath, contentType, enableRangeProcessing: true);
+        }
 
         [HttpDelete("upload")]
-        public IActionResult DeleteUpload([FromQuery] string path)
+        public async Task<IActionResult> DeleteUpload([FromQuery] string path)
         {
             var uploadsFolder = Path.GetFullPath(Path.Combine(_env.WebRootPath, "uploads"));
             var fullPath = Path.GetFullPath(Path.Combine(_env.WebRootPath, path.TrimStart('/')));
             if (!fullPath.StartsWith(uploadsFolder + Path.DirectorySeparatorChar))
                 return BadRequest("Invalid path.");
+
+            var fileName = Path.GetFileName(fullPath);
+            var email = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email);
+            var isAdmin = User.IsInRole("Admin");
+
+            if (!isAdmin)
+            {
+                var appUser = await _context.AppUsers.FirstOrDefaultAsync(u => u.Email == email);
+                if (appUser == null) return Forbid();
+                var ownsFile = await _context.Documents.AnyAsync(d =>
+                    d.CreatorId == appUser.Id &&
+                    (d.FilePath == path || d.FilePath == $"/api/documents/file/{fileName}"));
+                if (!ownsFile) return Forbid();
+            }
+
             if (System.IO.File.Exists(fullPath))
                 System.IO.File.Delete(fullPath);
             return Ok();
         }
 
+
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Document>>> GetAllDocument()
+        [Authorize(Roles = "Admin,Office")]
+        public async Task<ActionResult<PagedResult<Document>>> GetAllDocument(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 25,
+            [FromQuery] string? search = null,
+            [FromQuery] string? status = null,
+            [FromQuery] string? office = null,
+            [FromQuery] string? dateFrom = null,
+            [FromQuery] string? dateTo = null)
         {
-            return await _context.Documents
+            var query = _context.Documents
                 .Include(d => d.Creator)
                 .Include(d => d.NextOffice)
                 .Include(d => d.CurrentOffice)
                 .Include(d => d.NextUnit)
                 .Include(d => d.CurrentUnit)
+                .AsQueryable();
+
+            if (!string.IsNullOrEmpty(search))
+                query = query.Where(d =>
+                    (d.Name != null && d.Name.Contains(search)) ||
+                    (d.ReferenceNumber != null && d.ReferenceNumber.Contains(search)) ||
+                    (d.Creator != null && d.Creator.Name != null && d.Creator.Name.Contains(search)));
+
+            if (!string.IsNullOrEmpty(status))
+                query = query.Where(d => d.Status == status);
+
+            if (!string.IsNullOrEmpty(office))
+                query = query.Where(d =>
+                    (d.CurrentOffice != null && d.CurrentOffice.Name == office) ||
+                    (d.NextOffice != null && d.NextOffice.Name == office));
+
+            if (DateTime.TryParse(dateFrom, out var from))
+                query = query.Where(d => d.CreatedAt >= from);
+
+            if (DateTime.TryParse(dateTo, out var to))
+                query = query.Where(d => d.CreatedAt <= to.AddDays(1));
+
+            var total = await query.CountAsync();
+            var items = await query
                 .OrderByDescending(d => d.CreatedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .ToListAsync();
+
+            return Ok(new PagedResult<Document> { Items = items, TotalCount = total });
         }
 
         [HttpGet("my-profile")]
@@ -333,13 +420,13 @@ namespace DocTracking.Controllers
 
                 return Ok();
             }
-            catch
+            catch (Exception ex)
             {
                 await tx.RollbackAsync();
-                throw;
+                _logger.LogError(ex, "[ReceiveDocument] Failed");
+                return StatusCode(500, "Failed to receive document.");
             }
         }
-
 
         [HttpPut("{id}/forward")]
         public async Task<IActionResult> ForwardDocument(int id, [FromBody] ForwardRequest request)
@@ -397,10 +484,11 @@ namespace DocTracking.Controllers
                 await _context.SaveChangesAsync();
                 await tx.CommitAsync();
             }
-            catch
+            catch (Exception ex)
             {
                 await tx.RollbackAsync();
-                throw;
+                _logger.LogError(ex, "[ForwardDocument] Failed");
+                return StatusCode(500, "Failed to forward document.");
             }
 
             var docName = doc.Name ?? "";
@@ -428,7 +516,6 @@ namespace DocTracking.Controllers
 
             return Ok();
         }
-
 
         [HttpPut("{id}/finish")]
         public async Task<IActionResult> FinishDocument(int id, [FromBody] FinishRequest request)
@@ -480,10 +567,11 @@ namespace DocTracking.Controllers
                 await _context.SaveChangesAsync();
                 await tx.CommitAsync();
             }
-            catch
+            catch (Exception ex)
             {
                 await tx.RollbackAsync();
-                throw;
+                _logger.LogError(ex, "[FinishDocument] Failed");
+                return StatusCode(500, "Failed to complete document.");
             }
 
             var docName = doc.Name ?? "";
@@ -500,7 +588,6 @@ namespace DocTracking.Controllers
 
             return Ok();
         }
-
 
         [HttpGet("outgoing/user")]
         public async Task<ActionResult<IEnumerable<Document>>> GetOutGoing()
@@ -580,6 +667,16 @@ namespace DocTracking.Controllers
             var existing = await _context.Documents.FindAsync(id);
             if (existing == null) return NotFound();
 
+            var email = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email);
+            var appUser = await _context.AppUsers.FirstOrDefaultAsync(u => u.Email == email);
+
+            var changes = new List<string>();
+            if (existing.Name != doc.Name) changes.Add($"Name: '{existing.Name}' to '{doc.Name}'");
+            if (existing.Type != doc.Type) changes.Add($"Type: '{existing.Type}' to '{doc.Type}'");
+            if (existing.Priority != doc.Priority) changes.Add($"Priority: '{existing.Priority}' to '{doc.Priority}'");
+            if (existing.Description != doc.Description) changes.Add("Description updated");
+            if (existing.FilePath != doc.FilePath) changes.Add("Attachment replaced");
+
             existing.Name = doc.Name;
             existing.Type = doc.Type;
             existing.Description = doc.Description;
@@ -587,13 +684,27 @@ namespace DocTracking.Controllers
             existing.FileName = doc.FileName;
             existing.FilePath = doc.FilePath;
 
+            await using var tx = await _context.Database.BeginTransactionAsync();
             try
             {
+                if (changes.Any())
+                {
+                    _context.DocumentLogs.Add(new DocumentLog
+                    {
+                        DocumentId = existing.Id,
+                        Action = "Edited",
+                        AppUserId = appUser?.Id,
+                        TimeStamp = DateTime.UtcNow,
+                        Comment = string.Join("; ", changes)
+                    });
+                }
                 await _context.SaveChangesAsync();
+                await tx.CommitAsync();
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[UpdateDocument] Error: {ex.Message}");
+                await tx.RollbackAsync();
+                _logger.LogError(ex, "[UpdateDocument] Failed");
                 return StatusCode(500, "Failed to update document.");
             }
             return Ok(existing);
@@ -616,15 +727,15 @@ namespace DocTracking.Controllers
                 await _context.SaveChangesAsync();
                 await tx.CommitAsync();
             }
-            catch
+            catch (Exception ex)
             {
                 await tx.RollbackAsync();
-                throw;
+                _logger.LogError(ex, "[DeleteDocument] Failed");
+                return StatusCode(500, "Failed to delete document.");
             }
 
             return Ok();
         }
-
 
         [HttpGet("{id}/qrcode")]
         [AllowAnonymous]
@@ -676,6 +787,9 @@ namespace DocTracking.Controllers
             await using var tx = await _context.Database.BeginTransactionAsync();
             try
             {
+                var beforeStatus = doc.Status;
+                var beforeOfficeId = doc.CurrentOfficeId ?? doc.NextOfficeId;
+
                 doc.Status = request.Status ?? doc.Status;
                 doc.LastActionDate = DateTime.UtcNow;
 
@@ -688,6 +802,15 @@ namespace DocTracking.Controllers
                     doc.Status = "In Motion";
                 }
 
+                var snapshotParts = new List<string> { $"Status: '{beforeStatus}' to '{doc.Status}'" };
+                if (request.NextOfficeId.HasValue)
+                    snapshotParts.Add($"Routed to OfficeId {request.NextOfficeId}" +
+                        (request.NextUnitId.HasValue ? $" / UnitId {request.NextUnitId}" : ""));
+                var userComment = request.NextOfficeId.HasValue ? request.ReassignComment : request.ForceComment;
+                if (!string.IsNullOrEmpty(userComment))
+                    snapshotParts.Add($"Reason: {userComment}");
+
+
                 _context.DocumentLogs.Add(new DocumentLog
                 {
                     DocumentId = doc.Id,
@@ -696,22 +819,50 @@ namespace DocTracking.Controllers
                     UnitId = request.NextUnitId ?? doc.CurrentUnitId,
                     AppUserId = appUser?.Id,
                     TimeStamp = DateTime.UtcNow,
-                    Comment = request.NextOfficeId.HasValue ? request.ReassignComment : request.ForceComment
+                    Comment = string.Join(" | ", snapshotParts)
                 });
 
                 await _context.SaveChangesAsync();
                 await tx.CommitAsync();
             }
-            catch
+            catch (Exception ex)
             {
                 await tx.RollbackAsync();
-                throw;
+                _logger.LogError(ex, "[AdminOverride] Failed");
+                return StatusCode(500, "Failed to apply admin override.");
             }
 
             if (doc.CreatorId.HasValue)
-                await TryNotify($"user-{doc.CreatorId}", "Your document status was updated by an admin.", doc.Name ?? "");
-
+            await TryNotify($"user-{doc.CreatorId}", "Your document status was updated by an admin.", doc.Name ?? "");
             return Ok();
+        }
+
+        [HttpDelete("bulk")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> BulkDeleteDocuments([FromBody] List<int> ids)
+        {
+            if (ids == null || !ids.Any()) return BadRequest("No document IDs provided.");
+
+            var docs = await _context.Documents.Where(d => ids.Contains(d.Id)).ToListAsync();
+            if (!docs.Any()) return NotFound();
+
+            var logs = await _context.DocumentLogs.Where(l => ids.Contains(l.DocumentId)).ToListAsync();
+
+            await using var tx = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                _context.DocumentLogs.RemoveRange(logs);
+                _context.Documents.RemoveRange(docs);
+                await _context.SaveChangesAsync();
+                await tx.CommitAsync();
+            }
+            catch (Exception ex)
+            {
+                await tx.RollbackAsync();
+                _logger.LogError(ex, "[BulkDeleteDocuments] Failed");
+                return StatusCode(500, "Failed to delete documents.");
+            }
+            return Ok(new { deleted = docs.Count });
         }
 
 

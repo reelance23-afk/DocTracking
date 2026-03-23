@@ -3,6 +3,7 @@ using DocTracking.Data;
 using DocTracking.Hubs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
@@ -12,15 +13,18 @@ namespace DocTracking.Controllers
     [Route("api/[controller]")]
     [ApiController]
     [Authorize]
+    [EnableRateLimiting("api")]
     public class NotificationsController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
         private readonly IHubContext<NotificationHub> _hub;
+        private readonly ILogger<NotificationsController> _logger;
 
-        public NotificationsController(ApplicationDbContext context, IHubContext<NotificationHub> hub)
+        public NotificationsController(ApplicationDbContext context, IHubContext<NotificationHub> hub, ILogger<NotificationsController> logger)
         {
             _context = context;
             _hub = hub;
+            _logger = logger;
         }
 
         private async Task<AppUser?> GetCurrentUser() =>
@@ -100,6 +104,46 @@ namespace DocTracking.Controllers
             }
 
             return Ok(new { sent = targets.Count });
+        }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DismissNotification(int id)
+        {
+            var user = await GetCurrentUser();
+            if (user == null) return Unauthorized();
+
+            var notif = await _context.AppNotifications
+                .FirstOrDefaultAsync(n => n.Id == id && n.AppUserId == user.Id);
+            if (notif == null) return NotFound();
+
+            _context.AppNotifications.Remove(notif);
+            try { await _context.SaveChangesAsync(); }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[DismissNotification] Error: {ex.Message}");
+                return StatusCode(500, "Failed to dismiss notification.");
+            }
+            return Ok();
+        }
+
+        [HttpPut("{id}/toggle-read")]
+        public async Task<IActionResult> ToggleRead(int id)
+        {
+            var user = await GetCurrentUser();
+            if (user == null) return Unauthorized();
+
+            var notif = await _context.AppNotifications
+                .FirstOrDefaultAsync(n => n.Id == id && n.AppUserId == user.Id);
+            if (notif == null) return NotFound();
+
+            notif.IsRead = !notif.IsRead;
+            try { await _context.SaveChangesAsync(); }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[ToggleRead] Failed for notification {Id}", id);
+                return StatusCode(500, "Failed to update notification.");
+            }
+            return Ok(new { isRead = notif.IsRead });
         }
 
 

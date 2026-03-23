@@ -238,7 +238,8 @@
     {
         try
         {
-            allDocuments = await DocumentService.GetAllDocumentsAsync();
+            var pagedResult = await DocumentService.GetAllDocumentsAsync(pageSize: 1000);
+            allDocuments = pagedResult.Items;
             var allAppUsers = await DocumentService.GetAppUserAsync();
             allOffices = await DocumentService.GetOfficesAsync();
 

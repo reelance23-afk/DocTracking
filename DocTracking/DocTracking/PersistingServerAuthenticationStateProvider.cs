@@ -30,37 +30,44 @@ namespace DocTracking.Services
         private async Task OnPersistingAsync()
         {
             if (_authenticationStateTask is null) return;
-            var authState = await _authenticationStateTask;
-            var user = authState.User;
-
-            if (user.Identity?.IsAuthenticated == true)
+            try
             {
-                var email = user.Identity?.Name ?? "";
+                var authState = await _authenticationStateTask;
+                var user = authState.User;
 
-
-                var appUser = await _db.AppUsers
-                    .Include(u => u.Unit)
-                    .ThenInclude(u => u.Office)
-                    .FirstOrDefaultAsync(u => u.Email == email);
-
-
-                var realName = user.FindFirst("name")?.Value ??
-                    user.FindFirst(ClaimTypes.GivenName)?.Value ??
-                    appUser?.Email;
-                _state.PersistAsJson(nameof(UserInfo), new UserInfo
+                if (user.Identity?.IsAuthenticated == true)
                 {
-                    UserId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? email,
-                    Email = email,
-                    Role = appUser?.Role ?? "User",
+                    var email = user.Identity?.Name ?? "";
 
-                    UnitId = appUser?.UnitId,
-                    UnitName = appUser?.Unit?.Name,
-                    OfficeId = appUser?.Unit?.OfficeId,
-                    OfficeName = appUser?.Unit?.Office?.Name,
-                    RealName = realName
-                });
+                    var appUser = await _db.AppUsers
+                        .Include(u => u.Unit)
+                        .ThenInclude(u => u.Office)
+                        .Include(u => u.Office)
+                        .FirstOrDefaultAsync(u => u.Email == email);
+
+                    var realName = user.FindFirst("name")?.Value ??
+                        user.FindFirst(ClaimTypes.GivenName)?.Value ??
+                        appUser?.Email;
+
+                    _state.PersistAsJson(nameof(UserInfo), new UserInfo
+                    {
+                        UserId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? email,
+                        Email = email,
+                        Role = appUser?.Role ?? "User",
+                        UnitId = appUser?.UnitId,
+                        UnitName = appUser?.Unit?.Name,
+                        OfficeId = appUser?.Unit?.OfficeId ?? appUser?.OfficeId,
+                        OfficeName = appUser?.Unit?.Office?.Name ?? appUser?.Office?.Name,
+                        RealName = realName
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[PersistingAuth] OnPersistingAsync error: {ex.Message}");
             }
         }
+
 
         public void Dispose()
         {

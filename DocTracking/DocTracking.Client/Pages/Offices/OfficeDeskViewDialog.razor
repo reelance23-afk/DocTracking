@@ -190,9 +190,13 @@
         busy = true;
         try
         {
-            var success = await DocService.ReceivedDocumentAsync(Doc.Id);
-            Snackbar.Add(success ? "Document received!" : "This document was already received by another worker",
-                         success ? Severity.Success : Severity.Warning);
+            var (ok, error) = await DocService.ReceivedDocumentAsync(Doc.Id);
+            if (!ok)
+            {
+                Snackbar.Add(error ?? "Failed to receive document.", Severity.Warning);
+                return;
+            }
+            Snackbar.Add("Document received!", Severity.Success);
             MudDialog.Close(DialogResult.Ok(true));
         }
         catch (Exception ex)
