@@ -282,7 +282,7 @@
                 else Snackbar.Add("File upload failed, saving anyway.", Severity.Warning);
             }
 
-            var success = await DocService.CreateDocumentAsync(newDocument);
+            var (success, error) = await DocService.CreateDocumentAsync(newDocument);
             if (success)
             {
                 Snackbar.Add("Document created & routed successfully!", Severity.Success);
@@ -291,18 +291,27 @@
             else
             {
                 if (uploadedPath != null)
-                    await DocService.DeleteUploadAsync(uploadedPath);
-                Snackbar.Add("Failed to create document. Please try again.", Severity.Error);
+                {
+                    try { await DocService.DeleteUploadAsync(uploadedPath); }
+                    catch (Exception ex) { Console.WriteLine($"[CreateDoc] File cleanup failed: {ex.Message}"); }
+                }
+                Snackbar.Add(error ?? "Error saving document.", Severity.Error);
             }
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Save Error: {ex.Message}");
             if (uploadedPath != null)
-                await DocService.DeleteUploadAsync(uploadedPath);
+            {
+                try { await DocService.DeleteUploadAsync(uploadedPath); }
+                catch (Exception cleanupEx) { Console.WriteLine($"[CreateDoc] File cleanup failed: {cleanupEx.Message}"); }
+            }
             Snackbar.Add("Error saving document. Please try again.", Severity.Error);
         }
-        finally { isSaving = false; }
+        finally
+        {
+            isSaving = false;
+        }
     }
 
 

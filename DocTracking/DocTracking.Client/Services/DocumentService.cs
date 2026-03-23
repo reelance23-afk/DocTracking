@@ -91,11 +91,8 @@ namespace DocTracking.Client.Services
             return JsonSerializer.Deserialize<AppUser>(content, _jsonOptions);
         }
 
-        public async Task<bool> CreateDocumentAsync(Document doc)
-        {
-            var response = await _http.PostAsJsonAsync("api/documents", doc);
-            return response.IsSuccessStatusCode;
-        }
+        public Task<(bool Success, string? Error)> CreateDocumentAsync(Document doc) =>
+            ToResult(_http.PostAsJsonAsync("api/documents", doc));
 
         public async Task<string?> UploadFileAsync(IBrowserFile file)
         {

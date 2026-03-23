@@ -152,19 +152,33 @@
             await ThemeService.LoadAsync();
             ThemeService.OnChange += () => { CurrentTheme = BuildTheme(); StateHasChanged(); };
             CurrentTheme = BuildTheme();
-            await JSRuntime.InvokeVoidAsync("eval", "document.getElementById('app-loading')?.remove()");
 
-            var profile = await DocService.GetProfileAsync();
-            displayName = profile?.Name;
-            displayRole = profile?.Role switch
+            try
             {
-                "Admin" => "System Administrator",
-                "Office" => "Office Worker",
-                _ => "User"
-            };
+                await JSRuntime.InvokeVoidAsync("eval", "document.getElementById('app-loading')?.remove()");
+            }
+            catch { }
+
+            try
+            {
+                var profile = await DocService.GetProfileAsync();
+                displayName = profile?.Name;
+                displayRole = profile?.Role switch
+                {
+                    "Admin" => "System Administrator",
+                    "Office" => "Office Worker",
+                    _ => "User"
+                };
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MainLayout] Profile load error: {ex.Message}");
+            }
             StateHasChanged();
         }
     }
+
+
 
     private MudTheme BuildTheme() => ThemeService.SelectedTheme switch
     {

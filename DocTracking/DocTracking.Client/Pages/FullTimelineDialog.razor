@@ -18,7 +18,7 @@
         </div>
     </TitleContent>
     <DialogContent>
-        <TrackingTimeline Logs="logs" IsLoading="isLoading" />
+        <TrackingTimeline Logs="logs" IsLoading="isLoading" ErrorMessage="@_errorMessage" />
     </DialogContent>
     <DialogActions>
         @if (BackMode == TrackBackMode.None)
@@ -43,6 +43,7 @@
 
     private List<DocumentLog> logs = new();
     private bool isLoading = true;
+    private string? _errorMessage;
 
     protected override async Task OnInitializedAsync()
     {
@@ -53,6 +54,7 @@
         catch (Exception ex)
         {
             Console.WriteLine($"[FullTimeline] Load error: {ex.Message}");
+            _errorMessage = "Failed to load timeline.";
         }
         finally { isLoading = false; }
     }

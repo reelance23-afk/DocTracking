@@ -26,7 +26,15 @@ namespace DocTracking.Controllers
             if (exists) return Conflict("An office with this name already exists");
 
             _context.Offices.Add(office);
-            await _context.SaveChangesAsync();
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[AddOffice] Error: {ex.Message}");
+                return StatusCode(500, "Failed to save office.");
+            }
             return Ok(office);
         }
 
@@ -50,7 +58,15 @@ namespace DocTracking.Controllers
             if (duplicate) return Conflict("An office with this name already exists");
             existing.Name = office.Name;
             existing.ReceivingSchedule = office.ReceivingSchedule;
-            await _context.SaveChangesAsync();
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[UpdateOffice] Error: {ex.Message}");
+                return StatusCode(500, "Failed to update office.");
+            }
             return Ok(existing);
         }
 
@@ -66,9 +82,7 @@ namespace DocTracking.Controllers
 
             var hasUsers = await _context.AppUsers.AnyAsync(u => u.OfficeId == id);
             if (hasUsers)
-            {
                 return BadRequest("Cannot delete office that has users assigned. Please reassign users first.");
-            }
 
             var unitIds = await _context.Units
                 .Where(u => u.OfficeId == id)
@@ -78,62 +92,60 @@ namespace DocTracking.Controllers
                 .AnyAsync(u => u.UnitId != null && unitIds.Contains(u.UnitId.Value));
 
             if (hasUsersInUnits)
-            {
                 return BadRequest("Cannot delete office that has users assigned to its units. Please reassign users first.");
-            }
 
             var hasActiveDocuments = await _context.Documents.AnyAsync(d =>
                 d.CurrentOfficeId == id || d.NextOfficeId == id);
 
             if (hasActiveDocuments)
-            {
                 return BadRequest("Cannot delete office that has active documents assigned. Please reassign documents first.");
-            }
 
-            var officeLogsToUpdate = await _context.DocumentLogs
-                .Where(dl => dl.OfficeId == id)
-                .ToListAsync();
-
-            foreach (var log in officeLogsToUpdate)
+            await using var tx = await _context.Database.BeginTransactionAsync();
+            try
             {
-                if (string.IsNullOrEmpty(log.OfficeName))
+                var officeLogsToUpdate = await _context.DocumentLogs
+                    .Where(dl => dl.OfficeId == id)
+                    .ToListAsync();
+
+                foreach (var log in officeLogsToUpdate)
                 {
-                    log.OfficeName = existing.Name;
+                    if (string.IsNullOrEmpty(log.OfficeName))
+                        log.OfficeName = existing.Name;
+                    log.OfficeId = null;
                 }
-                log.OfficeId = null;
-            }
 
-          
-            if (existing.Units != null && existing.Units.Any())
-            {
-                foreach (var unit in existing.Units)
+                if (existing.Units != null && existing.Units.Any())
                 {
-                    var unitLogsToUpdate = await _context.DocumentLogs
-                        .Where(dl => dl.UnitId == unit.Id)
-                        .ToListAsync();
-
-                    foreach (var log in unitLogsToUpdate)
+                    foreach (var unit in existing.Units)
                     {
-                        if (string.IsNullOrEmpty(log.UnitName))
+                        var unitLogsToUpdate = await _context.DocumentLogs
+                            .Where(dl => dl.UnitId == unit.Id)
+                            .ToListAsync();
+
+                        foreach (var log in unitLogsToUpdate)
                         {
-                            log.UnitName = unit.Name;
+                            if (string.IsNullOrEmpty(log.UnitName))
+                                log.UnitName = unit.Name;
+                            if (string.IsNullOrEmpty(log.OfficeName))
+                                log.OfficeName = existing.Name;
+                            log.UnitId = null;
                         }
-                        if (string.IsNullOrEmpty(log.OfficeName))
-                        {
-                            log.OfficeName = existing.Name;
-                        }
-                        log.UnitId = null;
                     }
+
+                    _context.Units.RemoveRange(existing.Units);
                 }
 
-                _context.Units.RemoveRange(existing.Units);
+                _context.Offices.Remove(existing);
+                await _context.SaveChangesAsync();
+                await tx.CommitAsync();
+            }
+            catch
+            {
+                await tx.RollbackAsync();
+                throw;
             }
 
-            _context.Offices.Remove(existing);
-            await _context.SaveChangesAsync();
             return Ok();
         }
 
-
     }
-}

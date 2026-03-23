@@ -13,23 +13,38 @@ namespace DocTracking.Client.Services
 
         public async Task LoadAsync()
         {
-            SelectedTheme = await _js.InvokeAsync<string>("localStorage.getItem", "theme") ?? "Default";
-            var dark = await _js.InvokeAsync<string>("localStorage.getItem", "darkMode");
-            IsDarkMode = dark == "true";
+            try
+            {
+                SelectedTheme = await _js.InvokeAsync<string>("localStorage.getItem", "theme") ?? "Default";
+                var dark = await _js.InvokeAsync<string>("localStorage.getItem", "darkMode");
+                IsDarkMode = dark == "true";
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ThemeService] LoadAsync error: {ex.Message}");
+            }
             OnChange?.Invoke();
         }
 
         public async Task SetThemeAsync(string theme)
         {
             SelectedTheme = theme;
-            await _js.InvokeVoidAsync("localStorage.setItem", "theme", theme);
+            try
+            {
+                await _js.InvokeVoidAsync("localStorage.setItem", "theme", theme);
+            }
+            catch (Exception ex) { Console.WriteLine($"[ThemeService] SetTheme error: {ex.Message}"); }
             OnChange?.Invoke();
         }
 
         public async Task SetDarkModeAsync(bool isDark)
         {
             IsDarkMode = isDark;
-            await _js.InvokeVoidAsync("localStorage.setItem", "darkMode", isDark.ToString().ToLower());
+            try
+            {
+                await _js.InvokeVoidAsync("localStorage.setItem", "darkMode", isDark.ToString().ToLower());
+            }
+            catch (Exception ex) { Console.WriteLine($"[ThemeService] SetDarkMode error: {ex.Message}"); }
             OnChange?.Invoke();
         }
     }

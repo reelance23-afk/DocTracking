@@ -253,9 +253,10 @@
             deskDocs = await DocService.GetDeskDocumentsAsync(myOffice.Id, myUnitId.HasValue ? myUnitId : null);
             outgoingDocs = await DocService.GetOutgoingAsync();
 
-            var allDocs = await DocService.GetAllDocumentsAsync();
-            recentDocs = allDocs
-                .Where(d => d.CurrentOfficeId == myOffice.Id || d.NextOfficeId == myOffice.Id)
+            var officeDocs = myUnitId.HasValue
+                ? await DocService.GetUnitHistoryAsync(myUnitId.Value)
+                : await DocService.GetOfficeHistoryAsync(myOffice.Id);
+            recentDocs = officeDocs
                 .OrderByDescending(d => d.LastActionDate)
                 .Take(5).ToList();
         }
@@ -265,6 +266,7 @@
             Snackbar.Add("Failed to refresh dashboard.", Severity.Warning);
         }
     }
+
 
     private async Task OpenDeskDialog(Document doc, OfficeDeskViewDialog.DeskTab tab)
     {

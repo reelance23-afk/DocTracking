@@ -188,11 +188,19 @@
         var result = await dialog.Result;
         if (result.Canceled) return;
         busy = true;
-        var success = await DocService.ReceivedDocumentAsync(Doc.Id);
-        busy = false;
-        Snackbar.Add(success ? "Document received!" : "This document was already received by another worker",
-                     success ? Severity.Success : Severity.Warning);
-        MudDialog.Close(DialogResult.Ok(true));
+        try
+        {
+            var success = await DocService.ReceivedDocumentAsync(Doc.Id);
+            Snackbar.Add(success ? "Document received!" : "This document was already received by another worker",
+                         success ? Severity.Success : Severity.Warning);
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ReceiveAsync] Error: {ex.Message}");
+            Snackbar.Add("Failed to receive document. Please try again.", Severity.Error);
+        }
+        finally { busy = false; }
     }
 
     private async Task ForwardAsync()
@@ -205,40 +213,56 @@
         }
         var dest = AllOffices.FirstOrDefault(o => o.Id == selectedOfficeId)?.Name;
         var parameters = new DialogParameters
-    {
-        { "Message", $"Forward this document to {dest}?" },
-        { "YesText", "Forward" },
-        { "CancelText", "Cancel" }
-    };
+        {
+            { "Message", $"Forward this document to {dest}?" },
+            { "YesText", "Forward" },
+            { "CancelText", "Cancel" }
+        };
         var dialog = await DialogService.ShowAsync<MudMessageBox>("Confirm Forward", parameters);
         var result = await dialog.Result;
         if (result.Canceled) return;
         busy = true;
-        var (ok, error) = await DocService.ForwardDocumentAsync(Doc.Id, selectedOfficeId.Value, selectedUnitId, comment);
-        busy = false;
-        if (!ok) { Snackbar.Add(error ?? "Failed to forward document.", Severity.Error); return; }
-        Snackbar.Add("Document forwarded successfully!", Severity.Success);
-        MudDialog.Close(DialogResult.Ok(true));
+        try
+        {
+            var (ok, error) = await DocService.ForwardDocumentAsync(Doc.Id, selectedOfficeId.Value, selectedUnitId, comment);
+            if (!ok) { Snackbar.Add(error ?? "Failed to forward document.", Severity.Error); return; }
+            Snackbar.Add("Document forwarded successfully!", Severity.Success);
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ForwardAsync] Error: {ex.Message}");
+            Snackbar.Add("Failed to forward document. Please try again.", Severity.Error);
+        }
+        finally { busy = false; }
     }
 
     private async Task FinishAsync()
     {
         var parameters = new DialogParameters
-    {
-        { "Message", "Mark this document as completed? This cannot be undone." },
-        { "YesText", "Finish" },
-        { "CancelText", "Cancel" }
-    };
+        {
+            { "Message", "Mark this document as completed? This cannot be undone." },
+            { "YesText", "Finish" },
+            { "CancelText", "Cancel" }
+        };
         var options = new DialogOptions { MaxWidth = MaxWidth.ExtraSmall };
         var dialog = await DialogService.ShowAsync<MudMessageBox>("Confirm Finish", parameters, options);
         var result = await dialog.Result;
         if (result.Canceled) return;
         busy = true;
-        var (ok, error) = await DocService.FinishDocumentAsync(Doc.Id, comment);
-        busy = false;
-        if (!ok) { Snackbar.Add(error ?? "Failed to complete document.", Severity.Error); return; }
-        Snackbar.Add("Document marked as completed!", Severity.Success);
-        MudDialog.Close(DialogResult.Ok(true));
+        try
+        {
+            var (ok, error) = await DocService.FinishDocumentAsync(Doc.Id, comment);
+            if (!ok) { Snackbar.Add(error ?? "Failed to complete document.", Severity.Error); return; }
+            Snackbar.Add("Document marked as completed!", Severity.Success);
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[FinishAsync] Error: {ex.Message}");
+            Snackbar.Add("Failed to complete document. Please try again.", Severity.Error);
+        }
+        finally { busy = false; }
     }
-
 }
+

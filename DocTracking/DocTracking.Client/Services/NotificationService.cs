@@ -45,40 +45,63 @@ namespace DocTracking.Client.Services
 
                 _hub.Reconnected += async _ =>
                 {
-                    await _hub.InvokeAsync("JoinGroup", userGroup);
-                    if (additionalGroups != null)
-                        foreach (var g in additionalGroups)
-                            await _hub.InvokeAsync("JoinGroup", g);
-
-                    var history = await _http.GetFromJsonAsync<List<AppNotification>>("api/notifications");
-                    if (history != null)
+                    try
                     {
-                        Notifications.Clear();
-                        Notifications.AddRange(history);
+                        await _hub.InvokeAsync("JoinGroup", userGroup);
+                        if (additionalGroups != null)
+                            foreach (var g in additionalGroups)
+                                await _hub.InvokeAsync("JoinGroup", g);
+
+                        var history = await _http.GetFromJsonAsync<List<AppNotification>>("api/notifications");
+                        if (history != null)
+                        {
+                            Notifications.Clear();
+                            Notifications.AddRange(history);
+                        }
+                        _historyLoaded = true;
+                        OnChange?.Invoke();
                     }
-                    OnChange?.Invoke();
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[NotifService] Reconnect handler error: {ex.Message}");
+                    }
                 };
             }
 
             if (_hub.State == HubConnectionState.Disconnected)
             {
-                await _hub.StartAsync();
-                await _hub.InvokeAsync("JoinGroup", userGroup);
-                if (additionalGroups != null)
-                    foreach (var group in additionalGroups)
-                        await _hub.InvokeAsync("JoinGroup", group);
+                try
+                {
+                    await _hub.StartAsync();
+                    await _hub.InvokeAsync("JoinGroup", userGroup);
+                    if (additionalGroups != null)
+                        foreach (var group in additionalGroups)
+                            await _hub.InvokeAsync("JoinGroup", group);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[NotifService] Initial connect failed: {ex.Message}");
+                    return;
+                }
             }
 
             if (!_historyLoaded)
             {
-                var fresh = await _http.GetFromJsonAsync<List<AppNotification>>("api/notifications");
-                if (fresh != null)
+                try
                 {
-                    Notifications.Clear();
-                    Notifications.AddRange(fresh);
+                    var fresh = await _http.GetFromJsonAsync<List<AppNotification>>("api/notifications");
+                    if (fresh != null)
+                    {
+                        Notifications.Clear();
+                        Notifications.AddRange(fresh);
+                    }
+                    _historyLoaded = true;
+                    OnChange?.Invoke();
                 }
-                _historyLoaded = true;
-                OnChange?.Invoke();
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[NotifService] History load failed: {ex.Message}");
+                }
             }
         }
 

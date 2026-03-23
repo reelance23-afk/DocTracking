@@ -209,6 +209,7 @@
             Console.WriteLine($"Error loading history: {ex.Message}");
             Snackbar.Add("Failed to load document history.", Severity.Error);
         }
+        finally { isLoading = false; }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)

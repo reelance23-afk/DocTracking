@@ -115,20 +115,36 @@
     {
         if (!IsValid) return;
         _saving = true;
-        var (ok, error) = await DocService.UpdateOfficeAsync(
-            new Office { Id = OfficeId, Name = OfficeName, ReceivingSchedule = Preview });
-        _saving = false;
-        if (ok) { Snackbar.Add("Schedule saved!", Severity.Success); MudDialog.Close(DialogResult.Ok(Preview)); }
-        else Snackbar.Add(error ?? "Failed to save.", Severity.Error);
+        try
+        {
+            var (ok, error) = await DocService.UpdateOfficeAsync(
+                new Office { Id = OfficeId, Name = OfficeName, ReceivingSchedule = Preview });
+            if (ok) { Snackbar.Add("Schedule saved!", Severity.Success); MudDialog.Close(DialogResult.Ok(Preview)); }
+            else Snackbar.Add(error ?? "Failed to save.", Severity.Error);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ReceivingSchedule] SaveAsync error: {ex.Message}");
+            Snackbar.Add("Failed to save schedule.", Severity.Error);
+        }
+        finally { _saving = false; }
     }
 
     private async Task ClearAsync()
     {
         _saving = true;
-        var (ok, error) = await DocService.UpdateOfficeAsync(
-            new Office { Id = OfficeId, Name = OfficeName, ReceivingSchedule = null });
-        _saving = false;
-        if (ok) { Snackbar.Add("Schedule cleared.", Severity.Success); MudDialog.Close(DialogResult.Ok<string?>(null)); }
-        else Snackbar.Add(error ?? "Failed to clear.", Severity.Error);
+        try
+        {
+            var (ok, error) = await DocService.UpdateOfficeAsync(
+                new Office { Id = OfficeId, Name = OfficeName, ReceivingSchedule = null });
+            if (ok) { Snackbar.Add("Schedule cleared.", Severity.Success); MudDialog.Close(DialogResult.Ok<string?>(null)); }
+            else Snackbar.Add(error ?? "Failed to clear.", Severity.Error);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ReceivingSchedule] ClearAsync error: {ex.Message}");
+            Snackbar.Add("Failed to clear schedule.", Severity.Error);
+        }
+        finally { _saving = false; }
     }
 }

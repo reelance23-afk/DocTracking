@@ -203,37 +203,62 @@
     private async Task Submit()
     {
         isSaving = true;
+        string? uploadedPath = null;
         try
         {
             if (selectedFile != null)
             {
-                var uploadedPath = await DocService.UploadFileAsync(selectedFile);
+                uploadedPath = await DocService.UploadFileAsync(selectedFile);
                 if (uploadedPath != null) Doc.FilePath = uploadedPath;
                 else Snackbar.Add("File upload failed, saving without new file.", Severity.Warning);
             }
 
             var (docOk, docError) = await DocService.UpdateDocumentAsync(Doc);
-            if (!docOk) { Snackbar.Add(docError ?? "Failed to save document.", Severity.Error); return; }
-
-            var hasOverride = !string.IsNullOrEmpty(overrideStatus) || reassignOfficeId != null;
-            if (hasOverride)
+            if (!docOk)
             {
-                var overrideRequest = new AdminOverridePayload
+                if (uploadedPath != null)
                 {
-                    Status = string.IsNullOrEmpty(overrideStatus) ? Doc.Status : overrideStatus,
-                    ForceComment = overrideComment,
+                    try { await DocService.DeleteUploadAsync(uploadedPath); }
+                    catch (Exception ex) { Console.WriteLine($"[EditDoc] Cleanup failed: {ex.Message}"); }
+                }
+                Snackbar.Add(docError ?? "Failed to save document.", Severity.Error);
+                return;
+            }
+
+            if (!string.IsNullOrEmpty(overrideStatus) || reassignOfficeId.HasValue)
+            {
+                var payload = new AdminOverridePayload
+                {
+                    Status = string.IsNullOrEmpty(overrideStatus) ? null : overrideStatus,
+                    ForceComment = reassignOfficeId == null ? overrideComment : null,
                     NextOfficeId = reassignOfficeId,
                     NextUnitId = reassignUnitId,
-                    ReassignComment = overrideComment
+                    ReassignComment = reassignOfficeId.HasValue ? overrideComment : null
                 };
-                var (ok, error) = await DocService.AdminOverrideDocumentAsync(Doc.Id, overrideRequest);
-                if (!ok) { Snackbar.Add(error ?? "Override failed.", Severity.Error); return; }
+                var (overrideOk, overrideError) = await DocService.AdminOverrideDocumentAsync(Doc.Id, payload);
+                if (!overrideOk)
+                {
+                    Snackbar.Add(overrideError ?? "Failed to apply admin override.", Severity.Error);
+                    return;
+                }
             }
 
             MudDialog.Close(DialogResult.Ok(Doc));
         }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[EditDoc] Submit error: {ex.Message}");
+            Snackbar.Add("An unexpected error occurred while saving.", Severity.Error);
+            if (uploadedPath != null)
+            {
+                try { await DocService.DeleteUploadAsync(uploadedPath); }
+                catch { }
+            }
+        }
         finally { isSaving = false; }
     }
+
+
 
 
     private void Cancel() => MudDialog.Cancel();

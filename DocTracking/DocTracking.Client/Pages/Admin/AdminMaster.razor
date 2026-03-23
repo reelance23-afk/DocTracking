@@ -292,19 +292,24 @@
     private async void StartPolling()
     {
         _pollTimer = new PeriodicTimer(TimeSpan.FromSeconds(30));
-        while (await _pollTimer.WaitForNextTickAsync())
+        try
         {
-            try
+            while (await _pollTimer.WaitForNextTickAsync())
             {
-                await LoadData();
-                await InvokeAsync(StateHasChanged);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[AdminMaster] Poll error: {ex.Message}");
+                try
+                {
+                    await LoadData();
+                    await InvokeAsync(StateHasChanged);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[AdminMaster] Poll error: {ex.Message}");
+                }
             }
         }
+        catch (OperationCanceledException) { }
     }
+
 
     private async Task OpenViewDialog(Document doc)
     {

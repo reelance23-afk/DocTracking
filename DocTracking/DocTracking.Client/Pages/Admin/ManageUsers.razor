@@ -368,7 +368,8 @@
                 else
                     editingUser.OfficeId = GetActiveOfficeId(editingUser);
             }
-            await DocService.UpdateAppUserAsync(editingUser);
+            var (ok, error) = await DocService.UpdateAppUserAsync(editingUser);
+            if (!ok) { Snackbar.Add(error ?? "Failed to update user.", Severity.Error); return; }
             Snackbar.Add($"Updated {editingUser.Name} successfully!", Severity.Success);
             activeOfficeEdits.Remove(editingUser.Id);
             isEditDialogOpen = false;

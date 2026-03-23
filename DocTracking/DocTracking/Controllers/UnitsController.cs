@@ -35,12 +35,20 @@ namespace DocTracking.Controllers
             if (exists) return Conflict("A unit with this name already exists in this office");
 
             _context.Units.Add(unit);
-            await _context.SaveChangesAsync();
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[AddUnit] Error: {ex.Message}");
+                return StatusCode(500, "Failed to save unit.");
+            }
             return Ok(unit);
         }
 
         [HttpPut("{id}")]
-        public async Task <IActionResult> UpdateUnit(int id, [FromBody] Unit unit)
+        public async Task<IActionResult> UpdateUnit(int id, [FromBody] Unit unit)
         {
             var existing = await _context.Units.FindAsync(id);
             if (existing == null) return NotFound();
@@ -48,7 +56,15 @@ namespace DocTracking.Controllers
             var duplicate = await _context.Units.AnyAsync(o => o.Name == unit.Name && o.OfficeId == unit.OfficeId && o.Id != id);
             if (duplicate) return Conflict("An Unit with this name already exists");
             existing.Name = unit.Name;
-            await _context.SaveChangesAsync();
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[UpdateUnit] Error: {ex.Message}");
+                return StatusCode(500, "Failed to update unit.");
+            }
             return Ok();
         }
 
@@ -81,7 +97,15 @@ namespace DocTracking.Controllers
                     .SetProperty(x => x.OfficeName, existing.Office!.Name));
 
             _context.Units.Remove(existing);
-            await _context.SaveChangesAsync();
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[DeleteUnit] Error: {ex.Message}");
+                return StatusCode(500, "Failed to delete unit.");
+            }
             return Ok();
         }  
     }

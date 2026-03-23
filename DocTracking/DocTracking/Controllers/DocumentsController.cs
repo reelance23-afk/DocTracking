@@ -66,6 +66,12 @@ namespace DocTracking.Controllers
             if (!await _context.Offices.AnyAsync(o => o.Id == doc.NextOfficeId))
                 return BadRequest("Destination office does not exist.");
 
+            if (doc.NextUnitId.HasValue)
+            {
+                var unitBelongs = await _context.Units.AnyAsync(u => u.Id == doc.NextUnitId && u.OfficeId == doc.NextOfficeId);
+                if (!unitBelongs) return BadRequest("Unit does not belong to the specified office.");
+            }
+
             var email = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email);
             var appuser = await _context.AppUsers.FirstOrDefaultAsync(u => u.Email == email);
 
@@ -77,19 +83,29 @@ namespace DocTracking.Controllers
             doc.ReferenceNumber = $"DOC-{DateTime.UtcNow:yyyyMMdd}-{randomNum}";
             doc.LastActionDate = DateTime.UtcNow;
 
-            _context.Documents.Add(doc);
-            await _context.SaveChangesAsync();
-
-            _context.DocumentLogs.Add(new DocumentLog
+            await using var tx = await _context.Database.BeginTransactionAsync();
+            try
             {
-                DocumentId = doc.Id,
-                Action = "Created",
-                TimeStamp = DateTime.UtcNow,
-                UnitId = doc.NextUnitId,
-                OfficeId = doc.NextOfficeId,
-                AppUserId = appuser?.Id
-            });
-            await _context.SaveChangesAsync();
+                _context.Documents.Add(doc);
+                await _context.SaveChangesAsync();
+
+                _context.DocumentLogs.Add(new DocumentLog
+                {
+                    DocumentId = doc.Id,
+                    Action = "Created",
+                    TimeStamp = DateTime.UtcNow,
+                    UnitId = doc.NextUnitId,
+                    OfficeId = doc.NextOfficeId,
+                    AppUserId = appuser?.Id
+                });
+                await _context.SaveChangesAsync();
+                await tx.CommitAsync();
+            }
+            catch
+            {
+                await tx.RollbackAsync();
+                throw;
+            }
 
             var creatorName = appuser?.Name ?? "Someone";
 
@@ -105,6 +121,7 @@ namespace DocTracking.Controllers
             return Ok(doc);
         }
 
+
         [HttpPost("upload")]
         public async Task<IActionResult> UploadFile(IFormFile file)
         {
@@ -118,10 +135,19 @@ namespace DocTracking.Controllers
             if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
             var uniqueFileName = Guid.NewGuid().ToString() + "_" + file.FileName;
             var filePath = Path.Combine(uploadsFolder, uniqueFileName);
-            using var stream = new FileStream(filePath, FileMode.Create);
-            await file.CopyToAsync(stream);
+            try
+            {
+                using var stream = new FileStream(filePath, FileMode.Create);
+                await file.CopyToAsync(stream);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[UploadFile] Error: {ex.Message}");
+                return StatusCode(500, "Failed to save file.");
+            }
             return Ok(new { FilePath = $"/uploads/{uniqueFileName}" });
         }
+
 
         [HttpDelete("upload")]
         public IActionResult DeleteUpload([FromQuery] string path)
@@ -242,66 +268,78 @@ namespace DocTracking.Controllers
         [HttpPut("{id}/receive")]
         public async Task<IActionResult> ReceiveDocument(int id)
         {
-            var doc = await _context.Documents
-                .Include(d => d.Creator)
-                .Include(d => d.CurrentOffice)
-                .Include(d => d.NextOffice)
-                .Include(d => d.CurrentUnit)
-                .Include(d => d.NextUnit)
-                .FirstOrDefaultAsync(d => d.Id == id);
-            if (doc == null) return NotFound();
-            if (doc.Status != "In Motion") return Conflict("Document has already been Received");
-
             var email = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email);
             var appUser = await _context.AppUsers.Include(u => u.Unit).FirstOrDefaultAsync(u => u.Email == email);
-            int? callerOfficeId = appUser?.Unit?.OfficeId ?? appUser?.OfficeId;
-            if (callerOfficeId != doc.NextOfficeId)
-                return Forbid();
 
-            var receivedOfficeId = doc.NextOfficeId;
-            var receivedUnitId = doc.NextUnitId;
-            var receivedOfficeName = doc.NextOffice?.Name;
-            var receivedUnitName = doc.NextUnit?.Name;
-
-            doc.Status = "Received";
-            doc.LastActionDate = DateTime.UtcNow;
-            doc.CurrentOfficeId = doc.NextOfficeId;
-            doc.CurrentUnitId = doc.NextUnitId;
-            doc.NextOfficeId = null;
-            doc.NextUnitId = null;
-
-            _context.DocumentLogs.Add(new DocumentLog
+            await using var tx = await _context.Database.BeginTransactionAsync();
+            try
             {
-                DocumentId = doc.Id,
-                Action = "Received",
-                OfficeId = doc.CurrentOfficeId,
-                UnitId = doc.CurrentUnitId,
-                AppUserId = appUser?.Id,
-                TimeStamp = DateTime.UtcNow,
-                Comment = doc.Comment
-            });
+                var doc = await _context.Documents
+                    .Include(d => d.Creator)
+                    .Include(d => d.CurrentOffice)
+                    .Include(d => d.NextOffice)
+                    .Include(d => d.CurrentUnit)
+                    .Include(d => d.NextUnit)
+                    .FirstOrDefaultAsync(d => d.Id == id);
+                if (doc == null) return NotFound();
+                if (doc.Status != "In Motion") return Conflict("Document has already been Received");
 
-            await _context.SaveChangesAsync();
+                int? callerOfficeId = appUser?.Unit?.OfficeId ?? appUser?.OfficeId;
+                if (callerOfficeId != doc.NextOfficeId)
+                    return Forbid();
 
-            var docName = doc.Name ?? "";
-            var receivedBy = appUser?.Name ?? "Someone";
+                var receivedOfficeId = doc.NextOfficeId;
+                var receivedUnitId = doc.NextUnitId;
+                var receivedOfficeName = doc.NextOffice?.Name;
+                var receivedUnitName = doc.NextUnit?.Name;
 
-            if (doc.CreatorId.HasValue)
-            {
-                if (receivedUnitId.HasValue)
-                    await TryNotify($"user-{doc.CreatorId}", $"Your document has been received by {receivedBy} in {receivedUnitName} of {receivedOfficeName}.", docName);
-                else if (receivedOfficeId.HasValue)
-                    await TryNotify($"user-{doc.CreatorId}", $"Your document has been received by {receivedBy} in {receivedOfficeName}.", docName);
+                doc.Status = "Received";
+                doc.LastActionDate = DateTime.UtcNow;
+                doc.CurrentOfficeId = doc.NextOfficeId;
+                doc.CurrentUnitId = doc.NextUnitId;
+                doc.NextOfficeId = null;
+                doc.NextUnitId = null;
+
+                _context.DocumentLogs.Add(new DocumentLog
+                {
+                    DocumentId = doc.Id,
+                    Action = "Received",
+                    OfficeId = doc.CurrentOfficeId,
+                    UnitId = doc.CurrentUnitId,
+                    AppUserId = appUser?.Id,
+                    TimeStamp = DateTime.UtcNow,
+                    Comment = doc.Comment
+                });
+
+                await _context.SaveChangesAsync();
+                await tx.CommitAsync();
+
+                var docName = doc.Name ?? "";
+                var receivedBy = appUser?.Name ?? "Someone";
+
+                if (doc.CreatorId.HasValue)
+                {
+                    if (receivedUnitId.HasValue)
+                        await TryNotify($"user-{doc.CreatorId}", $"Your document has been received by {receivedBy} in {receivedUnitName} of {receivedOfficeName}.", docName);
+                    else if (receivedOfficeId.HasValue)
+                        await TryNotify($"user-{doc.CreatorId}", $"Your document has been received by {receivedBy} in {receivedOfficeName}.", docName);
+                }
+
+                await NotifyOfficeOrUnit(receivedUnitId, receivedOfficeId,
+                    $"{receivedBy} received a document in your unit.",
+                    $"{receivedBy} received a document.",
+                    $"{receivedBy} received a document in {receivedUnitName ?? receivedOfficeName} of {receivedOfficeName}.",
+                    docName);
+
+                return Ok();
             }
-
-            await NotifyOfficeOrUnit(receivedUnitId, receivedOfficeId,
-                $"{receivedBy} received a document in your unit.",
-                $"{receivedBy} received a document.",
-                $"{receivedBy} received a document in {receivedUnitName ?? receivedOfficeName} of {receivedOfficeName}.",
-                docName);
-
-            return Ok();
+            catch
+            {
+                await tx.RollbackAsync();
+                throw;
+            }
         }
+
 
         [HttpPut("{id}/forward")]
         public async Task<IActionResult> ForwardDocument(int id, [FromBody] ForwardRequest request)
@@ -334,26 +372,36 @@ namespace DocTracking.Controllers
             var nextUnit = request.NextUnitId.HasValue ? await _context.Units.FindAsync(request.NextUnitId) : null;
             var destination = nextUnit != null ? nextUnit.Name : nextOffice?.Name ?? "another office";
 
-            doc.Status = "In Motion";
-            doc.Comment = request.Comment;
-            doc.LastActionDate = DateTime.UtcNow;
-            doc.NextOfficeId = request.NextOfficeId;
-            doc.NextUnitId = request.NextUnitId;
-            doc.CurrentOfficeId = null;
-            doc.CurrentUnitId = null;
-
-            _context.DocumentLogs.Add(new DocumentLog
+            await using var tx = await _context.Database.BeginTransactionAsync();
+            try
             {
-                DocumentId = doc.Id,
-                Action = "Forwarded",
-                OfficeId = request.NextOfficeId,
-                UnitId = request.NextUnitId,
-                AppUserId = appUser?.Id,
-                TimeStamp = DateTime.UtcNow,
-                Comment = request.Comment
-            });
+                doc.Status = "In Motion";
+                doc.Comment = request.Comment;
+                doc.LastActionDate = DateTime.UtcNow;
+                doc.NextOfficeId = request.NextOfficeId;
+                doc.NextUnitId = request.NextUnitId;
+                doc.CurrentOfficeId = null;
+                doc.CurrentUnitId = null;
 
-            await _context.SaveChangesAsync();
+                _context.DocumentLogs.Add(new DocumentLog
+                {
+                    DocumentId = doc.Id,
+                    Action = "Forwarded",
+                    OfficeId = request.NextOfficeId,
+                    UnitId = request.NextUnitId,
+                    AppUserId = appUser?.Id,
+                    TimeStamp = DateTime.UtcNow,
+                    Comment = request.Comment
+                });
+
+                await _context.SaveChangesAsync();
+                await tx.CommitAsync();
+            }
+            catch
+            {
+                await tx.RollbackAsync();
+                throw;
+            }
 
             var docName = doc.Name ?? "";
             var forwardedBy = appUser?.Name ?? "Someone";
@@ -381,6 +429,7 @@ namespace DocTracking.Controllers
             return Ok();
         }
 
+
         [HttpPut("{id}/finish")]
         public async Task<IActionResult> FinishDocument(int id, [FromBody] FinishRequest request)
         {
@@ -397,36 +446,45 @@ namespace DocTracking.Controllers
             if (callerOfficeId != doc.CurrentOfficeId)
                 return Forbid();
 
-            doc.Status = "Completed";
-            doc.LastActionDate = DateTime.UtcNow;
-            doc.Comment = request.Comment;
-
             var finishedAtOffice = doc.CurrentOfficeId;
             var finishedAtUnit = doc.CurrentUnitId;
             var finishedOfficeName = doc.CurrentOffice?.Name;
             var finishedUnitName = doc.CurrentUnit?.Name;
 
-            doc.CurrentOffice = null;
-            doc.CurrentUnit = null;
-            doc.CurrentOfficeId = null;
-            doc.CurrentUnitId = null;
-            doc.NextOffice = null;
-            doc.NextUnit = null;
-            doc.NextOfficeId = null;
-            doc.NextUnitId = null;
-
-            _context.DocumentLogs.Add(new DocumentLog
+            await using var tx = await _context.Database.BeginTransactionAsync();
+            try
             {
-                DocumentId = doc.Id,
-                Action = "Completed",
-                OfficeId = finishedAtOffice,
-                UnitId = finishedAtUnit,
-                AppUserId = appUser?.Id,
-                TimeStamp = DateTime.UtcNow,
-                Comment = request.Comment
-            });
+                doc.Status = "Completed";
+                doc.LastActionDate = DateTime.UtcNow;
+                doc.Comment = request.Comment;
+                doc.CurrentOffice = null;
+                doc.CurrentUnit = null;
+                doc.CurrentOfficeId = null;
+                doc.CurrentUnitId = null;
+                doc.NextOffice = null;
+                doc.NextUnit = null;
+                doc.NextOfficeId = null;
+                doc.NextUnitId = null;
 
-            await _context.SaveChangesAsync();
+                _context.DocumentLogs.Add(new DocumentLog
+                {
+                    DocumentId = doc.Id,
+                    Action = "Completed",
+                    OfficeId = finishedAtOffice,
+                    UnitId = finishedAtUnit,
+                    AppUserId = appUser?.Id,
+                    TimeStamp = DateTime.UtcNow,
+                    Comment = request.Comment
+                });
+
+                await _context.SaveChangesAsync();
+                await tx.CommitAsync();
+            }
+            catch
+            {
+                await tx.RollbackAsync();
+                throw;
+            }
 
             var docName = doc.Name ?? "";
             var finishedBy = appUser?.Name ?? "Someone";
@@ -442,6 +500,7 @@ namespace DocTracking.Controllers
 
             return Ok();
         }
+
 
         [HttpGet("outgoing/user")]
         public async Task<ActionResult<IEnumerable<Document>>> GetOutGoing()
@@ -528,9 +587,18 @@ namespace DocTracking.Controllers
             existing.FileName = doc.FileName;
             existing.FilePath = doc.FilePath;
 
-            await _context.SaveChangesAsync();
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[UpdateDocument] Error: {ex.Message}");
+                return StatusCode(500, "Failed to update document.");
+            }
             return Ok(existing);
         }
+
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteDocument(int id)
@@ -538,12 +606,25 @@ namespace DocTracking.Controllers
             var doc = await _context.Documents.FindAsync(id);
             if (doc == null) return NotFound();
 
-            var logs = _context.DocumentLogs.Where(d => d.DocumentId == id);
-            _context.DocumentLogs.RemoveRange(logs);
-            _context.Documents.Remove(doc);
-            await _context.SaveChangesAsync();
+            var logs = await _context.DocumentLogs.Where(d => d.DocumentId == id).ToListAsync();
+
+            await using var tx = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                _context.DocumentLogs.RemoveRange(logs);
+                _context.Documents.Remove(doc);
+                await _context.SaveChangesAsync();
+                await tx.CommitAsync();
+            }
+            catch
+            {
+                await tx.RollbackAsync();
+                throw;
+            }
+
             return Ok();
         }
+
 
         [HttpGet("{id}/qrcode")]
         [AllowAnonymous]
@@ -592,36 +673,48 @@ namespace DocTracking.Controllers
             var email = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email);
             var appUser = await _context.AppUsers.FirstOrDefaultAsync(u => u.Email == email);
 
-            doc.Status = request.Status ?? doc.Status;
-            doc.LastActionDate = DateTime.UtcNow;
-
-            if (request.NextOfficeId.HasValue)
+            await using var tx = await _context.Database.BeginTransactionAsync();
+            try
             {
-                doc.CurrentOfficeId = null;
-                doc.CurrentUnitId = null;
-                doc.NextOfficeId = request.NextOfficeId;
-                doc.NextUnitId = request.NextUnitId;
-                doc.Status = "In Motion";
+                doc.Status = request.Status ?? doc.Status;
+                doc.LastActionDate = DateTime.UtcNow;
+
+                if (request.NextOfficeId.HasValue)
+                {
+                    doc.CurrentOfficeId = null;
+                    doc.CurrentUnitId = null;
+                    doc.NextOfficeId = request.NextOfficeId;
+                    doc.NextUnitId = request.NextUnitId;
+                    doc.Status = "In Motion";
+                }
+
+                _context.DocumentLogs.Add(new DocumentLog
+                {
+                    DocumentId = doc.Id,
+                    Action = "Admin Override",
+                    OfficeId = request.NextOfficeId ?? doc.CurrentOfficeId,
+                    UnitId = request.NextUnitId ?? doc.CurrentUnitId,
+                    AppUserId = appUser?.Id,
+                    TimeStamp = DateTime.UtcNow,
+                    Comment = request.NextOfficeId.HasValue ? request.ReassignComment : request.ForceComment
+                });
+
+                await _context.SaveChangesAsync();
+                await tx.CommitAsync();
             }
-
-            _context.DocumentLogs.Add(new DocumentLog
+            catch
             {
-                DocumentId = doc.Id,
-                Action = "Admin Override",
-                OfficeId = request.NextOfficeId ?? doc.CurrentOfficeId,
-                UnitId = request.NextUnitId ?? doc.CurrentUnitId,
-                AppUserId = appUser?.Id,
-                TimeStamp = DateTime.UtcNow,
-                Comment = request.NextOfficeId.HasValue ? request.ReassignComment : request.ForceComment
-            });
-
-            await _context.SaveChangesAsync();
+                await tx.RollbackAsync();
+                throw;
+            }
 
             if (doc.CreatorId.HasValue)
                 await TryNotify($"user-{doc.CreatorId}", "Your document status was updated by an admin.", doc.Name ?? "");
 
             return Ok();
         }
+
+
 
         private async Task NotifyOfficeOrUnit(int? unitId, int? officeId, string unitMsg, string officeMsg, string headMsg, string docName)
         {

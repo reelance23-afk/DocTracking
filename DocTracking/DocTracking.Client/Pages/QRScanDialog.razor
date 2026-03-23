@@ -67,22 +67,40 @@
     {
         if (!firstRender) return;
         _ref = DotNetObjectReference.Create(this);
-        await JS.InvokeVoidAsync("qrScanner.start", "qr-video", _ref);
+        try
+        {
+            await JS.InvokeVoidAsync("qrScanner.start", "qr-video", _ref);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[QRScan] Camera start error: {ex.Message}");
+            _unsupported = true;
+            StateHasChanged();
+        }
     }
 
     private async Task OnImageUploaded(IBrowserFile file)
     {
         _imageError = null;
-        using var ms = new MemoryStream();
-        await file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024).CopyToAsync(ms);
-        var base64 = Convert.ToBase64String(ms.ToArray());
-        _imagePreview = $"data:{file.ContentType};base64,{base64}";
-        StateHasChanged();
-
-        var result = await JS.InvokeAsync<string?>("qrScanner.decodeImage", _imagePreview, _ref);
-        if (result == null)
+        try
         {
-            _imageError = "No QR code found in the image.";
+            using var ms = new MemoryStream();
+            await file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024).CopyToAsync(ms);
+            var base64 = Convert.ToBase64String(ms.ToArray());
+            _imagePreview = $"data:{file.ContentType};base64,{base64}";
+            StateHasChanged();
+
+            var result = await JS.InvokeAsync<string?>("qrScanner.decodeImage", _imagePreview, _ref);
+            if (result == null)
+            {
+                _imageError = "No QR code found in the image.";
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[QRScan] Image decode error: {ex.Message}");
+            _imageError = "Failed to process image.";
             StateHasChanged();
         }
     }
@@ -115,7 +133,7 @@
 
     public async ValueTask DisposeAsync()
     {
-        await JS.InvokeVoidAsync("qrScanner.stop");
+        try { await JS.InvokeVoidAsync("qrScanner.stop"); } catch { }
         _ref?.Dispose();
     }
 }

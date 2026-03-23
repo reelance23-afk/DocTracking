@@ -263,18 +263,26 @@
 
     private async Task ExportCsv()
     {
-        var sb = new System.Text.StringBuilder();
-        sb.AppendLine("Name,Type,Sender,Status,Priority,Current Office,Current Unit,Next Office,Created At");
-        foreach (var doc in FilteredDocuments)
+        try
         {
-            sb.AppendLine($"\"{doc.Name}\",\"{doc.Type}\",\"{doc.Creator?.Name}\",\"{doc.Status}\",\"{doc.Priority}\"," +
-                          $"\"{doc.CurrentOffice?.Name}\",\"{doc.CurrentUnit?.Name}\",\"{doc.NextOffice?.Name}\"," +
-                          $"\"{doc.CreatedAt.ToLocalTime():yyyy-MM-dd}\"");
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("Name,Type,Sender,Status,Priority,Current Office,Current Unit,Next Office,Created At");
+            foreach (var doc in FilteredDocuments)
+            {
+                sb.AppendLine($"\"{doc.Name}\",\"{doc.Type}\",\"{doc.Creator?.Name}\",\"{doc.Status}\",\"{doc.Priority}\"," +
+                              $"\"{doc.CurrentOffice?.Name}\",\"{doc.CurrentUnit?.Name}\",\"{doc.NextOffice?.Name}\"," +
+                              $"\"{doc.CreatedAt.ToLocalTime():yyyy-MM-dd}\"");
+            }
+            var bytes = System.Text.Encoding.UTF8.GetBytes(sb.ToString());
+            var base64 = Convert.ToBase64String(bytes);
+            await JS.InvokeVoidAsync("downloadCsv", base64, $"documents_{DateTime.Now:yyyyMMdd}.csv");
         }
-        var bytes = System.Text.Encoding.UTF8.GetBytes(sb.ToString());
-        var base64 = Convert.ToBase64String(bytes);
-        await JS.InvokeVoidAsync("downloadCsv", base64, $"documents_{DateTime.Now:yyyyMMdd}.csv");
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ExportCsv] Error: {ex.Message}");
+        }
     }
+
 
     private bool FilterFunc(Document element)
     {

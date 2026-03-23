@@ -75,17 +75,35 @@ namespace DocTracking.Controllers
                 DocumentName = "",
                 Time = now
             }));
-            await _context.SaveChangesAsync();
+
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Broadcast] SaveChanges failed: {ex.Message}");
+                return StatusCode(500, "Failed to save notifications.");
+            }
 
             foreach (var user in targets)
-                await _hub.Clients.Group($"user-{user.Id}")
-                    .SendAsync("ReceiveNotification", request.Message, "");
+            {
+                try
+                {
+                    await _hub.Clients.Group($"user-{user.Id}")
+                        .SendAsync("ReceiveNotification", request.Message, "");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Broadcast] SignalR failed for user {user.Id}: {ex.Message}");
+                }
+            }
 
             return Ok(new { sent = targets.Count });
         }
-    }
 
-    public class BroadcastRequest
+
+        public class BroadcastRequest
     {
         public string Message { get; set; } = "";
         public int? OfficeId { get; set; }
