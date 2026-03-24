@@ -7,7 +7,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace DocTracking.Migrations
 {
     /// <inheritdoc />
-    public partial class asdasd : Migration
+    public partial class LIPAT : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)

@@ -82,6 +82,15 @@
                                         @office.ReceivingSchedule
                                     </MudChip>
                                 }
+                                @if (!(office.Units?.Any() ?? false))
+                                {
+                                    <MudTooltip Text="Assign Workers">
+                                        <MudIconButton Icon="@Icons.Material.Filled.PersonAdd" Size="Size.Small"
+                                                       Color="Color.Success"
+                                                       Disabled="@(!nonAdminUsers.Any())"
+                                                       OnClick="@(() => OpenOfficeAssignDialog(office))" />
+                                    </MudTooltip>
+                                }
                                 <MudIconButton Icon="@Icons.Material.Filled.EditCalendar" Size="Size.Small"
                                                Color="Color.Primary" OnClick="@(() => OpenScheduleDialog(office))"
                                                Title="Set Receiving Schedule" />
@@ -96,6 +105,25 @@
                         <MudDivider />
                         <div class="pa-4">
                             <MudPaper Elevation="0" Class="pa-3 mb-4 rounded-lg mud-background-gray">
+                                @{
+                                    var officeWorkers = allUsers.Where(u => u.OfficeId == office.Id && u.UnitId == null).ToList();
+                                }
+                                @if (officeWorkers.Any())
+                                {
+                                    <MudPaper Elevation="0" Class="pa-3 mb-4 rounded-lg" Style="background: rgba(var(--mud-palette-success-rgb), 0.06);">
+                                        <div class="d-flex justify-space-between align-center mb-2">
+                                            <MudText Typo="Typo.subtitle2" Class="font-weight-bold">Unassigned Workers</MudText>
+                                            <MudText Typo="Typo.caption" Class="mud-text-secondary">@officeWorkers.Count worker(s)</MudText>
+                                        </div>
+                                        <div class="d-flex align-center gap-1 flex-wrap">
+                                            @foreach (var worker in officeWorkers)
+                                            {
+                                                <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Filled">@worker.Name</MudChip>
+                                            }
+                                        </div>
+                                    </MudPaper>
+                                }
+
                                 <MudText Typo="Typo.subtitle2" Class="mb-2 font-weight-bold">Add New Unit</MudText>
                                 <div class="d-flex gap-2 align-center unit-input-row">
                                     <input type="text"
@@ -245,7 +273,7 @@
     <TitleContent>
         <div class="d-flex align-center gap-2">
             <MudIcon Icon="@Icons.Material.Filled.PersonAdd" Color="Color.Success" />
-            <MudText Typo="Typo.h6"><strong>@assignTargetUnit?.Name</strong></MudText>
+            <MudText Typo="Typo.h6"><strong>@(assignTargetUnit?.Name ?? assignTargetOffice?.Name)</strong></MudText>
         </div>
     </TitleContent>
     <DialogContent>
@@ -294,6 +322,7 @@
     private List<AppUser> allUsers = new();
     private bool loading = true;
     private string searchString { get; set; } = "";
+    private Office? assignTargetOffice;
     private string assignSearch = "";
     private List<AppUser> assignSortedUsers = new();
 
@@ -360,46 +389,56 @@
 
     private async Task ConfirmAssign()
     {
-        if (assignTargetUnit == null) return;
         isAssigning = true;
         try
         {
-            if (assignSelectedIds.Any())
+            if (assignTargetUnit != null)
             {
-                var (ok, error) = await DocService.SelectiveReassignUsersAsync(
-                    assignSelectedIds.ToList(), assignTargetUnit.Id);
-                if (!ok) { Snackbar.Add(error ?? "Error assigning users.", Severity.Error); return; }
-            }
-
-            var toRemove = allUsers
-                .Where(u => u.UnitId == assignTargetUnit.Id && !assignSelectedIds.Contains(u.Id))
-                .ToList();
-
-            foreach (var user in toRemove)
-            {
-                var updated = new AppUser
+                if (assignSelectedIds.Any())
                 {
-                    Id = user.Id,
-                    Name = user.Name,
-                    Email = user.Email,
-                    Role = user.Role,
-                    UnitId = null,
-                    OfficeId = null,
-                    IsOfficeHead = false
-                };
-                var (removeOk, removeErr) = await DocService.UpdateAppUserAsync(updated);
-                if (!removeOk)
-                    Snackbar.Add($"Failed to remove {user.Name}: {removeErr ?? "Unknown error"}", Severity.Warning);
+                    var usersToPromote = allUsers
+                        .Where(u => assignSelectedIds.Contains(u.Id) && u.Role != "Office" && u.Role != "Admin")
+                        .ToList();
+                    foreach (var user in usersToPromote)
+                        await DocService.UpdateAppUserAsync(new AppUser { Id = user.Id, Name = user.Name, Email = user.Email, Role = "Office", UnitId = assignTargetUnit.Id, OfficeId = null, IsOfficeHead = false });
+
+                    var (ok, error) = await DocService.SelectiveReassignUsersAsync(assignSelectedIds.ToList(), assignTargetUnit.Id);
+                    if (!ok) { Snackbar.Add(error ?? "Error assigning users.", Severity.Error); return; }
+                }
+                var toRemove = allUsers.Where(u => u.UnitId == assignTargetUnit.Id && !assignSelectedIds.Contains(u.Id)).ToList();
+                foreach (var user in toRemove)
+                {
+                    var (removeOk, removeErr) = await DocService.UpdateAppUserAsync(new AppUser { Id = user.Id, Name = user.Name, Email = user.Email, Role = "User", UnitId = null, OfficeId = null, IsOfficeHead = false });
+                    if (!removeOk) Snackbar.Add($"Failed to remove {user.Name}: {removeErr ?? "Unknown error"}", Severity.Warning);
+                }
+                var total = assignSelectedIds.Count;
+                var removed = toRemove.Count;
+                Snackbar.Add(total > 0 && removed > 0 ? $"{total} assigned, {removed} removed from {assignTargetUnit.Name}."
+                    : total > 0 ? $"{total} user(s) assigned to {assignTargetUnit.Name}."
+                    : $"{removed} user(s) removed from {assignTargetUnit.Name}.", Severity.Success);
+            }
+            else if (assignTargetOffice != null)
+            {
+                foreach (var userId in assignSelectedIds)
+                {
+                    var user = allUsers.FirstOrDefault(u => u.Id == userId);
+                    if (user == null) continue;
+                    if (user.Role != "Office" && user.Role != "Admin")
+                        await DocService.UpdateAppUserAsync(new AppUser { Id = user.Id, Name = user.Name, Email = user.Email, Role = "Office", UnitId = null, OfficeId = assignTargetOffice.Id, IsOfficeHead = false });
+                }
+                var toRemove = allUsers.Where(u => u.OfficeId == assignTargetOffice.Id && u.UnitId == null && !assignSelectedIds.Contains(u.Id)).ToList();
+                foreach (var user in toRemove)
+                {
+                    var (removeOk, removeErr) = await DocService.UpdateAppUserAsync(new AppUser { Id = user.Id, Name = user.Name, Email = user.Email, Role = "User", UnitId = null, OfficeId = null, IsOfficeHead = false });
+                    if (!removeOk) Snackbar.Add($"Failed to remove {user.Name}: {removeErr ?? "Unknown error"}", Severity.Warning);
+                }
+                var total = assignSelectedIds.Count;
+                var removed = toRemove.Count;
+                Snackbar.Add(total > 0 && removed > 0 ? $"{total} assigned, {removed} removed from {assignTargetOffice.Name}."
+                    : total > 0 ? $"{total} user(s) assigned to {assignTargetOffice.Name}."
+                    : $"{removed} user(s) removed from {assignTargetOffice.Name}.", Severity.Success);
             }
 
-            var total = assignSelectedIds.Count;
-            var removed = toRemove.Count;
-            var msg = total > 0 && removed > 0
-                ? $"{total} assigned, {removed} removed from {assignTargetUnit.Name}."
-                : total > 0 ? $"{total} user(s) assigned to {assignTargetUnit.Name}."
-                : $"{removed} user(s) removed from {assignTargetUnit.Name}.";
-
-            Snackbar.Add(msg, Severity.Success);
             isAssignOpen = false;
             await LoadOffices(showSpinner: false);
         }
@@ -407,6 +446,22 @@
     }
 
 
+    private void OpenOfficeAssignDialog(Office office)
+    {
+        assignTargetOffice = office;
+        assignSearch = "";
+        assignSelectedIds = allUsers
+            .Where(u => u.OfficeId == office.Id && u.UnitId == null)
+            .Select(u => u.Id)
+            .ToHashSet();
+        assignSortedUsers = allUsers
+            .Where(u => u.Role != "Admin")
+            .OrderByDescending(u => assignSelectedIds.Contains(u.Id))
+            .ThenBy(u => u.Name)
+            .ToList();
+        isAssignOpen = true;
+        assignTargetUnit = null;
+    }
 
     private async Task OpenAddOfficeDialog()
     {

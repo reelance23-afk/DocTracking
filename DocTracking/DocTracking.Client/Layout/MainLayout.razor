@@ -79,11 +79,23 @@
 
         <AuthorizeView>
             <Authorized>
+                <div style="flex:1; max-width:600px; padding: 0 8px;">
+                    <MudTextField @bind-Value="_refSearch" Placeholder="Track by ref no..."
+                                  Adornment="Adornment.End"
+                                  AdornmentIcon="@Icons.Material.Filled.Search"
+                                  AdornmentAriaLabel="Track"
+                                  OnAdornmentClick="GoToRef"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense"
+                                  OnKeyDown="OnSearchKeyDown"
+                                  Style="width:100%;" />
+                </div>
                 <MudIconButton Icon="@Icons.Material.Filled.QrCodeScanner"
                                Color="Color.Default"
                                OnClick="OpenScanDialog" />
             </Authorized>
         </AuthorizeView>
+
         <NotificationBell />
     </MudAppBar>
 
@@ -92,42 +104,32 @@
                Variant="DrawerVariant.Responsive"
                ClipMode="DrawerClipMode.Never">
 
-        <MudDrawer @bind-Open="_drawerOpen"
-                   Elevation="1"
-                   Variant="DrawerVariant.Responsive"
-                   ClipMode="DrawerClipMode.Never">
+        <MudDrawerHeader Class="pa-4">
+            <AuthorizeView>
+                <Authorized>
+                    <MudPaper Outlined="true" Class="d-flex align-center pa-2 rounded-lg w-100" Elevation="0"
+                              Style="background-color: var(--mud-palette-background-grey);">
+                        <MudAvatar Color="Color.Dark" Variant="Variant.Filled" Size="Size.Medium" Class="mr-3 font-weight-bold">
+                            @(displayName?.Length > 0 ? displayName[0].ToString().ToUpper() : "?")
+                        </MudAvatar>
+                        @if (_showText)
+                        {
+                            <div class="d-flex flex-column overflow-hidden" style="animation: fadeIn 0.4s ease-out;">
+                                <MudText Typo="Typo.subtitle2" Class="font-weight-bold text-truncate">@(displayName ?? "User")</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@(displayRole ?? "—")</MudText>
+                            </div>
+                        }
+                    </MudPaper>
+                </Authorized>
+            </AuthorizeView>
+        </MudDrawerHeader>
 
-            <MudDrawerHeader Class="pa-4">
-                <AuthorizeView>
-                    <Authorized>
-                        <MudPaper Outlined="true" Class="d-flex align-center pa-2 rounded-lg w-100" Elevation="0"
-                                  Style="background-color: var(--mud-palette-background-grey);">
-                            <MudAvatar Color="Color.Dark" Variant="Variant.Filled" Size="Size.Medium" Class="mr-3 font-weight-bold">
-                                @(displayName?.Length > 0 ? displayName[0].ToString().ToUpper() : "?")
-                            </MudAvatar>
-                            @if (_showText)
-                            {
-                                <div class="d-flex flex-column overflow-hidden" style="animation: fadeIn 0.4s ease-out;">
-                                    <MudText Typo="Typo.subtitle2" Class="font-weight-bold text-truncate">@(displayName ?? "User")</MudText>
-                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@(displayRole ?? "—")</MudText>
-                                </div>
-                            }
-                        </MudPaper>
-                    </Authorized>
-                </AuthorizeView>
-            </MudDrawerHeader>
+        <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 0;">
+            <CascadingValue Value="_showText">
+                <NavMenu />
+            </CascadingValue>
+        </div>
 
-            <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 0;">
-                <CascadingValue Value="_showText">
-                    <NavMenu />
-                </CascadingValue>
-            </div>
-
-        </MudDrawer>
-
-        <CascadingValue Value="_showText">
-            <NavMenu />
-        </CascadingValue>
     </MudDrawer>
 
     <MudMainContent>
@@ -140,7 +142,7 @@
 @code {
     bool _drawerOpen = true;
     bool _showText = true;
-    private string _searchTerm = "";
+    private string _refSearch = "";
     private MudTheme CurrentTheme = new();
     private string? displayName;
     private string? displayRole;
@@ -153,10 +155,7 @@
             ThemeService.OnChange += () => { CurrentTheme = BuildTheme(); StateHasChanged(); };
             CurrentTheme = BuildTheme();
 
-            try
-            {
-                await JSRuntime.InvokeVoidAsync("eval", "document.getElementById('app-loading')?.remove()");
-            }
+            try { await JSRuntime.InvokeVoidAsync("eval", "document.getElementById('app-loading')?.remove()"); }
             catch { }
 
             try
@@ -170,15 +169,26 @@
                     _ => "User"
                 };
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[MainLayout] Profile load error: {ex.Message}");
-            }
+            catch (Exception ex) { Console.WriteLine($"[MainLayout] Profile load error: {ex.Message}"); }
+
             StateHasChanged();
         }
     }
 
+    private void GoToRef()
+    {
+        var trimmed = _refSearch.Trim();
+        if (!string.IsNullOrEmpty(trimmed))
+        {
+            _refSearch = "";
+            Navigation.NavigateTo($"/track/{Uri.EscapeDataString(trimmed)}", forceLoad: true);
+        }
+    }
 
+    private void OnSearchKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") GoToRef();
+    }
 
     private MudTheme BuildTheme() => ThemeService.SelectedTheme switch
     {

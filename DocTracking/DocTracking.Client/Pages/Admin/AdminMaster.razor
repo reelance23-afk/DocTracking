@@ -253,7 +253,7 @@
             int maxDoc = Math.Max(totalDocuments, 1);
             officeWorkLoads = allOffices.Select(office =>
             {
-                int count = allDocuments.Count(d => d.CurrentOffice?.Name == office.Name);
+                int count = allDocuments.Count(d => d.CurrentOfficeId == office.Id);
                 return new OfficeWorkLoad
                 {
                     OfficeName = office.Name,

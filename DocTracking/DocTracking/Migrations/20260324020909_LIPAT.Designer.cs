@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace DocTracking.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260321085314_asdasd")]
-    partial class asdasd
+    [Migration("20260324020909_LIPAT")]
+    partial class LIPAT
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

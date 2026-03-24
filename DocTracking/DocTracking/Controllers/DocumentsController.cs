@@ -790,17 +790,42 @@ namespace DocTracking.Controllers
                 var beforeStatus = doc.Status;
                 var beforeOfficeId = doc.CurrentOfficeId ?? doc.NextOfficeId;
 
-                doc.Status = request.Status ?? doc.Status;
                 doc.LastActionDate = DateTime.UtcNow;
 
                 if (request.NextOfficeId.HasValue)
                 {
-                    doc.CurrentOfficeId = null;
-                    doc.CurrentUnitId = null;
-                    doc.NextOfficeId = request.NextOfficeId;
-                    doc.NextUnitId = request.NextUnitId;
-                    doc.Status = "In Motion";
+                    var explicitStatus = request.Status;
+
+                    if (explicitStatus == "Received")
+                    {
+                        doc.CurrentOfficeId = request.NextOfficeId;
+                        doc.CurrentUnitId = request.NextUnitId;
+                        doc.NextOfficeId = null;
+                        doc.NextUnitId = null;
+                        doc.Status = "Received";
+                    }
+                    else if (explicitStatus == "Completed")
+                    {
+                        doc.CurrentOfficeId = null;
+                        doc.CurrentUnitId = null;
+                        doc.NextOfficeId = null;
+                        doc.NextUnitId = null;
+                        doc.Status = "Completed";
+                    }
+                    else
+                    {
+                        doc.CurrentOfficeId = null;
+                        doc.CurrentUnitId = null;
+                        doc.NextOfficeId = request.NextOfficeId;
+                        doc.NextUnitId = request.NextUnitId;
+                        doc.Status = "In Motion";
+                    }
                 }
+                else
+                {
+                    doc.Status = request.Status ?? doc.Status;
+                }
+
 
                 var snapshotParts = new List<string> { $"Status: '{beforeStatus}' to '{doc.Status}'" };
                 if (request.NextOfficeId.HasValue)

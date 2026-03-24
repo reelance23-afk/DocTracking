@@ -17,212 +17,199 @@
             <MudIcon Icon="@Icons.Material.Filled.TrackChanges" Size="Size.Large" Class="mr-3" Color="Color.Primary" />
             <MudText Typo="Typo.h4" Class="font-weight-bold">Tracking List</MudText>
         </div>
-        <DocStatCards Documents="_serverItems" />
     </div>
 
-    @if (loading)
-    {
-        <MudPaper Elevation="2" Class="pa-8 text-center rounded-lg">
-            <MudProgressCircular Color="Color.Primary" Indeterminate="true" Class="mb-4" />
-            <MudText>Loading documents...</MudText>
-        </MudPaper>
-    }
-    else
-    {
-        <MudPaper Elevation="3" Class="pa-4 pa-md-6 rounded-lg">
-            <div class="d-flex justify-space-between align-center mb-4">
-                <div>
-                    <MudText Typo="Typo.h6" Class="font-weight-bold">All Documents</MudText>
-                    <MudText Typo="Typo.body2" Class="mud-text-secondary">Browse, filter and export all documents.</MudText>
+    <MudPaper Elevation="3" Class="pa-4 pa-md-6 rounded-lg">
+        <div class="d-flex justify-space-between align-center mb-4">
+            <div>
+                <MudText Typo="Typo.h6" Class="font-weight-bold">All Documents</MudText>
+                <MudText Typo="Typo.body2" Class="mud-text-secondary">Browse, filter and export all documents.</MudText>
+            </div>
+            <MudButton Variant="Variant.Outlined" Color="Color.Success"
+                       StartIcon="@Icons.Material.Filled.Download" OnClick="ExportCsv"
+                       Class="d-none d-md-flex">
+                Export CSV
+            </MudButton>
+        </div>
+
+        <MudTextField @bind-Value="searchString" Placeholder="Search documents, senders, or locations..."
+                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                      IconSize="Size.Medium" Variant="Variant.Outlined" Margin="Margin.Dense"
+                      Immediate="true" DebounceInterval="400"
+                      TextChanged="@(async (string v) => { searchString = v; await OnFilterChanged(); })"
+                      Class="mb-4" />
+
+        <div class="d-flex gap-2 flex-wrap align-center mb-4">
+            <MudSelect Value="statusFilter" Label="Status" Variant="Variant.Outlined"
+                       Margin="Margin.Dense" T="string" Style="min-width:140px;"
+                       ValueChanged="@(async (string v) => { statusFilter = v; await OnFilterChanged(); })">
+                <MudSelectItem T="string" Value="@("")">All Statuses</MudSelectItem>
+                <MudSelectItem T="string" Value="@("In Motion")">In Motion</MudSelectItem>
+                <MudSelectItem T="string" Value="@("Received")">Received</MudSelectItem>
+                <MudSelectItem T="string" Value="@("Completed")">Completed</MudSelectItem>
+            </MudSelect>
+            <MudSelect Value="officeFilter" Label="Office" Variant="Variant.Outlined"
+                       Margin="Margin.Dense" T="string" Style="min-width:160px;"
+                       ValueChanged="@(async (string v) => { officeFilter = v; await OnFilterChanged(); })">
+                <MudSelectItem T="string" Value="@("")">All Offices</MudSelectItem>
+                @foreach (var office in allOffices)
+                {
+                    <MudSelectItem T="string" Value="@office.Name">@office.Name</MudSelectItem>
+                }
+            </MudSelect>
+            <MudDatePicker Date="dateFrom" Label="From" Variant="Variant.Outlined"
+                           Margin="Margin.Dense" Style="min-width:140px;"
+                           DateChanged="@(async (DateTime? v) => { dateFrom = v; await OnFilterChanged(); })" />
+            <MudDatePicker Date="dateTo" Label="To" Variant="Variant.Outlined"
+                           Margin="Margin.Dense" Style="min-width:140px;"
+                           DateChanged="@(async (DateTime? v) => { dateTo = v; await OnFilterChanged(); })" />
+            @if (!string.IsNullOrEmpty(statusFilter) || !string.IsNullOrEmpty(officeFilter) || dateFrom != null || dateTo != null)
+            {
+                <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="ClearFilters"
+                           StartIcon="@Icons.Material.Filled.Clear">Clear</MudButton>
+            }
+            <MudSpacer />
+            <MudButton Variant="Variant.Outlined" Color="Color.Success"
+                       StartIcon="@Icons.Material.Filled.Download" OnClick="ExportCsv"
+                       Class="d-md-none">
+                Export CSV
+            </MudButton>
+        </div>
+
+        <MudHidden Breakpoint="Breakpoint.SmAndDown">
+            @if (_selectedDocs.Any())
+            {
+                <div class="d-flex align-center gap-2 mb-3 pa-2" style="background: rgba(var(--mud-palette-error-rgb),0.06); border-radius:8px;">
+                    <MudText Typo="Typo.body2"><strong>@_selectedDocs.Count</strong> selected</MudText>
+                    <MudSpacer />
+                    <MudButton Color="Color.Error" Variant="Variant.Filled" Size="Size.Small"
+                               StartIcon="@Icons.Material.Filled.DeleteSweep"
+                               Disabled="@_isBulkDeleting"
+                               OnClick="BulkDelete">
+                        @(_isBulkDeleting ? "Deleting..." : "Delete Selected")
+                    </MudButton>
                 </div>
-                <MudButton Variant="Variant.Outlined" Color="Color.Success"
-                           StartIcon="@Icons.Material.Filled.Download" OnClick="ExportCsv"
-                           Class="d-none d-md-flex">
-                    Export CSV
-                </MudButton>
-            </div>
-
-            <MudTextField @bind-Value="searchString" Placeholder="Search documents, senders, or locations..."
-                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
-                          IconSize="Size.Medium" Variant="Variant.Outlined" Margin="Margin.Dense"
-                          Immediate="true" DebounceInterval="400"
-                          TextChanged="@(async (string v) => { searchString = v; await OnFilterChanged(); })"
-                          Class="mb-4" />
-
-            <div class="d-flex gap-2 flex-wrap align-center mb-4">
-                <MudSelect Value="statusFilter" Label="Status" Variant="Variant.Outlined"
-                           Margin="Margin.Dense" T="string" Style="min-width:140px;"
-                           ValueChanged="@(async (string v) => { statusFilter = v; await OnFilterChanged(); })">
-                    <MudSelectItem T="string" Value="@("")">All Statuses</MudSelectItem>
-                    <MudSelectItem T="string" Value="@("In Motion")">In Motion</MudSelectItem>
-                    <MudSelectItem T="string" Value="@("Received")">Received</MudSelectItem>
-                    <MudSelectItem T="string" Value="@("Completed")">Completed</MudSelectItem>
-                </MudSelect>
-                <MudSelect Value="officeFilter" Label="Office" Variant="Variant.Outlined"
-                           Margin="Margin.Dense" T="string" Style="min-width:160px;"
-                           ValueChanged="@(async (string v) => { officeFilter = v; await OnFilterChanged(); })">
-                    <MudSelectItem T="string" Value="@("")">All Offices</MudSelectItem>
-                    @foreach (var office in allOffices)
-                    {
-                        <MudSelectItem T="string" Value="@office.Name">@office.Name</MudSelectItem>
-                    }
-                </MudSelect>
-                <MudDatePicker Date="dateFrom" Label="From" Variant="Variant.Outlined"
-                               Margin="Margin.Dense" Style="min-width:140px;"
-                               DateChanged="@(async (DateTime? v) => { dateFrom = v; await OnFilterChanged(); })" />
-                <MudDatePicker Date="dateTo" Label="To" Variant="Variant.Outlined"
-                               Margin="Margin.Dense" Style="min-width:140px;"
-                               DateChanged="@(async (DateTime? v) => { dateTo = v; await OnFilterChanged(); })" />
-                @if (!string.IsNullOrEmpty(statusFilter) || !string.IsNullOrEmpty(officeFilter) || dateFrom != null || dateTo != null)
-                {
-                    <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="ClearFilters"
-                               StartIcon="@Icons.Material.Filled.Clear">Clear</MudButton>
-                }
-                <MudSpacer />
-                <MudButton Variant="Variant.Outlined" Color="Color.Success"
-                           StartIcon="@Icons.Material.Filled.Download" OnClick="ExportCsv"
-                           Class="d-md-none">
-                    Export CSV
-                </MudButton>
-            </div>
-
-
-
-
-            <MudHidden Breakpoint="Breakpoint.SmAndDown">
-                @if (_selectedDocs.Any())
-                {
-                    <div class="d-flex align-center gap-2 mb-3 pa-2" style="background: rgba(var(--mud-palette-error-rgb),0.06); border-radius:8px;">
-                        <MudText Typo="Typo.body2"><strong>@_selectedDocs.Count</strong> selected</MudText>
-                        <MudSpacer />
-                        <MudButton Color="Color.Error" Variant="Variant.Filled" Size="Size.Small"
-                                   StartIcon="@Icons.Material.Filled.DeleteSweep"
-                                   Disabled="@_isBulkDeleting"
-                                   OnClick="BulkDelete">
-                            @(_isBulkDeleting ? "Deleting..." : "Delete Selected")
-                        </MudButton>
-                    </div>
-                }
-                <MudTable @ref="_table" ServerData="LoadServerData" Hover="true" T="Document"
-                          MultiSelection="true" @bind-SelectedItems="_selectedDocs">
-                    <HeaderContent>
-                        <MudTh><MudTableSortLabel SortBy="new Func<Document, object>(x => x.Name)">Name</MudTableSortLabel></MudTh>
-                        <MudTh>Sender</MudTh>
-                        <MudTh>Location</MudTh>
-                        <MudTh>Status</MudTh>
-                        <MudTh><MudTableSortLabel SortBy="new Func<Document, object>(x => x.CreatedAt)">Date</MudTableSortLabel></MudTh>
-                        <MudTh>Actions</MudTh>
-                    </HeaderContent>
-                    <RowTemplate>
-                        <MudTd DataLabel="Name"><strong>@context.Name</strong></MudTd>
-                        <MudTd DataLabel="Sender">@context.Creator?.Name</MudTd>
-                        <MudTd DataLabel="Location">
-                            @if (context.CurrentOffice != null)
-                            {
-                                <MudText Typo="Typo.body2"><strong>@context.CurrentOffice.Name</strong><br /><span style="color: gray; font-size: 0.85em;">↳ @(context.CurrentUnit?.Name ?? "General")</span></MudText>
-                            }
-                            else if (context.NextOffice != null)
-                            {
-                                <MudText Typo="Typo.body2"><span style="color: #ff9800; font-size: 0.85em; font-style: italic;">Routing to:</span><br /><strong>@context.NextOffice.Name</strong><br /><span style="color: gray; font-size: 0.85em;">↳ @(context.NextUnit?.Name ?? "General")</span></MudText>
-                            }
-                            else
-                            {
-                                <MudText Typo="Typo.body2" Color="Color.Default">Unassigned</MudText>
-                            }
-                        </MudTd>
-                        <MudTd DataLabel="Status">
-                            <MudChip T="string" Color="@DocHelpers.GetStatusColor(context.Status)" Size="Size.Small" Variant="Variant.Filled">@context.Status</MudChip>
-                        </MudTd>
-                        <MudTd DataLabel="Date">@context.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")</MudTd>
-                        <MudTd DataLabel="Actions">
-                            <div class="d-flex gap-2">
-                                <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary"
-                                           StartIcon="@Icons.Material.Filled.Visibility"
-                                           OnClick="@(async () => await OpenViewDialog(context))">View</MudButton>
-                                <MudIconButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Secondary"
-                                               Icon="@Icons.Material.Filled.QrCode"
-                                               OnClick="@(async () => await OpenQRDialog(context))" />
-                                <MudIconButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Warning"
-                                               Icon="@Icons.Material.Filled.Edit"
-                                               OnClick="@(async () => await OpenEditDialog(context))" />
-                                <MudIconButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Error"
-                                               Icon="@Icons.Material.Filled.Delete"
-                                               OnClick="@(async () => await DeleteDocument(context))" />
-                            </div>
-                        </MudTd>
-                    </RowTemplate>
-                    <NoRecordsContent>
-                        <div class="pa-8 text-center">
-                            <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Large" Style="opacity: 0.3; font-size: 4rem;" Class="mb-4" />
-                            <MudText Typo="Typo.h6" Class="mud-text-secondary">No documents found</MudText>
+            }
+            <MudTable @ref="_table" ServerData="LoadServerData" Hover="true" T="Document"
+                      MultiSelection="true" @bind-SelectedItems="_selectedDocs">
+                <HeaderContent>
+                    <MudTh><MudTableSortLabel SortBy="new Func<Document, object>(x => x.Name)">Name</MudTableSortLabel></MudTh>
+                    <MudTh>Sender</MudTh>
+                    <MudTh>Location</MudTh>
+                    <MudTh>Status</MudTh>
+                    <MudTh><MudTableSortLabel SortBy="new Func<Document, object>(x => x.CreatedAt)">Date</MudTableSortLabel></MudTh>
+                    <MudTh>Actions</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Name"><strong>@context.Name</strong></MudTd>
+                    <MudTd DataLabel="Sender">@context.Creator?.Name</MudTd>
+                    <MudTd DataLabel="Location">
+                        @if (context.CurrentOffice != null)
+                        {
+                            <MudText Typo="Typo.body2"><strong>@context.CurrentOffice.Name</strong><br /><span style="color: gray; font-size: 0.85em;">↳ @(context.CurrentUnit?.Name ?? "General")</span></MudText>
+                        }
+                        else if (context.NextOffice != null)
+                        {
+                            <MudText Typo="Typo.body2"><span style="color: #ff9800; font-size: 0.85em; font-style: italic;">Routing to:</span><br /><strong>@context.NextOffice.Name</strong><br /><span style="color: gray; font-size: 0.85em;">↳ @(context.NextUnit?.Name ?? "General")</span></MudText>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Default">Unassigned</MudText>
+                        }
+                    </MudTd>
+                    <MudTd DataLabel="Status">
+                        <MudChip T="string" Color="@DocHelpers.GetStatusColor(context.Status)" Size="Size.Small" Variant="Variant.Filled">@context.Status</MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="Date">@context.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")</MudTd>
+                    <MudTd DataLabel="Actions">
+                        <div class="d-flex gap-2">
+                            <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary"
+                                       StartIcon="@Icons.Material.Filled.Visibility"
+                                       OnClick="@(async () => await OpenViewDialog(context))">View</MudButton>
+                            <MudIconButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Secondary"
+                                           Icon="@Icons.Material.Filled.QrCode"
+                                           OnClick="@(async () => await OpenQRDialog(context))" />
+                            <MudIconButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Warning"
+                                           Icon="@Icons.Material.Filled.Edit"
+                                           OnClick="@(async () => await OpenEditDialog(context))" />
+                            <MudIconButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Error"
+                                           Icon="@Icons.Material.Filled.Delete"
+                                           OnClick="@(async () => await DeleteDocument(context))" />
                         </div>
-                    </NoRecordsContent>
-                    <PagerContent><MudTablePager /></PagerContent>
-                </MudTable>
-            </MudHidden>
-
-            <MudHidden Breakpoint="Breakpoint.MdAndUp">
-                @if (!_serverItems.Any())
-                {
+                    </MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
                     <div class="pa-8 text-center">
                         <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Large" Style="opacity: 0.3; font-size: 4rem;" Class="mb-4" />
                         <MudText Typo="Typo.h6" Class="mud-text-secondary">No documents found</MudText>
                     </div>
-                }
-                else
+                </NoRecordsContent>
+                <PagerContent><MudTablePager /></PagerContent>
+            </MudTable>
+        </MudHidden>
+
+        <MudHidden Breakpoint="Breakpoint.MdAndUp">
+            @if (!_serverItems.Any())
+            {
+                <div class="pa-8 text-center">
+                    <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Large" Style="opacity: 0.3; font-size: 4rem;" Class="mb-4" />
+                    <MudText Typo="Typo.h6" Class="mud-text-secondary">No documents found</MudText>
+                </div>
+            }
+            else
+            {
+                @foreach (var doc in _serverItems)
                 {
-                    @foreach (var doc in _serverItems)
-                    {
-                        <MudCard Elevation="2" Class="mb-3">
-                            <MudCardContent Class="pa-4">
-                                <div class="d-flex justify-space-between align-start mb-2">
-                                    <MudText Typo="Typo.subtitle1" Class="font-weight-bold">@doc.Name</MudText>
-                                    <MudChip T="string" Color="@DocHelpers.GetStatusColor(doc.Status)" Size="Size.Small" Variant="Variant.Filled">@doc.Status</MudChip>
-                                </div>
-                                <MudText Typo="Typo.body2" Class="mb-2">Sender: <strong>@(doc.Creator?.Name ?? "—")</strong></MudText>
-                                @if (doc.CurrentOffice != null)
-                                {
-                                    <MudText Typo="Typo.body2" Class="mb-2">
-                                        <MudIcon Icon="@Icons.Material.Filled.Place" Size="Size.Small" Class="mr-1" />
-                                        <strong>@doc.CurrentOffice.Name</strong>
-                                        @if (doc.CurrentUnit != null)
-                                        {
-                                            <span class="mud-text-secondary"> ↳ @doc.CurrentUnit.Name</span>
-                                        }
-                                    </MudText>
-                                }
-                                else if (doc.NextOffice != null)
-                                {
-                                    <MudText Typo="Typo.body2" Class="mb-2">
-                                        <MudIcon Icon="@Icons.Material.Filled.DirectionsWalk" Size="Size.Small" Class="mr-1" />
-                                        <span style="color:#ff9800;">Routing to: </span><strong>@doc.NextOffice.Name</strong>
-                                    </MudText>
-                                }
-                                <MudText Typo="Typo.caption" Class="mud-text-secondary">
-                                    <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" Class="mr-1" />
-                                    @doc.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")
+                    <MudCard Elevation="2" Class="mb-3">
+                        <MudCardContent Class="pa-4">
+                            <div class="d-flex justify-space-between align-start mb-2">
+                                <MudText Typo="Typo.subtitle1" Class="font-weight-bold">@doc.Name</MudText>
+                                <MudChip T="string" Color="@DocHelpers.GetStatusColor(doc.Status)" Size="Size.Small" Variant="Variant.Filled">@doc.Status</MudChip>
+                            </div>
+                            <MudText Typo="Typo.body2" Class="mb-2">Sender: <strong>@(doc.Creator?.Name ?? "—")</strong></MudText>
+                            @if (doc.CurrentOffice != null)
+                            {
+                                <MudText Typo="Typo.body2" Class="mb-2">
+                                    <MudIcon Icon="@Icons.Material.Filled.Place" Size="Size.Small" Class="mr-1" />
+                                    <strong>@doc.CurrentOffice.Name</strong>
+                                    @if (doc.CurrentUnit != null)
+                                    {
+                                        <span class="mud-text-secondary"> ↳ @doc.CurrentUnit.Name</span>
+                                    }
                                 </MudText>
-                            </MudCardContent>
-                            <MudCardActions Class="pa-4 pt-0">
-                                <div class="d-flex gap-2 flex-wrap" style="width:100%">
-                                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Style="flex:1"
-                                               StartIcon="@Icons.Material.Filled.Visibility"
-                                               OnClick="@(async () => await OpenViewDialog(doc))">View</MudButton>
-                                    <MudIconButton Variant="Variant.Outlined" Color="Color.Secondary"
-                                                   Icon="@Icons.Material.Filled.QrCode"
-                                                   OnClick="@(async () => await OpenQRDialog(doc))" />
-                                    <MudIconButton Variant="Variant.Outlined" Color="Color.Error"
-                                                   Icon="@Icons.Material.Filled.Delete"
-                                                   OnClick="@(async () => await DeleteDocument(doc))" />
-                                </div>
-                            </MudCardActions>
-                        </MudCard>
-                    }
+                            }
+                            else if (doc.NextOffice != null)
+                            {
+                                <MudText Typo="Typo.body2" Class="mb-2">
+                                    <MudIcon Icon="@Icons.Material.Filled.DirectionsWalk" Size="Size.Small" Class="mr-1" />
+                                    <span style="color:#ff9800;">Routing to: </span><strong>@doc.NextOffice.Name</strong>
+                                </MudText>
+                            }
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                                <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" Class="mr-1" />
+                                @doc.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")
+                            </MudText>
+                        </MudCardContent>
+                        <MudCardActions Class="pa-4 pt-0">
+                            <div class="d-flex gap-2 flex-wrap" style="width:100%">
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" Style="flex:1"
+                                           StartIcon="@Icons.Material.Filled.Visibility"
+                                           OnClick="@(async () => await OpenViewDialog(doc))">View</MudButton>
+                                <MudIconButton Variant="Variant.Outlined" Color="Color.Secondary"
+                                               Icon="@Icons.Material.Filled.QrCode"
+                                               OnClick="@(async () => await OpenQRDialog(doc))" />
+                                <MudIconButton Variant="Variant.Outlined" Color="Color.Error"
+                                               Icon="@Icons.Material.Filled.Delete"
+                                               OnClick="@(async () => await DeleteDocument(doc))" />
+                            </div>
+                        </MudCardActions>
+                    </MudCard>
                 }
-            </MudHidden>
-        </MudPaper>
-    }
+            }
+        </MudHidden>
+    </MudPaper>
 </MudContainer>
+
 
 @code {
     [SupplyParameterFromQuery(Name = "ref")] public string? RefParam { get; set; }
@@ -230,7 +217,6 @@
     private MudTable<Document>? _table;
     private List<Document> _serverItems = new();
     private List<Office> allOffices = new();
-    private bool loading = true;
     private string searchString = "";
     private string statusFilter = "";
     private string officeFilter = "";
@@ -242,7 +228,6 @@
 
     private async Task<TableData<Document>> LoadServerData(TableState state, CancellationToken ct)
     {
-        loading = true;
         try
         {
             var result = await DocumentService.GetAllDocumentsAsync(
@@ -254,10 +239,11 @@
                 dateFrom: dateFrom?.ToString("yyyy-MM-dd"),
                 dateTo: dateTo?.ToString("yyyy-MM-dd"));
             _serverItems = result.Items;
+            await InvokeAsync(StateHasChanged);
             return new TableData<Document> { Items = result.Items, TotalItems = result.TotalCount };
         }
         catch (Exception ex) { Console.WriteLine(ex.Message); return new TableData<Document>(); }
-        finally { loading = false; }
+        finally { }
     }
 
     private async Task OnFilterChanged()
@@ -313,7 +299,7 @@
         catch (Exception ex) { Console.WriteLine($"[ExportCsv] Error: {ex.Message}"); }
     }
 
-    private bool FilterFunc(Document element) => true; // unused, kept for safety
+    private bool FilterFunc(Document element) => true;
 
     private async Task OpenQRDialog(Document doc)
     {

@@ -42,57 +42,49 @@
         }
     </div>
 
-    @if (loading)
-    {
-        <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
-    }
-    else
-    {
-        <MudTable @ref="_table" ServerData="LoadServerData" Dense="true" Hover="true" Striped="true" Breakpoint="Breakpoint.Sm" Elevation="3">
-            <HeaderContent>
-                <MudTh>Timestamp</MudTh>
-                <MudTh>Document</MudTh>
-                <MudTh>Action</MudTh>
-                <MudTh>By</MudTh>
-                <MudTh>Office / Unit</MudTh>
-                <MudTh>Comment</MudTh>
-            </HeaderContent>
-            <RowTemplate>
-                <MudTd>@context.TimeStamp.ToLocalTime().ToString("MMM dd, yyyy hh:mm tt")</MudTd>
-                <MudTd>
-                    <MudText Typo="Typo.body2">@context.Document?.Name</MudText>
-                    <MudText Typo="Typo.caption" Class="mud-text-secondary">@context.Document?.ReferenceNumber</MudText>
-                </MudTd>
-                <MudTd>
-                    <MudChip T="string" Size="Size.Small" Color="@GetActionColor(context.Action)">@context.Action</MudChip>
-                </MudTd>
-                <MudTd>@(context.AppUser?.Name ?? "—")</MudTd>
-                <MudTd>
-                    @if (context.Unit != null)
-                    {
-                        <span>@context.Unit.Name <MudText Typo="Typo.caption" Class="mud-text-secondary">(@context.Office?.Name)</MudText></span>
-                    }
-                    else
-                    {
-                        <span>@(context.Office?.Name ?? "—")</span>
-                    }
-                </MudTd>
-                <MudTd>@(context.Comment ?? "—")</MudTd>
-            </RowTemplate>
-            <NoRecordsContent>
-                <MudText Class="pa-4 mud-text-secondary">No log entries found.</MudText>
-            </NoRecordsContent>
-            <PagerContent>
-                <MudTablePager PageSizeOptions="new int[] { 25, 50, 100 }" />
-            </PagerContent>
-        </MudTable>
-    }
+    <MudTable @ref="_table" ServerData="LoadServerData" Dense="true" Hover="true" Striped="true" Breakpoint="Breakpoint.Sm" Elevation="3">
+        <HeaderContent>
+            <MudTh>Timestamp</MudTh>
+            <MudTh>Document</MudTh>
+            <MudTh>Action</MudTh>
+            <MudTh>By</MudTh>
+            <MudTh>Office / Unit</MudTh>
+            <MudTh>Comment</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.TimeStamp.ToLocalTime().ToString("MMM dd, yyyy hh:mm tt")</MudTd>
+            <MudTd>
+                <MudText Typo="Typo.body2">@context.Document?.Name</MudText>
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">@context.Document?.ReferenceNumber</MudText>
+            </MudTd>
+            <MudTd>
+                <MudChip T="string" Size="Size.Small" Color="@GetActionColor(context.Action)">@context.Action</MudChip>
+            </MudTd>
+            <MudTd>@(context.AppUser?.Name ?? "—")</MudTd>
+            <MudTd>
+                @if (context.Unit != null)
+                {
+                    <span>@context.Unit.Name <MudText Typo="Typo.caption" Class="mud-text-secondary">(@context.Office?.Name)</MudText></span>
+                }
+                else
+                {
+                    <span>@(context.Office?.Name ?? "—")</span>
+                }
+            </MudTd>
+            <MudTd>@(context.Comment ?? "—")</MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText Class="pa-4 mud-text-secondary">No log entries found.</MudText>
+        </NoRecordsContent>
+        <PagerContent>
+            <MudTablePager PageSizeOptions="new int[] { 25, 50, 100 }" />
+        </PagerContent>
+    </MudTable>
 
 </MudContainer>
 
 @code {
     private MudTable<DocumentLog>? _table;
-    private bool loading = true;
     private string searchText = "";
     private string? filterAction;
     private DateTime? filterDate;
@@ -101,7 +93,6 @@
 
     private async Task<TableData<DocumentLog>> LoadServerData(TableState state, CancellationToken ct)
     {
-        loading = true;
         try
         {
             var result = await DocService.GetAuditLogsAsync(
@@ -118,7 +109,6 @@
             Snackbar.Add("Failed to load audit logs.", Severity.Error);
             return new TableData<DocumentLog>();
         }
-        finally { loading = false; }
     }
 
     private async Task OnFilterChanged()
@@ -145,4 +135,3 @@
         _ => Color.Default
     };
 }
-

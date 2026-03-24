@@ -54,9 +54,6 @@
                                                    Size="Size.Small" Style="opacity:0.5;"
                                                    Title="@(notif.IsRead ? "Mark unread" : "Mark read")"
                                                    OnClick="@(async () => await NotifService.ToggleReadAsync(notif))" />
-                                    <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" Style="opacity:0.5;"
-                                                   Title="Dismiss"
-                                                   OnClick="@(async () => await NotifService.DismissAsync(notif))" />
                                 </div>
                             </div>
                         </MudListItem>
@@ -64,10 +61,6 @@
                     }
                 </div>
             }
-            <MudDivider />
-            <div class="pa-2 d-flex justify-end">
-                <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="ToggleMenu">Close</MudButton>
-            </div>
         </MudPaper>
     </MudPopover>
 </div>
