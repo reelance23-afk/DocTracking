@@ -826,15 +826,16 @@ namespace DocTracking.Controllers
                     doc.Status = request.Status ?? doc.Status;
                 }
 
+                var routedOffice = await _context.Offices.FindAsync(request.NextOfficeId);
+                var routedUnit = request.NextUnitId.HasValue ? await _context.Units.FindAsync(request.NextUnitId) : null;
 
                 var snapshotParts = new List<string> { $"Status: '{beforeStatus}' to '{doc.Status}'" };
                 if (request.NextOfficeId.HasValue)
-                    snapshotParts.Add($"Routed to OfficeId {request.NextOfficeId}" +
-                        (request.NextUnitId.HasValue ? $" / UnitId {request.NextUnitId}" : ""));
+                    snapshotParts.Add($"Routed to {routedOffice?.Name ?? $"Office {request.NextOfficeId}"}" +
+                        (routedUnit != null ? $" / {routedUnit.Name}" : ""));
                 var userComment = request.NextOfficeId.HasValue ? request.ReassignComment : request.ForceComment;
                 if (!string.IsNullOrEmpty(userComment))
                     snapshotParts.Add($"Reason: {userComment}");
-
 
                 _context.DocumentLogs.Add(new DocumentLog
                 {

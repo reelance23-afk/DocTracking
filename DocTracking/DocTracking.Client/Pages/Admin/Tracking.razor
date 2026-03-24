@@ -148,7 +148,7 @@
             </MudTable>
         </MudHidden>
 
-        <MudHidden Breakpoint="Breakpoint.MdAndUp">
+        <MudHidden Breakpoint="Breakpoint.SmAndDown" Invert="true">
             @if (!_serverItems.Any())
             {
                 <div class="pa-8 text-center">
@@ -207,6 +207,7 @@
                 }
             }
         </MudHidden>
+
     </MudPaper>
 </MudContainer>
 
