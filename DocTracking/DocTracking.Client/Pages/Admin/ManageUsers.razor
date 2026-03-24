@@ -52,11 +52,24 @@
                         else if (context.Office != null || context.OfficeId.HasValue)
                         {
                             var officeName = context.Office?.Name ?? offices.FirstOrDefault(o => o.Id == context.OfficeId)?.Name ?? "Unknown Office";
+                            var hasUnits = offices.FirstOrDefault(o => o.Id == context.OfficeId)?.Units?.Any() == true;
                             <MudText Typo="Typo.body2">
-                                <strong>@officeName</strong><br />
-                                <span style="color: gray; font-size: 0.85em;">↳ @(context.IsOfficeHead ? "Office Head" : "No Unit Assigned")</span>
+                                <strong>@officeName</strong>
+                                @if (context.IsOfficeHead)
+                                {
+                                    <br />
+                        
+                                    <span style="color: gray; font-size: 0.85em;">↳ Office Head</span>
+                                }
+                                else if (hasUnits)
+                                {
+                                    <br />
+                        
+                                    <span style="color: gray; font-size: 0.85em;">↳ No Unit Assigned</span>
+                                }
                             </MudText>
                         }
+
                         else
                         {
                             <MudText Typo="Typo.body2" Color="Color.Default">Unassigned</MudText>
@@ -111,8 +124,16 @@
                             else if (user.Office != null || user.OfficeId.HasValue)
                             {
                                 var officeName = user.Office?.Name ?? offices.FirstOrDefault(o => o.Id == user.OfficeId)?.Name ?? "Unknown Office";
+                                var hasUnits = offices.FirstOrDefault(o => o.Id == user.OfficeId)?.Units?.Any() == true;
                                 <MudText Typo="Typo.body2"><strong>@officeName</strong></MudText>
-                                <MudText Typo="Typo.caption" Class="mud-text-secondary">↳ @(user.IsOfficeHead ? "Office Head" : "No Unit Assigned")</MudText>
+                                @if (user.IsOfficeHead)
+                                {
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">↳ Office Head</MudText>
+                                }
+                                else if (hasUnits)
+                                {
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">↳ No Unit Assigned</MudText>
+                                }
                             }
                             else
                             {
