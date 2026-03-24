@@ -70,7 +70,7 @@
                                     <MudText Typo="Typo.body1" Class="font-weight-bold" Style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">@office.Name</MudText>
                                     <MudText Typo="Typo.caption" Class="mud-text-secondary">
                                         @(office.Units?.Count ?? 0) unit@(office.Units?.Count == 1 ? "" : "s") &bull;
-                                        @(allUsers.Count(u => office.Units?.Any(un => un.Id == u.UnitId) == true)) worker@(allUsers.Count(u => office.Units?.Any(un => un.Id == u.UnitId) == true) == 1 ? "" : "s")
+                                        @(allUsers.Count(u => (office.Units?.Any(un => un.Id == u.UnitId) == true) || (u.OfficeId == office.Id && u.UnitId == null))) worker@(allUsers.Count(u => (office.Units?.Any(un => un.Id == u.UnitId) == true) || (u.OfficeId == office.Id && u.UnitId == null)) == 1 ? "" : "s")
                                     </MudText>
                                 </div>
                             </div>
