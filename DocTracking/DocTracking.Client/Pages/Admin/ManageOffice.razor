@@ -112,13 +112,13 @@
                                 {
                                     <MudPaper Elevation="0" Class="pa-3 mb-4 rounded-lg" Style="background: rgba(var(--mud-palette-success-rgb), 0.06);">
                                         <div class="d-flex justify-space-between align-center mb-2">
-                                            <MudText Typo="Typo.subtitle2" Class="font-weight-bold">Unassigned Workers</MudText>
+                                            <MudText Typo="Typo.subtitle2" Class="font-weight-bold">Workers</MudText>
                                             <MudText Typo="Typo.caption" Class="mud-text-secondary">@officeWorkers.Count worker(s)</MudText>
                                         </div>
                                         <div class="d-flex align-center gap-1 flex-wrap">
                                             @foreach (var worker in officeWorkers)
                                             {
-                                                <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Filled">@worker.Name</MudChip>
+                                                <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Filled">@worker.Name</MudChip>
                                             }
                                         </div>
                                     </MudPaper>
