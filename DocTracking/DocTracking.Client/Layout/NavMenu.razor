@@ -72,6 +72,12 @@
                                 <span>Document History</span>
                             }
                         </MudNavLink>
+                        @if (ShowText)
+                        {
+                            <div class="nav-label">
+                                <MudText Typo="Typo.overline" Class="mud-text-secondary">My Documents</MudText>
+                            </div>
+                        }
                         <MudNavLink Href="/create-document" Icon="@Icons.Material.Filled.NoteAdd" IconColor="Color.Success"> 
                             @if (ShowText)
                             {
@@ -114,6 +120,18 @@
                                 <span>Document Tracking</span>
                             }
                         </MudNavLink>
+                        <MudNavLink Href="/admin-audit-log" Icon="@Icons.Material.Filled.ManageSearch" IconColor="Color.Warning">
+                            @if (ShowText)
+                            {
+                                <span>Audit Log</span>
+                            }
+                        </MudNavLink>
+                        @if (ShowText)
+                        {
+                            <div class="nav-label">
+                                <MudText Typo="Typo.overline" Class="mud-text-secondary">My Documents</MudText>
+                            </div>
+                        }
                         <MudNavLink Href="/create-document" Icon="@Icons.Material.Filled.NoteAdd" IconColor="Color.Success">
                             @if (ShowText)
                             {
@@ -124,12 +142,6 @@
                             @if (ShowText)
                             {
                                 <span>My Tracking</span>
-                            }
-                        </MudNavLink>
-                        <MudNavLink Href="/admin-audit-log" Icon="@Icons.Material.Filled.ManageSearch" IconColor="Color.Warning">
-                            @if (ShowText)
-                            {
-                                <span>Audit Log</span>
                             }
                         </MudNavLink>
                     </MudNavMenu>
