@@ -72,13 +72,16 @@
                                 <span>Document History</span>
                             }
                         </MudNavLink>
-                        @if (ShowText)
-                        {
-                            <div class="nav-label">
-                                <MudText Typo="Typo.overline" Class="mud-text-secondary">My Documents</MudText>
-                            </div>
-                        }
-                        <MudNavLink Href="/create-document" Icon="@Icons.Material.Filled.NoteAdd" IconColor="Color.Success"> 
+                    </MudNavMenu>
+
+                    @if (ShowText)
+                    {
+                        <div class="nav-label">
+                            <MudText Typo="Typo.overline" Class="mud-text-secondary">My Documents</MudText>
+                        </div>
+                    }
+                    <MudNavMenu Rounded="true" Margin="Margin.Dense" Class="px-2 mb-2">
+                        <MudNavLink Href="/create-document" Icon="@Icons.Material.Filled.NoteAdd" IconColor="Color.Success">
                             @if (ShowText)
                             {
                                 <span>Create Document</span>
@@ -92,6 +95,7 @@
                         </MudNavLink>
                     </MudNavMenu>
                 }
+
 
                 @if (context.User.IsInRole("Admin"))
                 {
@@ -126,12 +130,15 @@
                                 <span>Audit Log</span>
                             }
                         </MudNavLink>
-                        @if (ShowText)
-                        {
-                            <div class="nav-label">
-                                <MudText Typo="Typo.overline" Class="mud-text-secondary">My Documents</MudText>
-                            </div>
-                        }
+                    </MudNavMenu>
+
+                    @if (ShowText)
+                    {
+                        <div class="nav-label">
+                            <MudText Typo="Typo.overline" Class="mud-text-secondary">My Documents</MudText>
+                        </div>
+                    }
+                    <MudNavMenu Rounded="true" Margin="Margin.Dense" Class="px-2 mb-2">
                         <MudNavLink Href="/create-document" Icon="@Icons.Material.Filled.NoteAdd" IconColor="Color.Success">
                             @if (ShowText)
                             {
@@ -146,6 +153,7 @@
                         </MudNavLink>
                     </MudNavMenu>
                 }
+
 
             </Authorized>
         </AuthorizeView>
