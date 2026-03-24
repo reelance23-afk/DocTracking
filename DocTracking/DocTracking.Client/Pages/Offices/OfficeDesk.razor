@@ -63,9 +63,6 @@
             </MudHidden>
         </div>
 
-
-
-
         <MudGrid Class="mb-6">
             <MudItem xs="12" sm="4">
                 <MudPaper Elevation="2" Class="pa-4 rounded-lg" Style="border-top: 4px solid var(--mud-palette-error);">
@@ -123,15 +120,23 @@
                         </div>
                     </TabContent>
                     <ChildContent>
+                        <MudTextField @bind-Value="incomingSearch"
+                                      Placeholder="Search incoming..."
+                                      Adornment="Adornment.Start"
+                                      AdornmentIcon="@Icons.Material.Filled.Search"
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense"
+                                      Immediate="true"
+                                      Class="mb-3 mx-5" />
                         <MudHidden Breakpoint="Breakpoint.SmAndDown">
-                            <MudTable Items="@incomingDocs" Hover="true" Loading="@isLoading" T="Document">
+                            <MudTable Items="@filteredIncoming" Hover="true" Loading="@isLoading" T="Document">
                                 <HeaderContent>
                                     <MudTh>Document</MudTh>
                                     <MudTh>Type</MudTh>
                                     <MudTh>Priority</MudTh>
                                     <MudTh>Sender</MudTh>
                                     <MudTh>Date Sent</MudTh>
-                                    <MudTh></MudTh>
+                                    <MudTh></MudTh>       
                                 </HeaderContent>
                                 <RowTemplate>
                                     <MudTd DataLabel="Document"><strong>@context.Name</strong></MudTd>
@@ -170,7 +175,7 @@
                             {
                                 <MudProgressLinear Indeterminate="true" Class="mb-4" />
                             }
-                            @if (!incomingDocs.Any())
+                            @if (!filteredIncoming.Any())
                             {
                                 <MudPaper Elevation="0" Class="pa-8 text-center">
                                     <MudText Class="mud-text-secondary">No incoming documents at this time.</MudText>
@@ -179,7 +184,7 @@
                             else
                             {
                                 <div class="mb-n3">
-                                    @foreach (var doc in incomingDocs)
+                                    @foreach (var doc in filteredIncoming)
                                     {
                                         <MudCard Elevation="2" Class="mb-3">
                                             <MudCardContent Class="pa-4">
@@ -225,8 +230,16 @@
                         </div>
                     </TabContent>
                     <ChildContent>
+                        <MudTextField @bind-Value="deskSearch"
+                                      Placeholder="Search on desk..."
+                                      Adornment="Adornment.Start"
+                                      AdornmentIcon="@Icons.Material.Filled.Search"
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense"
+                                      Immediate="true"
+                                      Class="mb-3 mx-5" />
                         <MudHidden Breakpoint="Breakpoint.SmAndDown">
-                            <MudTable Items="@deskDocs" Hover="true" Loading="@isLoading" T="Document">
+                            <MudTable Items="@filteredDesk" Hover="true" Loading="@isLoading" T="Document">
                                 <HeaderContent>
                                     <MudTh>Document</MudTh>
                                     <MudTh>Type</MudTh>
@@ -268,7 +281,7 @@
                             {
                                 <MudProgressLinear Indeterminate="true" Class="mb-4" />
                             }
-                            @if (!deskDocs.Any())
+                            @if (!filteredDesk.Any())
                             {
                                 <MudPaper Elevation="0" Class="pa-8 text-center">
                                     <MudText Class="mud-text-secondary">Your desk is clear.</MudText>
@@ -277,7 +290,7 @@
                             else
                             {
                                 <div class="mb-n3">
-                                    @foreach (var doc in deskDocs)
+                                    @foreach (var doc in filteredDesk)
                                     {
                                         <MudCard Elevation="2" Class="mb-3">
                                             <MudCardContent Class="pa-4">
@@ -315,8 +328,16 @@
                         </div>
                     </TabContent>
                     <ChildContent>
+                        <MudTextField @bind-Value="outgoingSearch"
+                                      Placeholder="Search outgoing..."
+                                      Adornment="Adornment.Start"
+                                      AdornmentIcon="@Icons.Material.Filled.Search"
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense"
+                                      Immediate="true"
+                                      Class="mb-3 mx-5" />
                         <MudHidden Breakpoint="Breakpoint.SmAndDown">
-                            <MudTable Items="@outgoingDocs" Hover="true" Loading="@isLoading" T="Document">
+                            <MudTable Items="@filteredOutgoing" Hover="true" Loading="@isLoading" T="Document">
                                 <HeaderContent>
                                     <MudTh>Document</MudTh>
                                     <MudTh>Type</MudTh>
@@ -356,7 +377,7 @@
                             {
                                 <MudProgressLinear Indeterminate="true" Class="mb-4" Color="Color.Primary" />
                             }
-                            @if (!outgoingDocs.Any())
+                            @if (!filteredOutgoing.Any())
                             {
                                 <div class="pa-4 text-center">
                                     <MudIcon Icon="@Icons.Material.Filled.Send" Size="Size.Large" Style="opacity:0.3; font-size:3rem;" Class="mb-3" />
@@ -366,7 +387,7 @@
                             else
                             {
                                 <div class="mb-n3">
-                                    @foreach (var doc in outgoingDocs)
+                                    @foreach (var doc in filteredOutgoing)
                                     {
                                         <MudCard Elevation="2" Class="mb-3 rounded-lg">
                                             <MudCardContent Class="pa-4">
@@ -429,6 +450,9 @@
     private string? myUnitName;
     private bool isLoadingInitial = true;
     private bool isLoading = false;
+    private string incomingSearch = "";
+    private string deskSearch = "";
+    private string outgoingSearch = "";
 
     protected override async Task OnInitializedAsync()
     {
@@ -467,17 +491,16 @@
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
-        {
             NotifService.OnChange += OnNotificationReceived;
-        }
 
         if (!dialogOpened && !isLoadingInitial && !string.IsNullOrEmpty(RefParam))
         {
+            dialogOpened = true;
             var allDocs = incomingDocs.Concat(deskDocs).Concat(outgoingDocs);
-            var doc = allDocs.FirstOrDefault(d => d.ReferenceNumber == RefParam);
+            var doc = allDocs.FirstOrDefault(d => d.ReferenceNumber == RefParam)
+                      ?? await DocService.GetDocumentByRefAsync(RefParam);
             if (doc != null)
             {
-                dialogOpened = true;
                 var tab = TabParam switch
                 {
                     "Incoming" => OfficeDeskViewDialog.DeskTab.Incoming,
@@ -493,14 +516,13 @@
     private async Task OpenQRDialog(Document doc)
     {
         var parameters = new DialogParameters<QRCodeDialog>
-    {
-        { x => x.DocumentId, doc.Id },
-        { x => x.ReferenceNumber, doc.ReferenceNumber }
-    };
+        {
+            { x => x.DocumentId, doc.Id },
+            { x => x.ReferenceNumber, doc.ReferenceNumber }
+        };
         var options = new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true, CloseButton = true };
         await DialogService.ShowAsync<QRCodeDialog>("QR Code", parameters, options);
     }
-
 
     private async Task RefreshQueues()
     {
@@ -580,5 +602,22 @@
         d.LastActionDate.HasValue &&
         (DateTime.UtcNow - d.LastActionDate.Value).TotalHours >= 24)
     .ToList();
+
+    private IEnumerable<Document> filteredIncoming => incomingDocs
+    .Where(d => string.IsNullOrWhiteSpace(incomingSearch) ||
+        d.Name?.Contains(incomingSearch, StringComparison.OrdinalIgnoreCase) == true ||
+        d.Type?.Contains(incomingSearch, StringComparison.OrdinalIgnoreCase) == true ||
+        d.Creator?.Name?.Contains(incomingSearch, StringComparison.OrdinalIgnoreCase) == true);
+
+    private IEnumerable<Document> filteredDesk => deskDocs
+        .Where(d => string.IsNullOrWhiteSpace(deskSearch) ||
+            d.Name?.Contains(deskSearch, StringComparison.OrdinalIgnoreCase) == true ||
+            d.Type?.Contains(deskSearch, StringComparison.OrdinalIgnoreCase) == true);
+
+    private IEnumerable<Document> filteredOutgoing => outgoingDocs
+        .Where(d => string.IsNullOrWhiteSpace(outgoingSearch) ||
+            d.Name?.Contains(outgoingSearch, StringComparison.OrdinalIgnoreCase) == true ||
+            d.Type?.Contains(outgoingSearch, StringComparison.OrdinalIgnoreCase) == true ||
+            d.NextOffice?.Name?.Contains(outgoingSearch, StringComparison.OrdinalIgnoreCase) == true);
 
 }

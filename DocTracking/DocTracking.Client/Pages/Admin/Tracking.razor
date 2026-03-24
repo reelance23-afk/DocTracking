@@ -33,11 +33,28 @@
                 <MudText Typo="Typo.h6" Class="font-weight-bold">All Documents</MudText>
                 <MudText Typo="Typo.body2" Class="mud-text-secondary">Browse, filter and export all documents.</MudText>
             </div>
-            <MudButton Variant="Variant.Outlined" Color="Color.Success"
-                       StartIcon="@Icons.Material.Filled.Download" OnClick="ExportCsv"
-                       Class="d-none d-md-flex">
-                Export CSV
-            </MudButton>
+            <div class="d-flex gap-2 align-center">
+                @if (_multiSelectMode && _selectedDocs.Any())
+                {
+                    <MudButton Color="Color.Error" Variant="Variant.Filled" Size="Size.Small"
+                               StartIcon="@Icons.Material.Filled.DeleteSweep"
+                               Disabled="@_isBulkDeleting" OnClick="BulkDelete">
+                        @(_isBulkDeleting ? "Deleting..." : $"Delete ({_selectedDocs.Count})")
+                    </MudButton>
+                }
+                <MudButton Variant="@(_multiSelectMode? Variant.Filled: Variant.Outlined)"
+                           Color="Color.Warning" Size="Size.Small"
+                           StartIcon="@(_multiSelectMode ? Icons.Material.Filled.Close : Icons.Material.Filled.Checklist)"
+                           OnClick="ToggleMultiSelect"
+                           Class="d-none d-md-flex">
+                    @(_multiSelectMode ? "Cancel" : "Select")
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Success"
+                           StartIcon="@Icons.Material.Filled.Download" OnClick="ExportCsv"
+                           Class="d-none d-md-flex">
+                    Export CSV
+                </MudButton>
+            </div>
         </div>
 
         <MudTextField @bind-Value="searchString" Placeholder="Search documents, senders, or locations..."
@@ -77,6 +94,13 @@
                            StartIcon="@Icons.Material.Filled.Clear">Clear</MudButton>
             }
             <MudSpacer />
+            <MudButton Variant="@(_multiSelectMode? Variant.Filled: Variant.Outlined)"
+                       Color="Color.Warning" Size="Size.Small"
+                       StartIcon="@(_multiSelectMode ? Icons.Material.Filled.Close : Icons.Material.Filled.Checklist)"
+                       OnClick="ToggleMultiSelect"
+                       Class="d-md-none">
+                @(_multiSelectMode ? "Cancel" : "Select")
+            </MudButton>
             <MudButton Variant="Variant.Outlined" Color="Color.Success"
                        StartIcon="@Icons.Material.Filled.Download" OnClick="ExportCsv"
                        Class="d-md-none">
@@ -85,20 +109,8 @@
         </div>
 
         <div class="desktop-table">
-            @if (_selectedDocs.Any())
-            {
-                <div class="d-flex align-center gap-2 mb-3 pa-2" style="background: rgba(var(--mud-palette-error-rgb),0.06); border-radius:8px;">
-                    <MudText Typo="Typo.body2"><strong>@_selectedDocs.Count</strong> selected</MudText>
-                    <MudSpacer />
-                    <MudButton Color="Color.Error" Variant="Variant.Filled" Size="Size.Small"
-                               StartIcon="@Icons.Material.Filled.DeleteSweep"
-                               Disabled="@_isBulkDeleting" OnClick="BulkDelete">
-                        @(_isBulkDeleting ? "Deleting..." : "Delete Selected")
-                    </MudButton>
-                </div>
-            }
             <MudTable @ref="_table" ServerData="LoadServerData" Hover="true" T="Document"
-                      MultiSelection="true" @bind-SelectedItems="_selectedDocs">
+                      MultiSelection="@_multiSelectMode" @bind-SelectedItems="_selectedDocs">
                 <HeaderContent>
                     <MudTh><MudTableSortLabel SortBy="new Func<Document, object>(x => x.Name)">Name</MudTableSortLabel></MudTh>
                     <MudTh>Sender</MudTh>
@@ -156,6 +168,18 @@
         </div>
 
         <MudHidden Breakpoint="Breakpoint.SmAndDown" Invert="true">
+            @if (_multiSelectMode && _selectedDocs.Any())
+            {
+                <div class="d-flex align-center gap-2 mb-3 pa-2" style="background: rgba(var(--mud-palette-error-rgb),0.06); border-radius:8px;">
+                    <MudText Typo="Typo.body2"><strong>@_selectedDocs.Count</strong> selected</MudText>
+                    <MudSpacer />
+                    <MudButton Color="Color.Error" Variant="Variant.Filled" Size="Size.Small"
+                               StartIcon="@Icons.Material.Filled.DeleteSweep"
+                               Disabled="@_isBulkDeleting" OnClick="BulkDelete">
+                        @(_isBulkDeleting ? "Deleting..." : "Delete Selected")
+                    </MudButton>
+                </div>
+            }
             @if (!_serverItems.Any())
             {
                 <div class="pa-8 text-center">
@@ -167,9 +191,16 @@
             {
                 @foreach (var doc in _serverItems)
                 {
-                    <MudCard Elevation="2" Class="mb-3">
+                    <MudCard Elevation="2" Class="mb-3" @onclick="@(() => { if (_multiSelectMode) ToggleMobileSelect(doc); })"
+                             Style="@(_multiSelectMode && _selectedDocs.Contains(doc) ? "border: 2px solid var(--mud-palette-error);" : "")">
                         <MudCardContent Class="pa-4">
                             <div class="d-flex justify-space-between align-start mb-2">
+                                @if (_multiSelectMode)
+                                {
+                                    <MudCheckBox T="bool" Value="@_selectedDocs.Contains(doc)"
+                                                 ValueChanged="@(_ => ToggleMobileSelect(doc))"
+                                                 Color="Color.Error" Class="mr-2" />
+                                }
                                 <MudText Typo="Typo.subtitle1" Class="font-weight-bold">@doc.Name</MudText>
                                 <MudChip T="string" Color="@DocHelpers.GetStatusColor(doc.Status)" Size="Size.Small" Variant="Variant.Filled">@doc.Status</MudChip>
                             </div>
@@ -197,19 +228,22 @@
                                 @doc.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")
                             </MudText>
                         </MudCardContent>
-                        <MudCardActions Class="pa-4 pt-0">
-                            <div class="d-flex gap-2 flex-wrap" style="width:100%">
-                                <MudButton Variant="Variant.Filled" Color="Color.Primary" Style="flex:1"
-                                           StartIcon="@Icons.Material.Filled.Visibility"
-                                           OnClick="@(async () => await OpenViewDialog(doc))">View</MudButton>
-                                <MudIconButton Variant="Variant.Outlined" Color="Color.Secondary"
-                                               Icon="@Icons.Material.Filled.QrCode"
-                                               OnClick="@(async () => await OpenQRDialog(doc))" />
-                                <MudIconButton Variant="Variant.Outlined" Color="Color.Error"
-                                               Icon="@Icons.Material.Filled.Delete"
-                                               OnClick="@(async () => await DeleteDocument(doc))" />
-                            </div>
-                        </MudCardActions>
+                        @if (!_multiSelectMode)
+                        {
+                            <MudCardActions Class="pa-4 pt-0">
+                                <div class="d-flex gap-2 flex-wrap" style="width:100%">
+                                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Style="flex:1"
+                                               StartIcon="@Icons.Material.Filled.Visibility"
+                                               OnClick="@(async () => await OpenViewDialog(doc))">View</MudButton>
+                                    <MudIconButton Variant="Variant.Outlined" Color="Color.Secondary"
+                                                   Icon="@Icons.Material.Filled.QrCode"
+                                                   OnClick="@(async () => await OpenQRDialog(doc))" />
+                                    <MudIconButton Variant="Variant.Outlined" Color="Color.Error"
+                                                   Icon="@Icons.Material.Filled.Delete"
+                                                   OnClick="@(async () => await DeleteDocument(doc))" />
+                                </div>
+                            </MudCardActions>
+                        }
                     </MudCard>
                 }
             }
@@ -232,6 +266,22 @@
     private bool dialogOpened = false;
     private HashSet<Document> _selectedDocs = new();
     private bool _isBulkDeleting;
+    private bool _multiSelectMode;
+
+    private void ToggleMultiSelect()
+    {
+        _multiSelectMode = !_multiSelectMode;
+        if (!_multiSelectMode)
+            _selectedDocs.Clear();
+    }
+
+    private void ToggleMobileSelect(Document doc)
+    {
+        if (_selectedDocs.Contains(doc))
+            _selectedDocs.Remove(doc);
+        else
+            _selectedDocs.Add(doc);
+    }
 
     private async Task<TableData<Document>> LoadServerData(TableState state, CancellationToken ct)
     {
@@ -267,12 +317,11 @@
     {
         if (!dialogOpened && !string.IsNullOrEmpty(RefParam))
         {
-            var doc = _serverItems.FirstOrDefault(d => d.ReferenceNumber == RefParam);
+            dialogOpened = true;
+            var doc = _serverItems.FirstOrDefault(d => d.ReferenceNumber == RefParam)
+                      ?? await DocumentService.GetDocumentByRefAsync(RefParam);
             if (doc != null)
-            {
-                dialogOpened = true;
                 await OpenViewDialog(doc);
-            }
         }
     }
 
@@ -393,6 +442,7 @@
             if (!ok) { Snackbar.Add(error ?? "Bulk delete failed.", Severity.Error); return; }
             Snackbar.Add($"{ids.Count} document(s) deleted.", Severity.Success);
             _selectedDocs.Clear();
+            _multiSelectMode = false;
             await OnFilterChanged();
         }
         finally { _isBulkDeleting = false; }

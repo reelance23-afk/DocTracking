@@ -196,6 +196,16 @@
 
     private async Task Submit()
     {
+        var confirm = new DialogParameters
+    {
+        { "Message", "Are you sure you want to save these changes?" },
+        { "YesText", "Save" },
+        { "CancelText", "Cancel" }
+    };
+        var confirmDialog = await DialogService.ShowAsync<MudMessageBox>("Confirm Save", confirm);
+        var confirmResult = await confirmDialog.Result;
+        if (confirmResult.Canceled) return;
+
         isSaving = true;
         string? uploadedPath = null;
         try
@@ -249,6 +259,7 @@
         }
         finally { isSaving = false; }
     }
+
 
 
 

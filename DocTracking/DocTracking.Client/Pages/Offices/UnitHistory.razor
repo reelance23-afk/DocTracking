@@ -216,10 +216,13 @@
     {
         if (!dialogOpened && !isLoading && !string.IsNullOrEmpty(RefParam))
         {
-            var doc = historyDocs.FirstOrDefault(d => d.ReferenceNumber == RefParam);
+            dialogOpened = true;
+            var doc = historyDocs.FirstOrDefault(d => d.ReferenceNumber == RefParam)
+                      ?? await DocService.GetDocumentByRefAsync(RefParam);
             if (doc != null)
             {
-                dialogOpened = true;
+                if (allOffices.Count == 0)
+                    allOffices = await DocService.GetOfficesAsync();
 
                 var tab = doc.Status == "Received" || (doc.Status == "In Motion" && doc.CurrentOfficeId != null)
                     ? OfficeDeskViewDialog.DeskTab.OnDesk
@@ -236,6 +239,7 @@
             }
         }
     }
+
 
     private async Task OpenViewDialog(Document doc)
     {

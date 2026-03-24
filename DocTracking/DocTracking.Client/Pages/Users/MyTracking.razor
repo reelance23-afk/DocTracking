@@ -71,6 +71,16 @@
                 <MudText Typo="Typo.h6">All My Documents</MudText>
             </div>
 
+            <MudTextField @bind-Value="searchString"
+                          Placeholder="Search documents..."
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search"
+                          IconSize="Size.Medium"
+                          Variant="Variant.Outlined"
+                          Margin="Margin.Dense"
+                          Immediate="true"
+                          Class="mb-4" />
+
             <MudHidden Breakpoint="Breakpoint.SmAndDown">
                 <MudTable Items="@filteredDocuments" Hover="true" T="Document" SortLabel="Sort By">
                     <HeaderContent>
@@ -182,16 +192,6 @@
             </MudHidden>
 
             <MudHidden Breakpoint="Breakpoint.MdAndUp">
-                <MudTextField @bind-Value="searchString"
-                              Placeholder="Search documents..."
-                              Adornment="Adornment.Start"
-                              AdornmentIcon="@Icons.Material.Filled.Search"
-                              IconSize="Size.Medium"
-                              Variant="Variant.Outlined"
-                              Margin="Margin.Dense"
-                              Immediate="true"
-                              Class="mb-4" />
-
                 @if (!filteredDocuments.Any())
                 {
                     <div class="pa-8 text-center">
@@ -321,15 +321,13 @@
 
         if (!dialogOpened && !isLoading && !string.IsNullOrEmpty(RefParam))
         {
-            var doc = myDocuments.FirstOrDefault(d => d.ReferenceNumber == RefParam);
+            dialogOpened = true;
+            var doc = myDocuments.FirstOrDefault(d => d.ReferenceNumber == RefParam)
+                      ?? await DocService.GetDocumentByRefAsync(RefParam);
             if (doc != null)
-            {
-                dialogOpened = true;
                 await OpenViewDialog(doc);
-            }
         }
     }
-
 
     private bool FilterFunc(Document document)
     {
