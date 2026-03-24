@@ -422,9 +422,17 @@
                 foreach (var userId in assignSelectedIds)
                 {
                     var user = allUsers.FirstOrDefault(u => u.Id == userId);
-                    if (user == null) continue;
-                    if (user.Role != "Office" && user.Role != "Admin")
-                        await DocService.UpdateAppUserAsync(new AppUser { Id = user.Id, Name = user.Name, Email = user.Email, Role = "Office", UnitId = null, OfficeId = assignTargetOffice.Id, IsOfficeHead = false });
+                    if (user == null || user.Role == "Admin") continue;
+                    await DocService.UpdateAppUserAsync(new AppUser
+                    {
+                        Id = user.Id,
+                        Name = user.Name,
+                        Email = user.Email,
+                        Role = "Office",
+                        UnitId = null,
+                        OfficeId = assignTargetOffice.Id,
+                        IsOfficeHead = false
+                    });
                 }
                 var toRemove = allUsers.Where(u => u.OfficeId == assignTargetOffice.Id && u.UnitId == null && !assignSelectedIds.Contains(u.Id)).ToList();
                 foreach (var user in toRemove)
