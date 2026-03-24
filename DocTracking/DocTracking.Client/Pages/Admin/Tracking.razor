@@ -11,6 +11,14 @@
 @inject IJSRuntime JS
 @rendermode InteractiveAuto
 
+<style>
+    @@media (max-width: 959px) {
+        .desktop-table {
+            display: none !important;
+        }
+    }
+</style>
+
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
     <div class="mb-6">
         <div class="d-flex align-center mb-4">
@@ -76,7 +84,7 @@
             </MudButton>
         </div>
 
-        <MudHidden Breakpoint="Breakpoint.SmAndDown">
+        <div class="desktop-table">
             @if (_selectedDocs.Any())
             {
                 <div class="d-flex align-center gap-2 mb-3 pa-2" style="background: rgba(var(--mud-palette-error-rgb),0.06); border-radius:8px;">
@@ -84,8 +92,7 @@
                     <MudSpacer />
                     <MudButton Color="Color.Error" Variant="Variant.Filled" Size="Size.Small"
                                StartIcon="@Icons.Material.Filled.DeleteSweep"
-                               Disabled="@_isBulkDeleting"
-                               OnClick="BulkDelete">
+                               Disabled="@_isBulkDeleting" OnClick="BulkDelete">
                         @(_isBulkDeleting ? "Deleting..." : "Delete Selected")
                     </MudButton>
                 </div>
@@ -146,7 +153,7 @@
                 </NoRecordsContent>
                 <PagerContent><MudTablePager /></PagerContent>
             </MudTable>
-        </MudHidden>
+        </div>
 
         <MudHidden Breakpoint="Breakpoint.SmAndDown" Invert="true">
             @if (!_serverItems.Any())
@@ -211,7 +218,6 @@
     </MudPaper>
 </MudContainer>
 
-
 @code {
     [SupplyParameterFromQuery(Name = "ref")] public string? RefParam { get; set; }
 
@@ -244,7 +250,6 @@
             return new TableData<Document> { Items = result.Items, TotalItems = result.TotalCount };
         }
         catch (Exception ex) { Console.WriteLine(ex.Message); return new TableData<Document>(); }
-        finally { }
     }
 
     private async Task OnFilterChanged()
@@ -300,7 +305,6 @@
         }
         catch (Exception ex) { Console.WriteLine($"[ExportCsv] Error: {ex.Message}"); }
     }
-
 
     private bool FilterFunc(Document element) => true;
 
@@ -372,11 +376,11 @@
     {
         if (!_selectedDocs.Any()) return;
         var parameters = new DialogParameters
-    {
-        { "Message", $"Delete {_selectedDocs.Count} selected document(s)? This cannot be undone." },
-        { "YesText", "Delete All" },
-        { "CancelText", "Cancel" }
-    };
+        {
+            { "Message", $"Delete {_selectedDocs.Count} selected document(s)? This cannot be undone." },
+            { "YesText", "Delete All" },
+            { "CancelText", "Cancel" }
+        };
         var dialog = await DialogService.ShowAsync<MudMessageBox>("Bulk Delete", parameters);
         var result = await dialog.Result;
         if (result is null || result.Canceled) return;
@@ -394,4 +398,3 @@
         finally { _isBulkDeleting = false; }
     }
 }
-
