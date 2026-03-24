@@ -137,11 +137,6 @@
                                 </MudSelect>
                             </MudItem>
                         }
-                        <MudItem xs="12">
-                            <MudTextField @bind-Value="overrideComment" Label="Override Reason"
-                                          Variant="Variant.Outlined" Lines="2"
-                                          HelperText="Optional: reason for this admin action" />
-                        </MudItem>
                     </MudGrid>
                 </MudPaper>
             </MudItem>
@@ -169,7 +164,6 @@
     private List<Office> offices = new();
     private List<Unit> reassignOfficeUnits = new();
     private string overrideStatus = "";
-    private string? overrideComment;
     private int? reassignOfficeId;
     private int? reassignUnitId;
     private bool isSaving;
@@ -230,10 +224,8 @@
                 var payload = new AdminOverridePayload
                 {
                     Status = string.IsNullOrEmpty(overrideStatus) ? null : overrideStatus,
-                    ForceComment = reassignOfficeId == null ? overrideComment : null,
                     NextOfficeId = reassignOfficeId,
-                    NextUnitId = reassignUnitId,
-                    ReassignComment = reassignOfficeId.HasValue ? overrideComment : null
+                    NextUnitId = reassignUnitId
                 };
                 var (overrideOk, overrideError) = await DocService.AdminOverrideDocumentAsync(Doc.Id, payload);
                 if (!overrideOk)
