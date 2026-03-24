@@ -285,9 +285,10 @@
     {
         try
         {
+            var result = await DocumentService.GetAllDocumentsAsync(page: 1, pageSize: 10000);
             var sb = new System.Text.StringBuilder();
             sb.AppendLine("Name,Type,Sender,Status,Priority,Current Office,Current Unit,Next Office,Created At");
-            foreach (var doc in _serverItems)
+            foreach (var doc in result.Items)
             {
                 sb.AppendLine($"\"{doc.Name}\",\"{doc.Type}\",\"{doc.Creator?.Name}\",\"{doc.Status}\",\"{doc.Priority}\"," +
                               $"\"{doc.CurrentOffice?.Name}\",\"{doc.CurrentUnit?.Name}\",\"{doc.NextOffice?.Name}\"," +
@@ -299,6 +300,7 @@
         }
         catch (Exception ex) { Console.WriteLine($"[ExportCsv] Error: {ex.Message}"); }
     }
+
 
     private bool FilterFunc(Document element) => true;
 

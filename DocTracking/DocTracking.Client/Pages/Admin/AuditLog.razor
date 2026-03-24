@@ -4,6 +4,7 @@
 @using DocTracking.Client.Services.Helpers
 @inject DocumentService DocService
 @inject ISnackbar Snackbar
+@inject IJSRuntime JS
 @attribute [Authorize(Roles = "Admin")]
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
@@ -13,6 +14,10 @@
             <MudText Typo="Typo.h4" Class="font-weight-bold">Audit Log</MudText>
             <MudText Typo="Typo.body2" Class="mud-text-secondary">System-wide record of all document actions.</MudText>
         </div>
+        <MudButton Variant="Variant.Outlined" Color="Color.Success"
+                   StartIcon="@Icons.Material.Filled.Download" OnClick="ExportCsv">
+            Export CSV
+        </MudButton>
     </div>
 
     <MudTextField @bind-Value="searchText" Placeholder="Search document, user, or action..."
@@ -110,6 +115,37 @@
             return new TableData<DocumentLog>();
         }
     }
+
+    private async Task ExportCsv()
+    {
+        try
+        {
+            var result = await DocService.GetAuditLogsAsync(page: 1, pageSize: 10000);
+
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("Timestamp,Document,Reference,Action,By,Office,Unit,Comment");
+            foreach (var log in result.Items)
+            {
+                sb.AppendLine($"\"{log.TimeStamp.ToLocalTime():yyyy-MM-dd hh:mm tt}\"," +
+                              $"\"{log.Document?.Name}\"," +
+                              $"\"{log.Document?.ReferenceNumber}\"," +
+                              $"\"{log.Action}\"," +
+                              $"\"{log.AppUser?.Name}\"," +
+                              $"\"{log.Office?.Name ?? log.OfficeName}\"," +
+                              $"\"{log.Unit?.Name ?? log.UnitName}\"," +
+                              $"\"{log.Comment}\"");
+            }
+            var bytes = System.Text.Encoding.UTF8.GetBytes(sb.ToString());
+            var base64 = Convert.ToBase64String(bytes);
+            await JS.InvokeVoidAsync("downloadCsv", base64, $"auditlog_{DateTime.Now:yyyyMMdd}.csv");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[AuditLog] ExportCsv error: {ex.Message}");
+            Snackbar.Add("Failed to export audit log.", Severity.Error);
+        }
+    }
+
 
     private async Task OnFilterChanged()
     {
