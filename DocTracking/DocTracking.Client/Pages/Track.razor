@@ -117,70 +117,23 @@
             doc = await DocService.GetDocumentByRefAsync(ReferenceNumber);
             if (doc == null) { isLoading = false; return; }
 
-            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-            var user = authState.User;
-
-            if (user.Identity?.IsAuthenticated == true)
+            var context = await DocService.GetDocumentContextAsync(ReferenceNumber);
+            if (context != null)
             {
-                var email = user.FindFirst(ClaimTypes.Email)?.Value ?? user.FindFirst("email")?.Value;
-                var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                var officeIdClaim = user.FindFirst("OfficeId")?.Value;
-                var unitIdClaim = user.FindFirst("UnitId")?.Value;
-                bool isAdmin = user.IsInRole("Admin");
-                bool isOfficeHead = user.FindFirst("IsOfficeHead")?.Value == "True";
-                int.TryParse(officeIdClaim, out var myOfficeId);
-                int.TryParse(unitIdClaim, out var myUnitId);
-
-                if (doc.Creator?.Email == email || (int.TryParse(userId, out var creatorId) && doc.CreatorId == creatorId))
+                switch (context.RedirectTo)
                 {
-                    Navigation.NavigateTo($"/my-tracking?ref={ReferenceNumber}");
-                    return;
-                }
-                else if (isAdmin)
-                {
-                    Navigation.NavigateTo($"/document-tracking?ref={ReferenceNumber}");
-                    return;
-                }
-                else if (myOfficeId != 0)
-                {
-                    logs = await DocService.GetDocumentLogsAsync(doc.Id);
-
-                    if (doc.Status == "In Motion" && doc.NextOfficeId == myOfficeId)
-                    {
-                        bool unitMatch = string.IsNullOrEmpty(unitIdClaim)
-                            ? !doc.NextUnitId.HasValue
-                            : !doc.NextUnitId.HasValue || doc.NextUnitId == myUnitId;
-
-                        if (unitMatch || isOfficeHead)
-                        {
-                            Navigation.NavigateTo($"/office-desk?ref={ReferenceNumber}&tab=Incoming");
-                            return;
-                        }
-                    }
-
-                    var lastForward = logs.FirstOrDefault(l => l.Action == "Forwarded");
-                    bool isRecipient = doc.NextOfficeId == myOfficeId &&
-                                       (isOfficeHead || !doc.NextUnitId.HasValue || doc.NextUnitId == myUnitId);
-                    bool isSender = lastForward?.OfficeId == myOfficeId;
-                    bool isOnDesk = doc.CurrentOfficeId == myOfficeId &&
-                                    (isOfficeHead || !doc.CurrentUnitId.HasValue || doc.CurrentUnitId == myUnitId);
-
-                    if (isRecipient) { isLoading = false; return; }
-
-                    if (isSender || isOnDesk)
-                    {
-                        Navigation.NavigateTo($"/office-desk?ref={ReferenceNumber}&tab={(isOnDesk ? "OnDesk" : "Outgoing")}");
+                    case "my-tracking":
+                        Navigation.NavigateTo($"/my-tracking?ref={ReferenceNumber}");
                         return;
-                    }
-
-                    if (logs.Any(l => l.OfficeId == myOfficeId))
-                    {
+                    case "document-tracking":
+                        Navigation.NavigateTo($"/document-tracking?ref={ReferenceNumber}");
+                        return;
+                    case "office-desk":
+                        Navigation.NavigateTo($"/office-desk?ref={ReferenceNumber}&tab={context.Tab}");
+                        return;
+                    case "unit-history":
                         Navigation.NavigateTo($"/unit-history?ref={ReferenceNumber}");
                         return;
-                    }
-
-                    isLoading = false;
-                    return;
                 }
             }
 
@@ -192,5 +145,6 @@
         }
         finally { isLoading = false; }
     }
+
 }
 

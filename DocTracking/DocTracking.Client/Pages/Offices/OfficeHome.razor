@@ -214,8 +214,7 @@
 
                 if (officeId != null)
                 {
-                    allOffices = await DocService.GetOfficesAsync();
-                    myOffice = allOffices.FirstOrDefault(o => o.Id == officeId);
+                    myOffice = await DocService.GetOfficeByIdAsync(officeId.Value);
                 }
             }
 
@@ -254,11 +253,9 @@
             outgoingDocs = await DocService.GetOutgoingAsync();
 
             var officeDocs = myUnitId.HasValue
-                ? await DocService.GetUnitHistoryAsync(myUnitId.Value)
-                : await DocService.GetOfficeHistoryAsync(myOffice.Id);
-            recentDocs = officeDocs
-                .OrderByDescending(d => d.LastActionDate)
-                .Take(5).ToList();
+                ? await DocService.GetUnitHistoryAsync(myUnitId.Value, page: 1, pageSize: 5)
+                : await DocService.GetOfficeHistoryAsync(myOffice.Id, page: 1, pageSize: 5);
+            recentDocs = officeDocs.Items;
         }
         catch (Exception ex)
         {
@@ -270,6 +267,9 @@
 
     private async Task OpenDeskDialog(Document doc, OfficeDeskViewDialog.DeskTab tab)
     {
+        if (!allOffices.Any())
+            allOffices = await DocService.GetOfficesAsync();
+
         var parameters = new DialogParameters<OfficeDeskViewDialog>
         {
             {x => x.Doc, doc},

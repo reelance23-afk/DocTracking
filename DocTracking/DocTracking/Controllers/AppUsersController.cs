@@ -26,14 +26,30 @@ namespace DocTracking.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<AppUser>>> GetUsers()
+        public async Task<ActionResult<PagedResult<AppUser>>> GetUsers(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 25,
+            [FromQuery] string? search = null)
         {
-            return await _context.AppUsers
+            var query = _context.AppUsers
                 .Include(u => u.Unit)
                 .ThenInclude(unit => unit.Office)
                 .Include(u => u.Office)
+                .AsQueryable();
+
+            if (!string.IsNullOrEmpty(search))
+                query = query.Where(u =>
+                    (u.Name != null && u.Name.Contains(search)) ||
+                    (u.Role != null && u.Role.Contains(search)));
+
+            var total = await query.CountAsync();
+            var items = await query
                 .OrderBy(u => u.Name)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .ToListAsync();
+
+            return Ok(new PagedResult<AppUser> { Items = items, TotalCount = total });
         }
 
         [HttpPut("{id}")]
@@ -54,12 +70,11 @@ namespace DocTracking.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[UpdateUser] Error: {ex.Message}");
+                _logger.LogError(ex, "[UpdateUser] Failed for user {Id}", id);
                 return StatusCode(500, "Failed to update user.");
             }
             return Ok();
         }
-
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteUser(int id)
@@ -104,7 +119,7 @@ namespace DocTracking.Controllers
             catch (Exception ex)
             {
                 await tx.RollbackAsync();
-                Console.WriteLine($"[DeleteUser] Error: {ex.Message}");
+                _logger.LogError(ex, "[DeleteUser] Failed for user {Id}", id);
                 return StatusCode(500, "Failed to delete user.");
             }
 
@@ -137,7 +152,7 @@ namespace DocTracking.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[BulkReassign] Error: {ex.Message}");
+                _logger.LogError(ex, "[BulkReassign] Failed");
                 return StatusCode(500, "Failed to reassign users.");
             }
             return Ok(new { moved = users.Count });
@@ -170,14 +185,14 @@ namespace DocTracking.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[SelectiveReassign] Error: {ex.Message}");
+                _logger.LogError(ex, "[SelectiveReassign] Failed");
                 return StatusCode(500, "Failed to reassign users.");
             }
             return Ok(new { moved = users.Count });
         }
     }
 
-        public class BulkReassignRequest
+    public class BulkReassignRequest
     {
         public int FromUnitId { get; set; }
         public int ToUnitId { get; set; }

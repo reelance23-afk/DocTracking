@@ -1,9 +1,11 @@
 using DocTracking.Client.Models;
 using DocTracking.Data;
+using DocTracking.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using System.Text;
 
 namespace DocTracking.Controllers
 {
@@ -14,25 +16,37 @@ namespace DocTracking.Controllers
     public class DocumentLogsController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        private readonly DocumentQueryService _docService;
+        private readonly ILogger<DocumentLogsController> _logger;
 
-        public DocumentLogsController(ApplicationDbContext context)
+        public DocumentLogsController(ApplicationDbContext context, DocumentQueryService docService, ILogger<DocumentLogsController> logger)
         {
             _context = context;
+            _docService = docService;
+            _logger = logger;
         }
 
         [HttpGet("{documentId}")]
         public async Task<ActionResult<IEnumerable<DocumentLog>>> GetDocumentLogs(int documentId)
         {
-            return await _context.DocumentLogs
-                .Include(m => m.Document)
-                .Include(m => m.Office)
-                .Include(m => m.Unit)
-                .Include(m => m.AppUser)
-                .ThenInclude(m => m.Unit)
-                .ThenInclude(m => m.Office)
-                .Where(m => m.DocumentId == documentId )
-                .OrderByDescending(m => m.TimeStamp)
-                .ToListAsync();
+            try
+            {
+                return await _context.DocumentLogs
+                    .Include(m => m.Document)
+                    .Include(m => m.Office)
+                    .Include(m => m.Unit)
+                    .Include(m => m.AppUser)
+                    .ThenInclude(m => m.Unit)
+                    .ThenInclude(m => m.Office)
+                    .Where(m => m.DocumentId == documentId)
+                    .OrderByDescending(m => m.TimeStamp)
+                    .ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[GetDocumentLogs] Failed for documentId {DocumentId}", documentId);
+                return StatusCode(500, "Failed to load document logs.");
+            }
         }
 
         [HttpGet("audit")]
@@ -44,36 +58,44 @@ namespace DocTracking.Controllers
             [FromQuery] string? action = null,
             [FromQuery] string? date = null)
         {
-            var query = _context.DocumentLogs
-                .Include(m => m.Document)
-                .Include(m => m.Office)
-                .Include(m => m.Unit)
-                .Include(m => m.AppUser)
-                .AsQueryable();
-
-            if (!string.IsNullOrEmpty(search))
-                query = query.Where(m =>
-                    (m.Document != null && m.Document.Name != null && m.Document.Name.Contains(search)) ||
-                    (m.Document != null && m.Document.ReferenceNumber != null && m.Document.ReferenceNumber.Contains(search)) ||
-                    (m.AppUser != null && m.AppUser.Name != null && m.AppUser.Name.Contains(search)) ||
-                    (m.Action != null && m.Action.Contains(search)));
-
-            if (!string.IsNullOrEmpty(action))
-                query = query.Where(m => m.Action == action);
-
-            if (DateTime.TryParse(date, out var filterDate))
-                query = query.Where(m => m.TimeStamp.Date == filterDate.Date);
-
-            var total = await query.CountAsync();
-            var items = await query
-                .OrderByDescending(m => m.TimeStamp)
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
-                .ToListAsync();
-
+            var (items, total) = await _docService.GetAuditLogsAsync(page, pageSize, search, action, date);
             return Ok(new PagedResult<DocumentLog> { Items = items, TotalCount = total });
         }
 
+        [HttpGet("export-csv")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> ExportAuditLogCsv(
+            [FromQuery] string? search = null,
+            [FromQuery] string? action = null,
+            [FromQuery] string? date = null)
+        {
+            try
+            {
+                Response.ContentType = "text/csv";
+                Response.Headers.Append("Content-Disposition", $"attachment; filename=auditlog_{DateTime.Now:yyyyMMdd}.csv");
 
+                var sb = new StringBuilder();
+                sb.AppendLine("Timestamp,Document,Reference,Action,By,Office,Unit,Comment");
+
+                await foreach (var log in _docService.StreamAllAuditLogsAsync(search, action, date))
+                {
+                    sb.AppendLine($"\"{log.TimeStamp.ToLocalTime():yyyy-MM-dd hh:mm tt}\"," +
+                                  $"\"{log.Document?.Name}\"," +
+                                  $"\"{log.Document?.ReferenceNumber}\"," +
+                                  $"\"{log.Action}\"," +
+                                  $"\"{log.AppUser?.Name}\"," +
+                                  $"\"{log.Office?.Name ?? log.OfficeName}\"," +
+                                  $"\"{log.Unit?.Name ?? log.UnitName}\"," +
+                                  $"\"{log.Comment}\"");
+                }
+
+                return Content(sb.ToString(), "text/csv", Encoding.UTF8);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[ExportAuditLogCsv] Failed");
+                return StatusCode(500, "Failed to export audit log.");
+            }
+        }
     }
 }

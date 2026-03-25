@@ -35,7 +35,7 @@
                 <MudPaper Elevation="2" Class="pa-4" Style="border-top: 4px solid var(--mud-palette-info);">
                     <div class="d-flex justify-space-between align-center">
                         <div>
-                            <MudText Typo="Typo.h3" Class="font-weight-bold" Color="Color.Info">@totalDocuments</MudText>
+                            <MudText Typo="Typo.h3" Class="font-weight-bold" Color="Color.Info">@stats.TotalDocuments</MudText>
                             <MudText Typo="Typo.body2">Total Documents</MudText>
                         </div>
                         <MudIcon Icon="@Icons.Material.Filled.Description" Size="Size.Large" Color="Color.Info" />
@@ -46,7 +46,7 @@
                 <MudPaper Elevation="2" Class="pa-4" Style="border-top: 4px solid var(--mud-palette-warning);">
                     <div class="d-flex justify-space-between align-center">
                         <div>
-                            <MudText Typo="Typo.h3" Class="font-weight-bold" Color="Color.Warning">@totalOffices</MudText>
+                            <MudText Typo="Typo.h3" Class="font-weight-bold" Color="Color.Warning">@stats.TotalOffices</MudText>
                             <MudText Typo="Typo.body2">Total Offices</MudText>
                         </div>
                         <MudIcon Icon="@Icons.Material.Filled.Business" Size="Size.Large" Color="Color.Warning" />
@@ -57,7 +57,7 @@
                 <MudPaper Elevation="2" Class="pa-4" Style="border-top: 4px solid var(--mud-palette-success);">
                     <div class="d-flex justify-space-between align-center">
                         <div>
-                            <MudText Typo="Typo.h3" Class="font-weight-bold" Color="Color.Success">@totalUsers</MudText>
+                            <MudText Typo="Typo.h3" Class="font-weight-bold" Color="Color.Success">@stats.TotalUsers</MudText>
                             <MudText Typo="Typo.body2">Total Users</MudText>
                         </div>
                         <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Large" Color="Color.Success" />
@@ -116,7 +116,7 @@
                         <MudItem xs="12" sm="6">
                             <MudPaper Elevation="0" Class="pa-3" Style="background: rgba(var(--mud-palette-warning-rgb), 0.08); border-radius: 8px; min-height: 200px;">
                                 <MudText Typo="Typo.subtitle2" Color="Color.Warning" Class="mb-3 font-weight-bold">In Motion</MudText>
-                                @foreach (var doc in inMotionDocs.Take(5))
+                                @foreach (var doc in stats.InMotionDocs)
                                 {
                                     <MudPaper Elevation="1" Class="pa-3 mb-2">
                                         <MudText Typo="Typo.body2" Class="font-weight-bold mb-1">@doc.Name</MudText>
@@ -126,7 +126,7 @@
                                         </div>
                                     </MudPaper>
                                 }
-                                @if (!inMotionDocs.Any())
+                                @if (!stats.InMotionDocs.Any())
                                 {
                                     <MudText Typo="Typo.caption" Class="mud-text-secondary">No documents in motion</MudText>
                                 }
@@ -135,7 +135,7 @@
                         <MudItem xs="12" sm="6">
                             <MudPaper Elevation="0" Class="pa-3" Style="background: rgba(var(--mud-palette-info-rgb), 0.08); border-radius: 8px; min-height: 200px;">
                                 <MudText Typo="Typo.subtitle2" Color="Color.Info" Class="mb-3 font-weight-bold">Office Workload</MudText>
-                                @foreach (var workload in officeWorkLoads.Take(5))
+                                @foreach (var workload in stats.OfficeWorkloads)
                                 {
                                     <div class="mb-3">
                                         <div class="d-flex justify-space-between mb-1">
@@ -145,7 +145,7 @@
                                         <MudProgressLinear Color="Color.Primary" Value="@workload.Percentage" Class="rounded-lg" Size="Size.Small" />
                                     </div>
                                 }
-                                @if (!officeWorkLoads.Any())
+                                @if (!stats.OfficeWorkloads.Any())
                                 {
                                     <MudText Typo="Typo.caption" Class="mud-text-secondary">No workload data</MudText>
                                 }
@@ -161,7 +161,7 @@
                         <MudIcon Icon="@Icons.Material.Filled.Timeline" Class="mr-2" Color="Color.Primary" />
                         <MudText Typo="Typo.h6">Recent Activity</MudText>
                     </div>
-                    @if (!recentDocuments.Any())
+                    @if (!stats.RecentDocuments.Any())
                     {
                         <div class="text-center pa-6">
                             <MudIcon Icon="@Icons.Material.Filled.Inbox" Size="Size.Large" Style="opacity: 0.3;" />
@@ -171,7 +171,7 @@
                     else
                     {
                         <MudTimeline TimelinePosition="TimelinePosition.Start">
-                            @foreach (var doc in recentDocuments.Take(4))
+                            @foreach (var doc in stats.RecentDocuments)
                             {
                                 <MudTimelineItem Color="@(doc.Status == "Completed" ? Color.Success : Color.Warning)"
                                                  Size="Size.Small" TimelineAlign="TimelineAlign.Default">
@@ -208,70 +208,35 @@
 </MudContainer>
 
 @code {
-    private List<Document> allDocuments = new();
-    private List<Document> recentDocuments = new();
-    private List<Document> inMotionDocs = new();
+    private DashboardStats stats = new();
     private List<Office> allOffices = new();
-    private int totalDocuments, totalOffices, totalUsers;
     private bool isLoading = true;
-    private List<OfficeWorkLoad> officeWorkLoads = new();
     private PeriodicTimer? _pollTimer;
-
     private string broadcastMessage = "";
     private int? broadcastOfficeId;
     private bool isBroadcasting;
 
-    public class OfficeWorkLoad
-    {
-        public string? OfficeName { get; set; }
-        public int DocumentCount { get; set; }
-        public int Percentage { get; set; }
-    }
-
     protected override async Task OnInitializedAsync()
-    {
-        await LoadData();
-        StartPolling();
-    }
-
-    private async Task LoadData()
     {
         try
         {
-            var pagedResult = await DocumentService.GetAllDocumentsAsync(pageSize: 1000);
-            allDocuments = pagedResult.Items;
-            var allAppUsers = await DocumentService.GetAppUserAsync();
-            allOffices = await DocumentService.GetOfficesAsync();
+            allOffices = await DocumentService.GetOfficesAsync(); 
+            await LoadStats();
+        }
+        finally { isLoading = false; }
+        StartPolling();
+    }
 
-            totalDocuments = allDocuments.Count;
-            totalOffices = allOffices.Count;
-            totalUsers = allAppUsers.Count;
-
-            inMotionDocs = allDocuments.Where(d => d.Status == "In Motion").ToList();
-            recentDocuments = allDocuments.OrderByDescending(d => d.LastActionDate ?? d.CreatedAt).Take(4).ToList();
-
-            int maxDoc = Math.Max(totalDocuments, 1);
-            officeWorkLoads = allOffices.Select(office =>
-            {
-                int count = allDocuments.Count(d => d.CurrentOfficeId == office.Id);
-                return new OfficeWorkLoad
-                {
-                    OfficeName = office.Name,
-                    DocumentCount = count,
-                    Percentage = (int)Math.Round((double)count / maxDoc * 100)
-                };
-            })
-            .Where(w => w.DocumentCount > 0)
-            .OrderByDescending(w => w.DocumentCount)
-            .ToList();
+    private async Task LoadStats()
+    {
+        try
+        {
+            var result = await DocumentService.GetDashboardStatsAsync();
+            if (result != null) stats = result;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error: {ex.Message}");
-        }
-        finally
-        {
-            isLoading = false;
+            Console.WriteLine($"[AdminMaster] LoadStats error: {ex.Message}");
         }
     }
 
@@ -299,7 +264,7 @@
             {
                 try
                 {
-                    await LoadData();
+                    await LoadStats();
                     await InvokeAsync(StateHasChanged);
                 }
                 catch (Exception ex)
@@ -311,14 +276,10 @@
         catch (OperationCanceledException) { }
     }
 
-
     private async Task OpenViewDialog(Document doc)
     {
-        var parameters = new DialogParameters<DocumentViewDialog>
-        {
-            {x => x.Doc, doc}
-        };
-        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true};
+        var parameters = new DialogParameters<DocumentViewDialog> { { x => x.Doc, doc } };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
         await DialogService.ShowAsync<DocumentViewDialog>("Document Details", parameters, options);
     }
 

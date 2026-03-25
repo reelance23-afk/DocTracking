@@ -231,10 +231,11 @@
 
             if (!string.IsNullOrEmpty(_userEmail))
             {
-                var allDocs = await DocService.GetUserDocumentsAsync(_userEmail);
+                var result = await DocService.GetUserDocumentsAsync(_userEmail, page: 1, pageSize: 100);
+                var allDocs = result.Items;
                 if (allDocs != null)
                 {
-                    myDocsCount = allDocs.Count;
+                    myDocsCount = result.TotalCount;
                     pendingCount = allDocs.Count(d => d.Status != "Completed");
                     completedCount = allDocs.Count(d => d.Status == "Completed");
                     pendingDocs = allDocs.Where(d => d.Status != "Completed").Take(5).ToList();
@@ -276,21 +277,19 @@
         {
             if (!string.IsNullOrEmpty(_userEmail))
             {
-                var allDocs = await DocService.GetUserDocumentsAsync(_userEmail);
-                if (allDocs != null)
-                {
-                    myDocsCount = allDocs.Count;
-                    pendingCount = allDocs.Count(d => d.Status != "Completed");
-                    completedCount = allDocs.Count(d => d.Status == "Completed");
-                    pendingDocs = allDocs.Where(d => d.Status != "Completed").Take(5).ToList();
-                    completedDocs = allDocs.Where(d => d.Status == "Completed").Take(5).ToList();
-                    recentDocs = allDocs.OrderByDescending(d => d.LastActionDate).Take(5).ToList();
-                    stuckDocs = allDocs
-                        .Where(d => d.Status != "Completed" &&
-                               (DateTime.UtcNow - (d.LastActionDate ?? d.CreatedAt)).TotalDays >= 1)
-                        .OrderByDescending(d => d.LastActionDate ?? d.CreatedAt)
-                        .ToList();
-                }
+                var result = await DocService.GetUserDocumentsAsync(_userEmail, page: 1, pageSize: 100);
+                var allDocs = result.Items;
+                myDocsCount = result.TotalCount;
+                pendingCount = allDocs.Count(d => d.Status != "Completed");
+                completedCount = allDocs.Count(d => d.Status == "Completed");
+                pendingDocs = allDocs.Where(d => d.Status != "Completed").Take(5).ToList();
+                completedDocs = allDocs.Where(d => d.Status == "Completed").Take(5).ToList();
+                recentDocs = allDocs.OrderByDescending(d => d.LastActionDate).Take(5).ToList();
+                stuckDocs = allDocs
+                    .Where(d => d.Status != "Completed" &&
+                           (DateTime.UtcNow - (d.LastActionDate ?? d.CreatedAt)).TotalDays >= 1)
+                    .OrderByDescending(d => d.LastActionDate ?? d.CreatedAt)
+                    .ToList();
             }
             await InvokeAsync(StateHasChanged);
         });

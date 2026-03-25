@@ -1,5 +1,4 @@
 using DocTracking;
-using DocTracking.Client.Pages;
 using DocTracking.Client.Services;
 using DocTracking.Components;
 using DocTracking.Data;
@@ -50,7 +49,7 @@ builder.Services.AddRateLimiter(options =>
             partitionKey: httpContext.User.Identity?.Name ?? httpContext.Connection.RemoteIpAddress?.ToString() ?? "anon",
             factory: _ => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
             {
-                PermitLimit = 60,
+                PermitLimit = 300,
                 Window = TimeSpan.FromMinutes(1),
                 QueueProcessingOrder = System.Threading.RateLimiting.QueueProcessingOrder.OldestFirst,
                 QueueLimit = 0
@@ -111,6 +110,7 @@ builder.Services.AddHttpClient<DocumentService>(client =>
 }).AddHttpMessageHandler<CookieHandler>();
 builder.Services.AddMemoryCache();
 builder.Services.AddScoped<ThemeService>();
+builder.Services.AddScoped<DocumentQueryService>();
 builder.Services.AddScoped<NotificationService>();
 builder.Services.AddRazorPages();
 builder.Services.AddMudServices();         

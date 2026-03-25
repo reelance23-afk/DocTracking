@@ -25,7 +25,7 @@
                 <MudPaper Style="border-top: 4px solid var(--mud-palette-warning);" Elevation="2" Class="pa-4 rounded-lg">
                     <div class="d-flex align-center justify-space-between">
                         <div>
-                            <MudText Typo="Typo.h3" Class="font-weight-bold" Color="Color.Warning">@filteredDocuments.Count(d => d.Status != "Received" && d.Status != "Completed")</MudText>
+                            <MudText Typo="Typo.h3" Class="font-weight-bold" Color="Color.Warning">@myDocuments.Count(d => d.Status != "Received" && d.Status != "Completed")</MudText>
                             <MudText Typo="Typo.body2" Color="Color.Warning">In Motion</MudText>
                         </div>
                         <MudIcon Icon="@Icons.Material.Filled.DirectionsWalk" Size="Size.Large" Color="Color.Warning" />
@@ -36,7 +36,7 @@
                 <MudPaper Style="border-top: 4px solid var(--mud-palette-success);" Elevation="2" Class="pa-4 rounded-lg">
                     <div class="d-flex align-center justify-space-between">
                         <div>
-                            <MudText Typo="Typo.h3" Class="font-weight-bold" Color="Color.Success">@filteredDocuments.Count(d => d.Status == "Received")</MudText>
+                            <MudText Typo="Typo.h3" Class="font-weight-bold" Color="Color.Success">@myDocuments.Count(d => d.Status == "Received")</MudText>
                             <MudText Typo="Typo.body2" Color="Color.Success">Received</MudText>
                         </div>
                         <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Large" Color="Color.Success" />
@@ -47,7 +47,7 @@
                 <MudPaper Style="border-top: 4px solid var(--mud-palette-info);" Elevation="2" Class="pa-4 rounded-lg">
                     <div class="d-flex align-center justify-space-between">
                         <div>
-                            <MudText Typo="Typo.h3" Class="font-weight-bold" Color="Color.Info">@filteredDocuments.Count(d => d.Status == "Completed")</MudText>
+                            <MudText Typo="Typo.h3" Class="font-weight-bold" Color="Color.Info">@myDocuments.Count(d => d.Status == "Completed")</MudText>
                             <MudText Typo="Typo.body2" Color="Color.Info">Completed Documents</MudText>
                         </div>
                         <MudIcon Icon="@Icons.Material.Filled.Description" Size="Size.Large" Color="Color.Info" />
@@ -71,48 +71,43 @@
                 <MudText Typo="Typo.h6">All My Documents</MudText>
             </div>
 
-            <MudTextField @bind-Value="searchString"
+            <MudTextField Value="@searchString"
+                          ValueChanged="@((string v) => OnSearchChanged(v))"
                           Placeholder="Search documents..."
                           Adornment="Adornment.Start"
                           AdornmentIcon="@Icons.Material.Filled.Search"
                           IconSize="Size.Medium"
                           Variant="Variant.Outlined"
                           Margin="Margin.Dense"
-                          Immediate="true"
+                          DebounceInterval="400"
                           Class="mb-4" />
 
             <MudHidden Breakpoint="Breakpoint.SmAndDown">
-                <MudTable Items="@filteredDocuments" Hover="true" T="Document" SortLabel="Sort By">
+                <MudTable @ref="_table" ServerData="LoadServerData" Hover="true" T="Document" SortLabel="Sort By">
                     <HeaderContent>
                         <MudTh><MudTableSortLabel SortBy="new Func<Document, object>(x => x.Name)">Document</MudTableSortLabel></MudTh>
                         <MudTh>
-                            <MudButton Variant="Variant.Text"
-                                       OnClick="CycleTypeFilter"
-                                       Class="pa-2"
-                                       Style="text-transform: none">
+                            <MudButton Variant="Variant.Text" OnClick="CycleTypeFilter"
+                                       Class="pa-2" Style="text-transform: none">
                                 Type
-                                <MudIcon Icon="@Icons.Material.Filled.FilterList" Size="Size.Small" Class="ml-1"/>
-                                 @(string.IsNullOrEmpty(typeFilter) ? "" : $"({typeFilter})")
+                                <MudIcon Icon="@Icons.Material.Filled.FilterList" Size="Size.Small" Class="ml-1" />
+                                @(string.IsNullOrEmpty(typeFilter) ? "" : $"({typeFilter})")
                             </MudButton>
                         </MudTh>
                         <MudTh>
-                            <MudButton Variant="Variant.Text"
-                                       OnClick="CycleStatusFilter"
-                                       Class="pa-2"
-                                       Style="text-transform: none;">
+                            <MudButton Variant="Variant.Text" OnClick="CycleStatusFilter"
+                                       Class="pa-2" Style="text-transform: none;">
                                 Status
-                                <MudIcon Icon="@Icons.Material.Filled.FilterList" Size="Size.Small" Class="ml-1"/>
-                                 @(string.IsNullOrEmpty(statusFilter) ? "" : $"({statusFilter})")
+                                <MudIcon Icon="@Icons.Material.Filled.FilterList" Size="Size.Small" Class="ml-1" />
+                                @(string.IsNullOrEmpty(statusFilter) ? "" : $"({statusFilter})")
                             </MudButton>
                         </MudTh>
                         <MudTh>
-                            <MudButton Variant="Variant.Text"
-                                       OnClick="CyclePriorityFilter"
-                                       Class="pa-2"
-                                       Style="text-transform: none;">
+                            <MudButton Variant="Variant.Text" OnClick="CyclePriorityFilter"
+                                       Class="pa-2" Style="text-transform: none;">
                                 Priority
                                 <MudIcon Icon="@Icons.Material.Filled.FilterList" Size="Size.Small" Class="ml-1" />
-                                 @(string.IsNullOrEmpty(priorityFilter) ? "" : $"({priorityFilter})")
+                                @(string.IsNullOrEmpty(priorityFilter) ? "" : $"({priorityFilter})")
                             </MudButton>
                         </MudTh>
                         <MudTh><MudTableSortLabel SortBy="new Func<Document, object>(x => x.CreatedAt)">Created</MudTableSortLabel></MudTh>
@@ -122,21 +117,21 @@
                     </HeaderContent>
                     <RowTemplate>
                         <MudTd DataLabel="Document"><strong>@context.Name</strong></MudTd>
-                        <MudTd center;" DataLabel="Type">
+                        <MudTd DataLabel="Type">
                             <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Info">@context.Type</MudChip>
                         </MudTd>
-                        <MudTd center;" DataLabel="Status">
+                        <MudTd DataLabel="Status">
                             <MudChip T="string" Color="@(context.Status == "Received" ? Color.Success : Color.Warning)" Size="Size.Small" Variant="Variant.Outlined">
                                 @context.Status
                             </MudChip>
                         </MudTd>
-                        <MudTd center;" DataLabel="Priority">
+                        <MudTd DataLabel="Priority">
                             <MudChip T="string" Color="@DocHelpers.GetPriorityColor(context.Priority)" Size="Size.Small" Variant="Variant.Filled">
                                 @context.Priority
                             </MudChip>
                         </MudTd>
-                        <MudTd center;" DataLabel="Created">@context.CreatedAt.ToLocalTime().ToString("MMM dd, hh:mm tt")</MudTd>
-                        <MudTd center;" DataLabel="Current Location">
+                        <MudTd DataLabel="Created">@context.CreatedAt.ToLocalTime().ToString("MMM dd, hh:mm tt")</MudTd>
+                        <MudTd DataLabel="Current Location">
                             @if (context.CurrentOffice != null)
                             {
                                 <strong>@context.CurrentOffice.Name</strong>
@@ -174,7 +169,6 @@
                                 <MudIconButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Secondary"
                                                Icon="@Icons.Material.Filled.QrCode"
                                                OnClick="@(async () => await OpenQRDialog(context))" />
-
                             </div>
                         </MudTd>
                     </RowTemplate>
@@ -182,7 +176,7 @@
                         <div class="pa-8 text-center">
                             <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Large" Style="opacity: 0.3; font-size: 4rem;" Class="mb-4" />
                             <MudText Typo="Typo.h6" Class="mud-text-secondary">@(string.IsNullOrEmpty(searchString) ? "No documents found" : "No matching documents")</MudText>
-                            <MudText Typo="Typo.body2" Class="mud-text-secondary">@(string.IsNullOrEmpty(searchString) ? "You haven't created any documents in this filter yet" : "Try adjusting your search terms")</MudText>
+                            <MudText Typo="Typo.body2" Class="mud-text-secondary">@(string.IsNullOrEmpty(searchString) ? "You haven't created any documents yet" : "Try adjusting your search terms")</MudText>
                         </div>
                     </NoRecordsContent>
                     <PagerContent>
@@ -192,7 +186,7 @@
             </MudHidden>
 
             <MudHidden Breakpoint="Breakpoint.MdAndUp">
-                @if (!filteredDocuments.Any())
+                @if (!myDocuments.Any())
                 {
                     <div class="pa-8 text-center">
                         <MudIcon Icon="@(string.IsNullOrEmpty(searchString) ? Icons.Material.Filled.Inbox : Icons.Material.Filled.SearchOff)" Size="Size.Large" Style="opacity: 0.3; font-size: 4rem;" Class="mb-4" />
@@ -207,7 +201,7 @@
                 }
                 else
                 {
-                    @foreach (var doc in filteredDocuments)
+                    @foreach (var doc in myDocuments)
                     {
                         <MudCard Elevation="2" Class="mb-3">
                             <MudCardContent Class="pa-4">
@@ -217,23 +211,18 @@
                                         @doc.Priority
                                     </MudChip>
                                 </div>
-
                                 <MudChip T="string" Color="Color.Info" Size="Size.Small" Variant="Variant.Outlined" Class="mb-2">@doc.Type</MudChip>
-
                                 <MudChip T="string" Color="@(doc.Status == "Received" ? Color.Success : Color.Warning)" Size="Size.Small" Variant="Variant.Filled" Class="mb-3">
                                     @doc.Status
                                 </MudChip>
-
                                 <MudText Typo="Typo.body2" Class="mb-2">
                                     <MudIcon Icon="@Icons.Material.Filled.LocationOn" Size="Size.Small" Class="mr-1" />
                                     Current: <strong>@(doc.CurrentOffice?.Name ?? "None")</strong>
                                 </MudText>
-
                                 <MudText Typo="Typo.body2" Class="mb-2">
                                     <MudIcon Icon="@Icons.Material.Filled.ArrowForward" Size="Size.Small" Class="mr-1" />
                                     Next: <strong>@(doc.NextOffice?.Name ?? "None")</strong>
                                 </MudText>
-
                                 <MudText Typo="Typo.caption" Class="mud-text-secondary">
                                     <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" Class="mr-1" />
                                     @doc.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy hh:mm tt")
@@ -247,7 +236,6 @@
                                     <MudIconButton Variant="Variant.Outlined" Color="Color.Secondary"
                                                    Icon="@Icons.Material.Filled.QrCode"
                                                    OnClick="@(async () => await OpenQRDialog(doc))" />
-
                                 </div>
                             </MudCardActions>
                         </MudCard>
@@ -268,14 +256,16 @@
 @code {
     [SupplyParameterFromQuery(Name = "ref")] public string? RefParam { get; set; }
 
-    private List<Document> myDocuments = new();
-    private CancellationTokenSource? _debounceCts;
+    private PagedResult<Document> _pagedResult = new();
+    private List<Document> myDocuments => _pagedResult.Items;
+    private MudTable<Document>? _table;
     private bool isLoading = true;
     private string? errorMessage;
     private string email = "";
+    private bool dialogOpened = false;
+    private UserDocumentStats _stats = new();
 
     private string searchString = "";
-
     private string priorityFilter = "";
     private readonly string[] priorityFilters = { "", "Emergency", "Urgent", "Medium", "Low" };
     private int priorityFilterIndex = 0;
@@ -286,32 +276,24 @@
     private readonly string[] statusFilters = { "", "In Motion", "Received", "Completed" };
     private int statusFilterIndex = 0;
 
-    private bool dialogOpened = false;
-
     protected override async Task OnInitializedAsync()
     {
         try
         {
-
             var authState = await AuthStateProvider.GetAuthenticationStateAsync();
             var user = authState.User;
-
-            string email = user.FindFirst(ClaimTypes.Email)?.Value ?? user.Identity?.Name ?? "";
-            if (!string.IsNullOrEmpty(email))
-                myDocuments = await DocService.GetUserDocumentsAsync(email);
-            else
+            email = user.FindFirst(ClaimTypes.Email)?.Value ?? user.Identity?.Name ?? "";
+            if (string.IsNullOrEmpty(email))
                 errorMessage = "Could not find your user email to load documents.";
+            if (!string.IsNullOrEmpty(email))
+                _stats = await DocService.GetUserDocumentStatsAsync(email) ?? new();
+
         }
         catch (Exception ex)
         {
             errorMessage = ex.Message;
-            Console.WriteLine($"Error loading documents: {ex.Message}");
         }
-        finally
-        {
-            isLoading = false;
-            StateHasChanged();
-        }
+        finally { isLoading = false; }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -329,47 +311,42 @@
         }
     }
 
-    private bool FilterFunc(Document document)
+    private async void OnSearchChanged(string value)
     {
-        if (string.IsNullOrWhiteSpace(searchString)) return true;
-        return document.Name?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true ||
-               document.Type?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true ||
-               document.Status?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true ||
-               document.Priority?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true ||
-               document.CurrentOffice?.Name?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true ||
-               document.NextOffice?.Name?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true;
+        searchString = value;
+        await LoadDocuments();
+        await InvokeAsync(StateHasChanged);
     }
 
-    private IEnumerable<Document> filteredDocuments => myDocuments
-        .Where(FilterFunc)
-        .Where(d => string.IsNullOrEmpty(priorityFilter) || d.Priority == priorityFilter)
-        .Where(d => string.IsNullOrEmpty(typeFilter) || d.Type == typeFilter)
-        .Where(d => string.IsNullOrEmpty(statusFilter) || d.Status == statusFilter);
-
-    private void CyclePriorityFilter()
+    private async Task CyclePriorityFilter()
     {
         priorityFilterIndex = (priorityFilterIndex + 1) % priorityFilters.Length;
         priorityFilter = priorityFilters[priorityFilterIndex];
+        await LoadDocuments();
     }
 
-    private void CycleTypeFilter()
+    private async Task CycleTypeFilter()
     {
         typeFilterIndex = (typeFilterIndex + 1) % typeFilters.Length;
         typeFilter = typeFilters[typeFilterIndex];
+        await LoadDocuments();
     }
 
-    private void CycleStatusFilter()
+    private async Task CycleStatusFilter()
     {
         statusFilterIndex = (statusFilterIndex + 1) % statusFilters.Length;
         statusFilter = statusFilters[statusFilterIndex];
+        await LoadDocuments();
+    }
+
+    private async Task LoadDocuments()
+    {
+        if (_table != null) await _table.ReloadServerData();
     }
 
     private async Task OpenViewDialog(Document doc)
     {
-        var parameters = new DialogParameters<DocumentViewDialog>
-        {
-            { x => x.Doc, doc }
-        };
+        var parameters = new DialogParameters<DocumentViewDialog> { { x => x.Doc, doc } };
         var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
         await DialogService.ShowAsync<DocumentViewDialog>("Document Details", parameters, options);
     }
@@ -385,23 +362,39 @@
         await DialogService.ShowAsync<QRCodeDialog>("QR Code", parameters, options);
     }
 
+    private async Task<TableData<Document>> LoadServerData(TableState state, CancellationToken ct)
+    {
+        if (string.IsNullOrEmpty(email)) return new TableData<Document>();
+        try
+        {
+            _stats = await DocService.GetUserDocumentStatsAsync(email) ?? new();
+            _pagedResult = await DocService.GetUserDocumentsAsync(
+                email, page: state.Page + 1, pageSize: state.PageSize,
+                search: searchString, status: statusFilter,
+                priority: priorityFilter, type: typeFilter);
+            await InvokeAsync(StateHasChanged);
+            return new TableData<Document> { Items = _pagedResult.Items, TotalItems = _pagedResult.TotalCount };
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[MyTracking] LoadServerData error: {ex.Message}");
+            return new TableData<Document>();
+        }
+    }
+
+
     private async void OnNotificationReceived()
     {
-        _debounceCts?.Cancel();
-        _debounceCts = new CancellationTokenSource();
-        try {
+        try
+        {
+            await LoadDocuments();
             await InvokeAsync(StateHasChanged);
         }
-        catch (TaskCanceledException) { } 
+        catch (TaskCanceledException) { }
     }
 
     public void Dispose()
     {
         NotifService.OnChange -= OnNotificationReceived;
-        _debounceCts?.Cancel();
-        _debounceCts?.Dispose();
     }
 }
-
-
-         

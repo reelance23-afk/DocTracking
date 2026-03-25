@@ -24,7 +24,7 @@ namespace DocTracking.Controllers
 
         [HttpPost]
         [Authorize(Roles = "Admin")]
-        public async Task<ActionResult<List<Office>>> AddOffice([FromBody] Office office)
+        public async Task<ActionResult<Office>> AddOffice([FromBody] Office office)
         {
             var exists = await _context.Offices.AnyAsync(o => o.Name == office.Name);
             if (exists) return Conflict("An office with this name already exists");
@@ -43,12 +43,35 @@ namespace DocTracking.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Office>>> GetOffices()
+        public async Task<ActionResult<PagedResult<Office>>> GetOffices(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 25,
+            [FromQuery] string? search = null)
         {
-            return await _context.Offices
+            var query = _context.Offices
                 .Include(o => o.Units)
+                .AsQueryable();
+
+            if (!string.IsNullOrEmpty(search))
+                query = query.Where(o => o.Name != null && o.Name.Contains(search));
+
+            var total = await query.CountAsync();
+            var items = await query
                 .OrderBy(o => o.Name)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .ToListAsync();
+
+            return Ok(new PagedResult<Office> { Items = items, TotalCount = total });
+        }
+
+        [HttpGet("{id}")]
+        public async Task<ActionResult<Office>> GetOffice(int id)
+        {
+            var office = await _context.Offices
+                .Include(o => o.Units)
+                .FirstOrDefaultAsync(o => o.Id == id);
+            return office == null ? NotFound() : Ok(office);
         }
 
         [HttpPut("{id}")]
@@ -60,6 +83,7 @@ namespace DocTracking.Controllers
 
             var duplicate = await _context.Offices.AnyAsync(o => o.Name == office.Name && o.Id != id);
             if (duplicate) return Conflict("An office with this name already exists");
+
             existing.Name = office.Name;
             existing.ReceivingSchedule = office.ReceivingSchedule;
             try
@@ -154,3 +178,5 @@ namespace DocTracking.Controllers
         }
     }
 }
+
+

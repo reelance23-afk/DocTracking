@@ -19,6 +19,7 @@ namespace DocTracking.Controllers
         private readonly ApplicationDbContext _context;
         private readonly IHubContext<NotificationHub> _hub;
         private readonly ILogger<NotificationsController> _logger;
+        private const int MaxNotificationsPerUser = 50;
 
         public NotificationsController(ApplicationDbContext context, IHubContext<NotificationHub> hub, ILogger<NotificationsController> logger)
         {
@@ -40,7 +41,7 @@ namespace DocTracking.Controllers
             return await _context.AppNotifications
                 .Where(n => n.AppUserId == user.Id)
                 .OrderByDescending(n => n.Time)
-                .Take(50)
+                .Take(MaxNotificationsPerUser)
                 .ToListAsync();
         }
 
@@ -83,10 +84,11 @@ namespace DocTracking.Controllers
             try
             {
                 await _context.SaveChangesAsync();
+                await PruneNotificationsAsync(targets.Select(u => u.Id).ToList());
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[Broadcast] SaveChanges failed: {ex.Message}");
+                _logger.LogError(ex, "[Broadcast] SaveChanges failed");
                 return StatusCode(500, "Failed to save notifications.");
             }
 
@@ -99,7 +101,7 @@ namespace DocTracking.Controllers
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[Broadcast] SignalR failed for user {user.Id}: {ex.Message}");
+                    _logger.LogWarning(ex, "[Broadcast] SignalR failed for user {UserId}", user.Id);
                 }
             }
 
@@ -120,7 +122,7 @@ namespace DocTracking.Controllers
             try { await _context.SaveChangesAsync(); }
             catch (Exception ex)
             {
-                Console.WriteLine($"[DismissNotification] Error: {ex.Message}");
+                _logger.LogError(ex, "[DismissNotification] Failed for notification {Id}", id);
                 return StatusCode(500, "Failed to dismiss notification.");
             }
             return Ok();
@@ -146,6 +148,22 @@ namespace DocTracking.Controllers
             return Ok(new { isRead = notif.IsRead });
         }
 
+        private async Task PruneNotificationsAsync(List<int> userIds)
+        {
+            foreach (var userId in userIds)
+            {
+                var keepIds = await _context.AppNotifications
+                    .Where(n => n.AppUserId == userId)
+                    .OrderByDescending(n => n.Time)
+                    .Take(MaxNotificationsPerUser)
+                    .Select(n => n.Id)
+                    .ToListAsync();
+
+                await _context.AppNotifications
+                    .Where(n => n.AppUserId == userId && !keepIds.Contains(n.Id))
+                    .ExecuteDeleteAsync();
+            }
+        }
 
         public class BroadcastRequest
         {

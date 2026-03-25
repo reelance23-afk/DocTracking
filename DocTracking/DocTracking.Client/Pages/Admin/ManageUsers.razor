@@ -16,9 +16,13 @@
         </div>
     </div>
 
-    <MudTextField @bind-Value="searchString" Placeholder="Search users..."
+    <MudTextField Value="@searchString"
+                  ValueChanged="@((string v) => OnSearchChanged(v))"
+                  Placeholder="Search users..."
                   Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
-                  Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" Class="mb-6" />
+                  Variant="Variant.Outlined" Margin="Margin.Dense"
+                  DebounceInterval="400"
+                  Class="mb-6" />
 
     @if (isLoading)
     {
@@ -29,7 +33,7 @@
     else
     {
         <MudHidden Breakpoint="Breakpoint.SmAndDown">
-            <MudTable Items="@FilteredUsers" Dense="true" Hover="true" Elevation="3">
+            <MudTable @ref="_table" ServerData="LoadServerData" Dense="true" Hover="true" Elevation="3">
                 <HeaderContent>
                     <MudTh>Name</MudTh>
                     <MudTh>Role</MudTh>
@@ -58,18 +62,15 @@
                                 @if (context.IsOfficeHead)
                                 {
                                     <br />
-                        
                                     <span style="color: gray; font-size: 0.85em;">↳ Office Head</span>
                                 }
                                 else if (hasUnits)
                                 {
                                     <br />
-                        
                                     <span style="color: gray; font-size: 0.85em;">↳ No Unit Assigned</span>
                                 }
                             </MudText>
                         }
-
                         else
                         {
                             <MudText Typo="Typo.body2" Color="Color.Default">Unassigned</MudText>
@@ -100,7 +101,7 @@
         </MudHidden>
 
         <MudHidden Breakpoint="Breakpoint.MdAndUp">
-            @if (!FilteredUsers.Any())
+            @if (!_serverItems.Any())
             {
                 <MudPaper Elevation="0" Class="pa-8 text-center">
                     <MudText Class="mud-text-secondary">No users found.</MudText>
@@ -108,7 +109,7 @@
             }
             else
             {
-                @foreach (var user in FilteredUsers)
+                @foreach (var user in _serverItems)
                 {
                     <MudCard Elevation="2" Class="mb-3">
                         <MudCardContent Class="pa-4">
@@ -154,6 +155,16 @@
                             </div>
                         </MudCardActions>
                     </MudCard>
+                }
+
+                @if (_totalCount > _serverItems.Count)
+                {
+                    <div class="d-flex justify-center mt-4">
+                        <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                                   Disabled="@isLoadingMore" OnClick="LoadMore">
+                            @(isLoadingMore ? "Loading..." : $"Load More ({_serverItems.Count} of {_totalCount})")
+                        </MudButton>
+                    </div>
                 }
             }
         </MudHidden>
@@ -272,9 +283,14 @@
 </MudDialog>
 
 @code {
-    private List<AppUser> users = new();
+    private MudTable<AppUser>? _table;
+    private List<AppUser> _serverItems = new();
     private List<Office> offices = new();
+    private int _totalCount;
+    private int _currentPage = 1;
+    private const int PageSize = 25;
     private bool isLoading = true;
+    private bool isLoadingMore = false;
     private bool isSaving = false;
     private bool isOfficeHead = false;
     private string searchString = "";
@@ -290,27 +306,77 @@
     private bool activityLoading = false;
     private DialogOptions activityDialogOptions = new() { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
 
-    private IEnumerable<AppUser> FilteredUsers => string.IsNullOrWhiteSpace(searchString)
-        ? users
-        : users.Where(u => u.Name?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true
-                        || u.Role?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true);
-
-    protected override async Task OnInitializedAsync() => await LoadData();
-
-    private async Task LoadData()
+    protected override Task OnInitializedAsync()
     {
-        isLoading = true;
+        isLoading = false;
+        return Task.CompletedTask;
+    }
+
+    private async Task<TableData<AppUser>> LoadServerData(TableState state, CancellationToken ct)
+    {
         try
         {
-            users = await DocService.GetAppUserAsync();
-            offices = await DocService.GetOfficesAsync();
+            var result = await DocService.GetAppUsersPagedAsync(
+                page: state.Page + 1,
+                pageSize: state.PageSize,
+                search: searchString);
+            _serverItems = result.Items;
+            _totalCount = result.TotalCount;
+            await InvokeAsync(StateHasChanged);
+            return new TableData<AppUser> { Items = result.Items, TotalItems = result.TotalCount };
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[ManageUsers] LoadData error: {ex.Message}");
+            Console.WriteLine($"[ManageUsers] LoadServerData error: {ex.Message}");
             Snackbar.Add("Failed to load users.", Severity.Error);
+            return new TableData<AppUser>();
         }
-        finally { isLoading = false; }
+    }
+
+    private void OnSearchChanged(string value)
+    {
+        searchString = value;
+        _currentPage = 1;
+        if (_table != null)
+            _ = _table.ReloadServerData();
+        else
+            _ = LoadMobileData();
+    }
+
+    private async Task LoadMobileData()
+    {
+        try
+        {
+            var result = await DocService.GetAppUsersPagedAsync(
+                page: 1, pageSize: PageSize, search: searchString);
+            _serverItems = result.Items;
+            _totalCount = result.TotalCount;
+            _currentPage = 1;
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ManageUsers] LoadMobileData error: {ex.Message}");
+        }
+    }
+
+    private async Task LoadMore()
+    {
+        isLoadingMore = true;
+        try
+        {
+            _currentPage++;
+            var result = await DocService.GetAppUsersPagedAsync(
+                page: _currentPage, pageSize: PageSize, search: searchString);
+            _serverItems.AddRange(result.Items);
+            _totalCount = result.TotalCount;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ManageUsers] LoadMore error: {ex.Message}");
+            Snackbar.Add("Failed to load more users.", Severity.Error);
+        }
+        finally { isLoadingMore = false; }
     }
 
     private async Task OpenActivityDialog(AppUser user)
@@ -331,8 +397,11 @@
         finally { activityLoading = false; }
     }
 
-    private void OpenEditDialog(AppUser user)
+    private async Task OpenEditDialog(AppUser user)
     {
+        if (!offices.Any())
+            offices = await DocService.GetOfficesAsync();
+
         editingUser = new AppUser
         {
             Id = user.Id,
@@ -349,6 +418,7 @@
         isOfficeHead = user.IsOfficeHead;
         isEditDialogOpen = true;
     }
+
 
     private int? GetActiveOfficeId(AppUser user)
     {
@@ -402,7 +472,10 @@
             Snackbar.Add($"Updated {editingUser.Name} successfully!", Severity.Success);
             activeOfficeEdits.Remove(editingUser.Id);
             isEditDialogOpen = false;
-            await LoadData();
+            if (_table != null)
+                await _table.ReloadServerData();
+            else
+                await LoadMobileData();
         }
         catch (Exception ex)
         {
@@ -426,7 +499,10 @@
         var (ok, error) = await DocService.DeleteAppUserAsync(user.Id);
         if (!ok) { Snackbar.Add(error ?? "Error deleting user.", Severity.Error); return; }
         Snackbar.Add("User deleted.", Severity.Success);
-        await LoadData();
+        if (_table != null)
+            await _table.ReloadServerData();
+        else
+            await LoadMobileData();
     }
 
     private Color GetRoleColor(string? role) => role switch

@@ -60,7 +60,7 @@
         <MudTextField @bind-Value="searchString" Placeholder="Search documents, senders, or locations..."
                       Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
                       IconSize="Size.Medium" Variant="Variant.Outlined" Margin="Margin.Dense"
-                      Immediate="true" DebounceInterval="400"
+                      DebounceInterval="400"
                       TextChanged="@(async (string v) => { searchString = v; await OnFilterChanged(); })"
                       Class="mb-4" />
 
@@ -75,6 +75,7 @@
             </MudSelect>
             <MudSelect Value="officeFilter" Label="Office" Variant="Variant.Outlined"
                        Margin="Margin.Dense" T="string" Style="min-width:160px;"
+                       OnOpen="OnOfficeFilterOpen"
                        ValueChanged="@(async (string v) => { officeFilter = v; await OnFilterChanged(); })">
                 <MudSelectItem T="string" Value="@("")">All Offices</MudSelectItem>
                 @foreach (var office in allOffices)
@@ -306,10 +307,10 @@
         if (_table != null) await _table.ReloadServerData();
     }
 
-    protected override async Task OnInitializedAsync()
+    private async Task OnOfficeFilterOpen(bool isOpen)
     {
-        try { allOffices = await DocumentService.GetOfficesAsync(); }
-        catch (Exception ex) { Console.WriteLine(ex.Message); }
+        if (isOpen && !allOffices.Any())
+            allOffices = await DocumentService.GetOfficesAsync();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -338,23 +339,16 @@
     {
         try
         {
-            var result = await DocumentService.GetAllDocumentsAsync(page: 1, pageSize: 10000);
-            var sb = new System.Text.StringBuilder();
-            sb.AppendLine("Name,Type,Sender,Status,Priority,Current Office,Current Unit,Next Office,Created At");
-            foreach (var doc in result.Items)
-            {
-                sb.AppendLine($"\"{doc.Name}\",\"{doc.Type}\",\"{doc.Creator?.Name}\",\"{doc.Status}\",\"{doc.Priority}\"," +
-                              $"\"{doc.CurrentOffice?.Name}\",\"{doc.CurrentUnit?.Name}\",\"{doc.NextOffice?.Name}\"," +
-                              $"\"{doc.CreatedAt.ToLocalTime():yyyy-MM-dd}\"");
-            }
-            var bytes = System.Text.Encoding.UTF8.GetBytes(sb.ToString());
-            var base64 = Convert.ToBase64String(bytes);
-            await JS.InvokeVoidAsync("downloadCsv", base64, $"documents_{DateTime.Now:yyyyMMdd}.csv");
+            var url = DocumentService.GetDocumentsCsvUrl(
+                search: searchString,
+                status: statusFilter,
+                office: officeFilter,
+                dateFrom: dateFrom?.ToString("yyyy-MM-dd"),
+                dateTo: dateTo?.ToString("yyyy-MM-dd"));
+            await JS.InvokeVoidAsync("open", url, "_blank");
         }
         catch (Exception ex) { Console.WriteLine($"[ExportCsv] Error: {ex.Message}"); }
     }
-
-    private bool FilterFunc(Document element) => true;
 
     private async Task OpenQRDialog(Document doc)
     {
@@ -447,3 +441,4 @@
         finally { _isBulkDeleting = false; }
     }
 }
+

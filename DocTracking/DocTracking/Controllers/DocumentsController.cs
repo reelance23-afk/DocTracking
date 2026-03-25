@@ -1,14 +1,14 @@
-using Azure.Storage.Blobs;
-using Azure.Storage.Blobs.Models;
 using DocTracking.Client.Models;
 using DocTracking.Data;
 using DocTracking.Hubs;
+using DocTracking.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using System.Text;
 
 namespace DocTracking.Controllers
 {
@@ -22,14 +22,17 @@ namespace DocTracking.Controllers
         private readonly IWebHostEnvironment _env;
         private readonly IHubContext<NotificationHub> _hub;
         private readonly ILogger<DocumentsController> _logger;
+        private readonly DocumentQueryService _docService;
 
         public DocumentsController(ApplicationDbContext context, IWebHostEnvironment env,
-            IHubContext<NotificationHub> hub, ILogger<DocumentsController> logger)
+            IHubContext<NotificationHub> hub, ILogger<DocumentsController> logger,
+            DocumentQueryService docService)
         {
             _context = context;
             _env = env;
             _hub = hub;
             _logger = logger;
+            _docService = docService;
         }
 
         private async Task Notify(string group, string message, string docName)
@@ -62,6 +65,280 @@ namespace DocTracking.Controllers
         {
             try { await Notify(group, message, docName); }
             catch (Exception ex) { _logger.LogWarning(ex, "[Notify] Failed for group {Group}", group); }
+        }
+
+        private async Task NotifyOfficeOrUnit(int? unitId, int? officeId, string unitMsg, string officeMsg, string headMsg, string docName)
+        {
+            if (unitId.HasValue)
+            {
+                await TryNotify($"unit-{unitId}", unitMsg, docName);
+                await TryNotify($"office-head-{officeId}", headMsg, docName);
+            }
+            else if (officeId.HasValue)
+            {
+                await TryNotify($"office-{officeId}", officeMsg, docName);
+                await TryNotify($"office-head-{officeId}", headMsg, docName);
+            }
+        }
+
+        [HttpGet]
+        [Authorize(Roles = "Admin,Office")]
+        public async Task<ActionResult<PagedResult<Document>>> GetAllDocument(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 25,
+            [FromQuery] string? search = null,
+            [FromQuery] string? status = null,
+            [FromQuery] string? office = null,
+            [FromQuery] string? dateFrom = null,
+            [FromQuery] string? dateTo = null)
+        {
+            var (items, total) = await _docService.GetAllDocumentsAsync(page, pageSize, search, status, office, dateFrom, dateTo);
+            return Ok(new PagedResult<Document> { Items = items, TotalCount = total });
+        }
+
+        [HttpGet("by-ref/{referenceNumber}/context")]
+        [AllowAnonymous]
+        public async Task<ActionResult> GetDocumentContext(string referenceNumber)
+        {
+            try
+            {
+                var doc = await _context.Documents
+                    .Include(d => d.Creator)
+                    .FirstOrDefaultAsync(d => d.ReferenceNumber == referenceNumber);
+                if (doc == null) return NotFound();
+
+                var email = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email);
+                var officeIdClaim = User.FindFirst("OfficeId")?.Value;
+                var unitIdClaim = User.FindFirst("UnitId")?.Value;
+                bool isAdmin = User.IsInRole("Admin");
+                bool isOfficeHead = User.FindFirst("IsOfficeHead")?.Value == "True";
+                int.TryParse(officeIdClaim, out var myOfficeId);
+                int.TryParse(unitIdClaim, out var myUnitId);
+
+                if (doc.Creator?.Email == email)
+                    return Ok(new { RedirectTo = "my-tracking" });
+
+                if (isAdmin)
+                    return Ok(new { RedirectTo = "document-tracking" });
+
+                if (myOfficeId != 0)
+                {
+                    if (doc.Status == "In Motion" && doc.NextOfficeId == myOfficeId)
+                    {
+                        bool unitMatch = string.IsNullOrEmpty(unitIdClaim)
+                            ? !doc.NextUnitId.HasValue
+                            : !doc.NextUnitId.HasValue || doc.NextUnitId == myUnitId;
+
+                        if (unitMatch || isOfficeHead)
+                            return Ok(new { RedirectTo = "office-desk", Tab = "Incoming" });
+                    }
+
+                    if (doc.CurrentOfficeId == myOfficeId &&
+                        (isOfficeHead || !doc.CurrentUnitId.HasValue || doc.CurrentUnitId == myUnitId))
+                        return Ok(new { RedirectTo = "office-desk", Tab = "OnDesk" });
+
+                    var isSender = await _context.DocumentLogs
+                        .AnyAsync(l => l.DocumentId == doc.Id && l.Action == "Forwarded" && l.OfficeId == myOfficeId);
+                    if (isSender)
+                        return Ok(new { RedirectTo = "office-desk", Tab = "Outgoing" });
+
+                    var hasHistory = await _context.DocumentLogs
+                        .AnyAsync(l => l.DocumentId == doc.Id && l.OfficeId == myOfficeId);
+                    if (hasHistory)
+                        return Ok(new { RedirectTo = "unit-history" });
+                }
+
+                return Ok(new { RedirectTo = "public" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[GetDocumentContext] Failed for ref {Ref}", referenceNumber);
+                return StatusCode(500, "Failed to load document context.");
+            }
+        }
+
+        [HttpGet("dashboard-stats")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<DashboardStats>> GetDashboardStats()
+        {
+            var stats = await _docService.GetDashboardStatsAsync();
+            return Ok(stats);
+        }
+
+        [HttpGet("my-profile")]
+        public async Task<ActionResult<AppUser>> GetMyProfile()
+        {
+            var email = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email);
+            var appUser = await _context.AppUsers
+                .Include(d => d.Unit)
+                .Include(d => d.Office)
+                .FirstOrDefaultAsync(d => d.Email == email);
+            return appUser == null ? NotFound() : Ok(appUser);
+        }
+
+        [HttpGet("user/{email}")]
+        public async Task<ActionResult<PagedResult<Document>>> GetUserDocument(
+            string email,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 25,
+            [FromQuery] string? search = null,
+            [FromQuery] string? status = null,
+            [FromQuery] string? priority = null,
+            [FromQuery] string? type = null)
+        {
+            var (items, total) = await _docService.GetUserDocumentsAsync(email, page, pageSize, search, status, priority, type);
+            return Ok(new PagedResult<Document> { Items = items, TotalCount = total });
+        }
+
+        [HttpGet("activity/user/{userId}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<IEnumerable<Document>>> GetUserActivity(int userId)
+        {
+            try
+            {
+                var docIds = await _context.DocumentLogs
+                    .Where(l => l.AppUserId == userId)
+                    .Select(l => l.DocumentId)
+                    .Distinct()
+                    .ToListAsync();
+
+                var created = await _context.Documents
+                    .Where(d => d.CreatorId == userId)
+                    .Select(d => d.Id)
+                    .ToListAsync();
+
+                var allIds = docIds.Union(created).Distinct();
+
+                return await _context.Documents
+                    .Include(d => d.Creator)
+                    .Include(d => d.CurrentOffice)
+                    .Include(d => d.CurrentUnit)
+                    .Include(d => d.NextOffice)
+                    .Include(d => d.NextUnit)
+                    .Where(d => allIds.Contains(d.Id))
+                    .OrderByDescending(d => d.LastActionDate ?? d.CreatedAt)
+                    .ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[GetUserActivity] Failed for userId {UserId}", userId);
+                return StatusCode(500, "Failed to load user activity.");
+            }
+        }
+
+        [HttpGet("incoming/{officeId}")]
+        public async Task<ActionResult<IEnumerable<Document>>> GetIncoming(
+            int officeId,
+            [FromQuery] int? unitId = null,
+            [FromQuery] string? search = null)
+        {
+            var email = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email);
+            var appUser = await _context.AppUsers.Include(u => u.Unit).FirstOrDefaultAsync(u => u.Email == email);
+            bool isOfficeHead = appUser?.UnitId == null && appUser?.OfficeId == officeId;
+            var items = await _docService.GetIncomingAsync(officeId, unitId, isOfficeHead, search);
+            return Ok(items);
+        }
+
+        [HttpGet("desk/{officeId}")]
+        public async Task<ActionResult<IEnumerable<Document>>> GetDeskDocuments(
+            int officeId,
+            [FromQuery] int? unitId = null,
+            [FromQuery] string? search = null)
+        {
+            var items = await _docService.GetDeskDocumentsAsync(officeId, unitId, search);
+            return Ok(items);
+        }
+
+        [HttpGet("outgoing/user")]
+        public async Task<ActionResult<IEnumerable<Document>>> GetOutGoing(
+            [FromQuery] string? search = null)
+        {
+            var email = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email);
+            var appUser = await _context.AppUsers.Include(u => u.Unit).FirstOrDefaultAsync(u => u.Email == email);
+            if (appUser == null) return NotFound();
+
+            int? myOfficeId = appUser.Unit?.OfficeId ?? appUser.OfficeId;
+            if (myOfficeId == null) return Ok(new List<Document>());
+
+            var items = await _docService.GetOutgoingAsync(appUser.UnitId, myOfficeId, search);
+            return Ok(items);
+        }
+
+        [HttpGet("history/unit/{unitId}")]
+        public async Task<ActionResult<PagedResult<Document>>> GetUnitHistory(
+            int unitId,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 25,
+            [FromQuery] string? search = null)
+        {
+            var (items, total) = await _docService.GetUnitHistoryAsync(unitId, page, pageSize, search);
+            return Ok(new PagedResult<Document> { Items = items, TotalCount = total });
+        }
+
+        [HttpGet("history/office/{officeId}")]
+        public async Task<ActionResult<PagedResult<Document>>> GetOfficeHistory(
+            int officeId,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 25,
+            [FromQuery] string? search = null)
+        {
+            var (items, total) = await _docService.GetOfficeHistoryAsync(officeId, page, pageSize, search);
+            return Ok(new PagedResult<Document> { Items = items, TotalCount = total });
+        }
+
+        [HttpGet("by-ref/{referenceNumber}")]
+        [AllowAnonymous]
+        public async Task<ActionResult<Document>> GetByReferenceNumber(string referenceNumber)
+        {
+            try
+            {
+                var doc = await _context.Documents
+                    .Include(d => d.Creator)
+                    .Include(d => d.NextOffice)
+                    .Include(d => d.CurrentOffice)
+                    .Include(d => d.NextUnit)
+                    .Include(d => d.CurrentUnit)
+                    .FirstOrDefaultAsync(d => d.ReferenceNumber == referenceNumber);
+                return doc == null ? NotFound() : Ok(doc);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[GetByReferenceNumber] Failed for ref {Ref}", referenceNumber);
+                return StatusCode(500, "Failed to load document.");
+            }
+        }
+
+        [HttpGet("export-csv")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> ExportDocumentsCsv(
+            [FromQuery] string? search = null,
+            [FromQuery] string? status = null,
+            [FromQuery] string? office = null,
+            [FromQuery] string? dateFrom = null,
+            [FromQuery] string? dateTo = null)
+        {
+            try
+            {
+                Response.ContentType = "text/csv";
+                Response.Headers.Append("Content-Disposition", $"attachment; filename=documents_{DateTime.Now:yyyyMMdd}.csv");
+
+                var sb = new StringBuilder();
+                sb.AppendLine("Name,Type,Sender,Status,Priority,Current Office,Current Unit,Next Office,Created At");
+
+                await foreach (var doc in _docService.StreamAllDocumentsAsync(search, status, office, dateFrom, dateTo))
+                {
+                    sb.AppendLine($"\"{doc.Name}\",\"{doc.Type}\",\"{doc.Creator?.Name}\",\"{doc.Status}\"," +
+                                  $"\"{doc.Priority}\",\"{doc.CurrentOffice?.Name}\",\"{doc.CurrentUnit?.Name}\"," +
+                                  $"\"{doc.NextOffice?.Name}\",\"{doc.CreatedAt.ToLocalTime():yyyy-MM-dd}\"");
+                }
+
+                return Content(sb.ToString(), "text/csv", Encoding.UTF8);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[ExportDocumentsCsv] Failed");
+                return StatusCode(500, "Failed to export documents.");
+            }
         }
 
         [HttpPost]
@@ -209,147 +486,6 @@ namespace DocTracking.Controllers
             if (System.IO.File.Exists(fullPath))
                 System.IO.File.Delete(fullPath);
             return Ok();
-        }
-
-
-        [HttpGet]
-        [Authorize(Roles = "Admin,Office")]
-        public async Task<ActionResult<PagedResult<Document>>> GetAllDocument(
-            [FromQuery] int page = 1,
-            [FromQuery] int pageSize = 25,
-            [FromQuery] string? search = null,
-            [FromQuery] string? status = null,
-            [FromQuery] string? office = null,
-            [FromQuery] string? dateFrom = null,
-            [FromQuery] string? dateTo = null)
-        {
-            var query = _context.Documents
-                .Include(d => d.Creator)
-                .Include(d => d.NextOffice)
-                .Include(d => d.CurrentOffice)
-                .Include(d => d.NextUnit)
-                .Include(d => d.CurrentUnit)
-                .AsQueryable();
-
-            if (!string.IsNullOrEmpty(search))
-                query = query.Where(d =>
-                    (d.Name != null && d.Name.Contains(search)) ||
-                    (d.ReferenceNumber != null && d.ReferenceNumber.Contains(search)) ||
-                    (d.Creator != null && d.Creator.Name != null && d.Creator.Name.Contains(search)));
-
-            if (!string.IsNullOrEmpty(status))
-                query = query.Where(d => d.Status == status);
-
-            if (!string.IsNullOrEmpty(office))
-                query = query.Where(d =>
-                    (d.CurrentOffice != null && d.CurrentOffice.Name == office) ||
-                    (d.NextOffice != null && d.NextOffice.Name == office));
-
-            if (DateTime.TryParse(dateFrom, out var from))
-                query = query.Where(d => d.CreatedAt >= from);
-
-            if (DateTime.TryParse(dateTo, out var to))
-                query = query.Where(d => d.CreatedAt <= to.AddDays(1));
-
-            var total = await query.CountAsync();
-            var items = await query
-                .OrderByDescending(d => d.CreatedAt)
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
-                .ToListAsync();
-
-            return Ok(new PagedResult<Document> { Items = items, TotalCount = total });
-        }
-
-        [HttpGet("my-profile")]
-        public async Task<ActionResult<AppUser>> GetMyProfile()
-        {
-            var email = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email);
-            var appUser = await _context.AppUsers
-                .Include(d => d.Unit)
-                .Include(d => d.Office)
-                .FirstOrDefaultAsync(d => d.Email == email);
-            return appUser == null ? NotFound() : Ok(appUser);
-        }
-
-        [HttpGet("user/{email}")]
-        public async Task<ActionResult<IEnumerable<Document>>> GetUserDocument(string email)
-        {
-            return await _context.Documents
-                .Include(d => d.Creator)
-                .Include(d => d.NextOffice)
-                .Include(d => d.NextUnit)
-                .Include(d => d.CurrentOffice)
-                .Include(d => d.CurrentUnit)
-                .Where(d => d.Creator != null && d.Creator.Email == email)
-                .OrderByDescending(d => d.CreatedAt)
-                .ToListAsync();
-        }
-
-        [HttpGet("activity/user/{userId}")]
-        [Authorize(Roles = "Admin")]
-        public async Task<ActionResult<IEnumerable<Document>>> GetUserActivity(int userId)
-        {
-            var docIds = await _context.DocumentLogs
-                .Where(l => l.AppUserId == userId)
-                .Select(l => l.DocumentId)
-                .Distinct()
-                .ToListAsync();
-
-            var created = await _context.Documents
-                .Where(d => d.CreatorId == userId)
-                .Select(d => d.Id)
-                .ToListAsync();
-
-            var allIds = docIds.Union(created).Distinct();
-
-            return await _context.Documents
-                .Include(d => d.Creator)
-                .Include(d => d.CurrentOffice)
-                .Include(d => d.CurrentUnit)
-                .Include(d => d.NextOffice)
-                .Include(d => d.NextUnit)
-                .Where(d => allIds.Contains(d.Id))
-                .OrderByDescending(d => d.LastActionDate ?? d.CreatedAt)
-                .ToListAsync();
-        }
-
-        [HttpGet("incoming/{officeId}")]
-        public async Task<ActionResult<IEnumerable<Document>>> GetIncoming(int officeId, [FromQuery] int? unitId = null)
-        {
-            var email = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email);
-            var appUser = await _context.AppUsers.Include(u => u.Unit).FirstOrDefaultAsync(u => u.Email == email);
-            bool isOfficeHead = appUser?.UnitId == null && appUser?.OfficeId == officeId;
-
-            var query = _context.Documents
-                .Include(d => d.Creator)
-                .Include(d => d.NextOffice)
-                .Include(d => d.NextUnit)
-                .Where(d => d.NextOfficeId == officeId && d.Status == "In Motion");
-
-            if (unitId.HasValue)
-                query = query.Where(d => d.NextUnitId == unitId || d.NextUnitId == null);
-            else if (!isOfficeHead)
-                query = query.Where(d => d.NextUnitId == null);
-
-            return await query.ToListAsync();
-        }
-
-        [HttpGet("desk/{officeId}")]
-        public async Task<ActionResult<IEnumerable<Document>>> GetDeskDocuments(int officeId, [FromQuery] int? unitId = null)
-        {
-            var query = _context.Documents
-                .Include(d => d.Creator)
-                .Include(d => d.CurrentOffice)
-                .Include(d => d.CurrentUnit)
-                .Where(d => d.CurrentOfficeId == officeId && d.Status == "Received");
-
-            if (unitId.HasValue)
-                query = query.Where(d => d.CurrentUnitId == null || d.CurrentUnitId == unitId);
-            else
-                query = query.Where(d => d.CurrentUnitId == null);
-
-            return await query.ToListAsync();
         }
 
         [HttpPut("{id}/receive")]
@@ -589,78 +725,6 @@ namespace DocTracking.Controllers
             return Ok();
         }
 
-        [HttpGet("outgoing/user")]
-        public async Task<ActionResult<IEnumerable<Document>>> GetOutGoing()
-        {
-            var email = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email);
-            var appUser = await _context.AppUsers.Include(u => u.Unit).FirstOrDefaultAsync(u => u.Email == email);
-            if (appUser == null) return NotFound();
-
-            int? myOfficeId = appUser.Unit?.OfficeId ?? appUser.OfficeId;
-            int? myUnitId = appUser.UnitId;
-
-            if (myOfficeId == null) return new List<Document>();
-
-            IQueryable<int> forwardedDocIds;
-
-            if (myUnitId.HasValue)
-            {
-                forwardedDocIds = _context.DocumentLogs
-                    .Where(log => log.Action == "Forwarded" && log.AppUser != null && log.AppUser.UnitId == myUnitId)
-                    .Select(log => log.DocumentId)
-                    .Distinct();
-            }
-            else
-            {
-                forwardedDocIds = _context.DocumentLogs
-                    .Where(log => log.Action == "Forwarded" && log.AppUser != null &&
-                        ((log.AppUser.Unit != null && log.AppUser.Unit.OfficeId == myOfficeId) ||
-                         (log.AppUser.Unit == null && log.AppUser.OfficeId == myOfficeId)))
-                    .Select(log => log.DocumentId)
-                    .Distinct();
-            }
-
-            return await _context.Documents
-                .Include(d => d.Creator)
-                .Include(d => d.NextOffice)
-                .Include(d => d.NextUnit)
-                .Where(d => d.Status == "In Motion" && forwardedDocIds.Contains(d.Id))
-                .OrderByDescending(d => d.LastActionDate ?? d.CreatedAt)
-                .ToListAsync();
-        }
-
-        [HttpGet("history/unit/{unitId}")]
-        public async Task<ActionResult<IEnumerable<Document>>> GetUnitHistory(int unitId)
-        {
-            var document = await _context.Documents
-                .Include(d => d.Creator)
-                .Include(d => d.NextOffice)
-                .Include(d => d.CurrentOffice)
-                .Include(d => d.NextUnit)
-                .Include(d => d.CurrentUnit)
-                .Where(d => _context.DocumentLogs.Any(log => log.DocumentId == d.Id && log.UnitId == unitId))
-                .OrderByDescending(d => d.CreatedAt)
-                .ToListAsync();
-            return Ok(document);
-        }
-
-        [HttpGet("history/office/{officeId}")]
-        public async Task<ActionResult<IEnumerable<Document>>> GetOfficeHistory(int officeId)
-        {
-            var document = await _context.Documents
-                .Include(d => d.Creator)
-                .Include(d => d.NextOffice)
-                .Include(d => d.CurrentOffice)
-                .Include(d => d.NextUnit)
-                .Include(d => d.CurrentUnit)
-                .Where(d => _context.DocumentLogs.Any(log => log.DocumentId == d.Id &&
-                    (_context.Units.Any(u => u.Id == log.UnitId && u.OfficeId == officeId) ||
-                    (log.UnitId == null && log.OfficeId == officeId))))
-                .OrderByDescending(d => d.CreatedAt)
-                .ToListAsync();
-            return Ok(document);
-        }
-
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateDocument(int id, [FromBody] Document doc)
         {
@@ -710,7 +774,6 @@ namespace DocTracking.Controllers
             return Ok(existing);
         }
 
-
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteDocument(int id)
         {
@@ -733,7 +796,6 @@ namespace DocTracking.Controllers
                 _logger.LogError(ex, "[DeleteDocument] Failed");
                 return StatusCode(500, "Failed to delete document.");
             }
-
             return Ok();
         }
 
@@ -756,20 +818,6 @@ namespace DocTracking.Controllers
             return File(qrCodeBytes, "image/png");
         }
 
-        [HttpGet("by-ref/{referenceNumber}")]
-        [AllowAnonymous]
-        public async Task<ActionResult<Document>> GetByReferenceNumber(string referenceNumber)
-        {
-            var doc = await _context.Documents
-                .Include(d => d.Creator)
-                .Include(d => d.NextOffice)
-                .Include(d => d.CurrentOffice)
-                .Include(d => d.NextUnit)
-                .Include(d => d.CurrentUnit)
-                .FirstOrDefaultAsync(d => d.ReferenceNumber == referenceNumber);
-            return doc == null ? NotFound() : Ok(doc);
-        }
-
         [HttpPut("{id}/admin-override")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> AdminOverride(int id, [FromBody] AdminOverrideRequest request)
@@ -788,7 +836,6 @@ namespace DocTracking.Controllers
             try
             {
                 var beforeStatus = doc.Status;
-                var beforeOfficeId = doc.CurrentOfficeId ?? doc.NextOfficeId;
 
                 doc.LastActionDate = DateTime.UtcNow;
 
@@ -859,7 +906,7 @@ namespace DocTracking.Controllers
             }
 
             if (doc.CreatorId.HasValue)
-            await TryNotify($"user-{doc.CreatorId}", "Your document status was updated by an admin.", doc.Name ?? "");
+                await TryNotify($"user-{doc.CreatorId}", "Your document status was updated by an admin.", doc.Name ?? "");
             return Ok();
         }
 
@@ -891,19 +938,29 @@ namespace DocTracking.Controllers
             return Ok(new { deleted = docs.Count });
         }
 
-
-
-        private async Task NotifyOfficeOrUnit(int? unitId, int? officeId, string unitMsg, string officeMsg, string headMsg, string docName)
+        [HttpGet("user/{email}/stats")]
+        public async Task<ActionResult> GetUserDocumentStats(string email)
         {
-            if (unitId.HasValue)
+            try
             {
-                await TryNotify($"unit-{unitId}", unitMsg, docName);
-                await TryNotify($"office-head-{officeId}", headMsg, docName);
+                var stats = await _context.Documents
+                    .Where(d => d.Creator != null && d.Creator.Email == email)
+                    .GroupBy(_ => 1)
+                    .Select(g => new
+                    {
+                        InMotion = g.Count(d => d.Status == "In Motion"),
+                        Received = g.Count(d => d.Status == "Received"),
+                        Completed = g.Count(d => d.Status == "Completed"),
+                        Total = g.Count()
+                    })
+                    .FirstOrDefaultAsync();
+
+                return Ok(stats ?? new { InMotion = 0, Received = 0, Completed = 0, Total = 0 });
             }
-            else if (officeId.HasValue)
+            catch (Exception ex)
             {
-                await TryNotify($"office-{officeId}", officeMsg, docName);
-                await TryNotify($"office-head-{officeId}", headMsg, docName);
+                _logger.LogError(ex, "[GetUserDocumentStats] Failed for {Email}", email);
+                return StatusCode(500, "Failed to load stats");
             }
         }
     }
@@ -929,3 +986,6 @@ namespace DocTracking.Controllers
         public string? ReassignComment { get; set; }
     }
 }
+
+
+

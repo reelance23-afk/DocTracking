@@ -69,6 +69,23 @@ namespace DocTracking.Data
 
             modelBuilder.Entity<AppNotification>()
                 .HasIndex(n => new { n.AppUserId, n.IsRead });
+
+            modelBuilder.Entity<DocumentLog>()
+                .HasIndex(l => l.OfficeId);
+
+            modelBuilder.Entity<DocumentLog>()
+                .HasIndex(l => l.UnitId);
+
+            modelBuilder.Entity<Document>()
+                .HasIndex(n => n.CreatorId);
+
+            modelBuilder.Entity<Document>()
+                .HasIndex(n => n.LastActionDate);
+
+            modelBuilder.Entity<AppNotification>()
+                .HasIndex(n => new { n.AppUserId, n.Time });
+
+
         }
     }
 }

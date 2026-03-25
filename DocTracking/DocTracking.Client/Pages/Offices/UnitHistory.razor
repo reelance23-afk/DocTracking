@@ -18,7 +18,7 @@
             <MudText Typo="Typo.h4" Class="font-weight-bold">@(isOfficeHead ? "Office History" : "Unit History")</MudText>
         </div>
         <MudText Typo="Typo.body1" Class="mud-text-secondary mb-4">A complete record of all documents processed by @myUnitName.</MudText>
-        <DocStatCards Documents="historyDocs" />
+        <DocStatCards Documents="@historyResult.Items" />
     </div>
 
     @if (isLoading)
@@ -38,13 +38,16 @@
                 </div>
             </div>
 
-            <MudTextField @bind-Value="searchString" Placeholder="Search documents..."
+            <MudTextField Value="@searchString"
+                          ValueChanged="@((string v) => OnSearchChanged(v))"
+                          Placeholder="Search documents..."
                           Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
                           IconSize="Size.Medium" Variant="Variant.Outlined" Margin="Margin.Dense"
-                          Immediate="true" Class="mb-4" />
+                          DebounceInterval="400"
+                          Class="mb-4" />
 
             <MudHidden Breakpoint="Breakpoint.SmAndDown">
-                <MudTable Items="@filteredDocs" Hover="true" T="Document">
+                <MudTable Items="@historyResult.Items" Hover="true" T="Document">
                     <HeaderContent>
                         <MudTh><MudTableSortLabel SortBy="new Func<Document, object>(x => x.Name)">Document Title</MudTableSortLabel></MudTh>
                         <MudTh>Type</MudTh>
@@ -86,19 +89,20 @@
                                 <MudIconButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Secondary"
                                                Icon="@Icons.Material.Filled.QrCode"
                                                OnClick="@(async () => await OpenQRDialog(context))" />
-
                             </div>
                         </MudTd>
                     </RowTemplate>
                     <NoRecordsContent>
                         <MudText Class="pa-4">@(isOfficeHead ? "Your office has not handled any documents yet." : "Your unit has not handled any documents yet.")</MudText>
                     </NoRecordsContent>
-                    <PagerContent><MudTablePager /></PagerContent>
+                    <PagerContent>
+                        <MudTablePager />
+                    </PagerContent>
                 </MudTable>
             </MudHidden>
 
             <MudHidden Breakpoint="Breakpoint.MdAndUp">
-                @if (!filteredDocs.Any())
+                @if (!historyResult.Items.Any())
                 {
                     <MudPaper Elevation="0" Class="pa-8 text-center">
                         <MudText Class="mud-text-secondary">@(isOfficeHead ? "Your office has not handled any documents yet." : "Your unit has not handled any documents yet.")</MudText>
@@ -106,7 +110,7 @@
                 }
                 else
                 {
-                    @foreach (var doc in filteredDocs)
+                    @foreach (var doc in historyResult.Items)
                     {
                         <MudCard Elevation="2" Class="mb-3">
                             <MudCardContent Class="pa-4">
@@ -155,10 +159,19 @@
                                     <MudIconButton Variant="Variant.Outlined" Color="Color.Secondary"
                                                    Icon="@Icons.Material.Filled.QrCode"
                                                    OnClick="@(async () => await OpenQRDialog(doc))" />
-
                                 </div>
                             </MudCardActions>
                         </MudCard>
+                    }
+
+                    @if (historyResult.TotalCount > historyResult.Items.Count)
+                    {
+                        <div class="d-flex justify-center mt-4">
+                            <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                                       Disabled="@isLoadingMore" OnClick="LoadMore">
+                                @(isLoadingMore ? "Loading..." : $"Load More ({historyResult.Items.Count} of {historyResult.TotalCount})")
+                            </MudButton>
+                        </div>
                     }
                 }
             </MudHidden>
@@ -169,20 +182,18 @@
 @code {
     [SupplyParameterFromQuery(Name = "ref")] public string? RefParam { get; set; }
 
-    private List<Document> historyDocs = new();
+    private PagedResult<Document> historyResult = new();
     private bool isLoading = true;
+    private bool isLoadingMore = false;
     private string myUnitName = "Unit";
     private bool isOfficeHead = false;
     private string searchString = "";
     private bool dialogOpened = false;
     private List<Office> allOffices = new();
-
-    private IEnumerable<Document> filteredDocs => historyDocs.Where(d =>
-        string.IsNullOrWhiteSpace(searchString) ||
-        d.Name?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true ||
-        d.Type?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true ||
-        d.Status?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true ||
-        d.CurrentOffice?.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true);
+    private int currentPage = 1;
+    private const int PageSize = 25;
+    private int? myUnitId;
+    private int? myOfficeId;
 
     protected override async Task OnInitializedAsync()
     {
@@ -191,14 +202,16 @@
             var profile = await DocService.GetProfileAsync();
             if (profile?.UnitId != null)
             {
+                myUnitId = profile.UnitId;
                 myUnitName = profile.Unit?.Name ?? "Unit";
-                historyDocs = await DocService.GetUnitHistoryAsync(profile.UnitId.Value);
+                historyResult = await DocService.GetUnitHistoryAsync(profile.UnitId.Value, currentPage, PageSize);
             }
             else if (profile?.OfficeId != null)
             {
                 isOfficeHead = true;
+                myOfficeId = profile.OfficeId;
                 myUnitName = profile.Office?.Name ?? "Office";
-                historyDocs = await DocService.GetOfficeHistoryAsync(profile.OfficeId.Value);
+                historyResult = await DocService.GetOfficeHistoryAsync(profile.OfficeId.Value, currentPage, PageSize);
             }
 
             if (!string.IsNullOrEmpty(RefParam))
@@ -217,7 +230,7 @@
         if (!dialogOpened && !isLoading && !string.IsNullOrEmpty(RefParam))
         {
             dialogOpened = true;
-            var doc = historyDocs.FirstOrDefault(d => d.ReferenceNumber == RefParam)
+            var doc = historyResult.Items.FirstOrDefault(d => d.ReferenceNumber == RefParam)
                       ?? await DocService.GetDocumentByRefAsync(RefParam);
             if (doc != null)
             {
@@ -229,24 +242,80 @@
                     : OfficeDeskViewDialog.DeskTab.Outgoing;
 
                 var parameters = new DialogParameters<OfficeDeskViewDialog>
-            {
-                { x => x.Doc, doc },
-                { x => x.Tab, tab },
-                { x => x.AllOffices, allOffices }
-            };
+                {
+                    { x => x.Doc, doc },
+                    { x => x.Tab, tab },
+                    { x => x.AllOffices, allOffices }
+                };
                 var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
                 await DialogService.ShowAsync<OfficeDeskViewDialog>(doc.Name ?? "Document Details", parameters, options);
             }
         }
     }
 
+    private void OnSearchChanged(string value)
+    {
+        searchString = value;
+        currentPage = 1;
+        _ = InvokeAsync(async () =>
+        {
+            try
+            {
+                await LoadHistory();
+                StateHasChanged();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[UnitHistory] OnSearchChanged error: {ex.Message}");
+                Snackbar.Add("Failed to search history.", Severity.Error);
+            }
+        });
+    }
+
+    private async Task LoadHistory()
+    {
+        try
+        {
+            if (myUnitId.HasValue)
+                historyResult = await DocService.GetUnitHistoryAsync(myUnitId.Value, currentPage, PageSize, searchString);
+            else if (myOfficeId.HasValue)
+                historyResult = await DocService.GetOfficeHistoryAsync(myOfficeId.Value, currentPage, PageSize, searchString);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[UnitHistory] LoadHistory error: {ex.Message}");
+            Snackbar.Add("Failed to load history.", Severity.Error);
+        }
+    }
+
+    private async Task LoadMore()
+    {
+        isLoadingMore = true;
+        try
+        {
+            currentPage++;
+            PagedResult<Document> next;
+
+            if (myUnitId.HasValue)
+                next = await DocService.GetUnitHistoryAsync(myUnitId.Value, currentPage, PageSize, searchString);
+            else if (myOfficeId.HasValue)
+                next = await DocService.GetOfficeHistoryAsync(myOfficeId.Value, currentPage, PageSize, searchString);
+            else return;
+
+            historyResult.Items.AddRange(next.Items);
+            historyResult.TotalCount = next.TotalCount;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[UnitHistory] LoadMore error: {ex.Message}");
+            Snackbar.Add("Failed to load more.", Severity.Error);
+        }
+        finally { isLoadingMore = false; }
+    }
 
     private async Task OpenViewDialog(Document doc)
     {
-        var parameters = new DialogParameters<DocumentViewDialog>
-        {
-            { x => x.Doc, doc }
-        };
+        var parameters = new DialogParameters<DocumentViewDialog> { { x => x.Doc, doc } };
         var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
         await DialogService.ShowAsync<DocumentViewDialog>("Document Details", parameters, options);
     }
