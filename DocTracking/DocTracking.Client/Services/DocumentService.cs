@@ -53,8 +53,11 @@ namespace DocTracking.Client.Services
             }
         }
 
-        public async Task<List<Office>> GetOfficesAsync() =>
-            await GetJsonAsync<List<Office>>("api/offices?pageSize=1000") ?? new();
+        public async Task<List<Office>> GetOfficesAsync()
+        {
+            var result = await GetJsonAsync<PagedResult<Office>>("api/offices?pageSize=1000");
+            return result?.Items ?? new();
+        }
 
         public async Task<Office?> GetOfficeByIdAsync(int id) =>
             await GetJsonAsync<Office>($"api/offices/{id}");
@@ -88,8 +91,11 @@ namespace DocTracking.Client.Services
         public Task<(bool Success, string? Error)> DeleteUnitAsync(int id) =>
             ToResult(_http.DeleteAsync($"api/units/{id}"));
 
-        public async Task<List<AppUser>> GetAppUserAsync() =>
-            await GetJsonAsync<List<AppUser>>("api/appusers?pageSize=1000") ?? new();
+        public async Task<List<AppUser>> GetAppUserAsync()
+        {
+            var result = await GetJsonAsync<PagedResult<AppUser>>("api/appusers?pageSize=1000");
+            return result?.Items ?? new();
+        }
 
         public async Task<PagedResult<AppUser>> GetAppUsersPagedAsync(
             int page = 1, int pageSize = 25, string? search = null)

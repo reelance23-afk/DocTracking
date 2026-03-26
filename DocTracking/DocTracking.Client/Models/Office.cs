@@ -14,5 +14,7 @@ namespace DocTracking.Client.Models
         public string? ReceivingSchedule { get; set; }
         public ICollection<Unit>? Units { get; set; }
 
+        public int WorkerCount { get; set; }
+
     }
 }

@@ -36,7 +36,8 @@
                   ValueChanged="@((string v) => OnSearchChanged(v))"
                   Placeholder="Search Offices..." Adornment="Adornment.Start"
                   AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mb-6"
-                  Variant="Variant.Outlined" Margin="Margin.Dense" DebounceInterval="400" />
+                  Variant="Variant.Outlined" Margin="Margin.Dense" />
+
 
     @if (loading)
     {
@@ -352,10 +353,16 @@
         finally { if (showSpinner) loading = false; }
     }
 
-    private void OnSearchChanged(string value)
+    private CancellationTokenSource _searchCts = new();
+
+    private async Task OnSearchChanged(string value)
     {
         searchString = value;
-        _ = LoadOffices();
+        _searchCts.Cancel();
+        _searchCts = new CancellationTokenSource();
+        var ct = _searchCts.Token;
+        try { await Task.Delay(400, ct); } catch (OperationCanceledException) { return; }
+        await LoadOffices(showSpinner: false);
     }
 
     private async Task LoadMore()

@@ -70,55 +70,53 @@ namespace DocTracking.Services
         {
             try
             {
-                var totalDocuments = await _context.Documents.CountAsync();
-                var totalOffices = await _context.Offices.CountAsync();
-                var totalUsers = await _context.AppUsers.CountAsync();
-                var inMotionCount = await _context.Documents.CountAsync(d => d.Status == "In Motion");
-                var receivedCount = await _context.Documents.CountAsync(d => d.Status == "Received");
-                var completedCount = await _context.Documents.CountAsync(d => d.Status == "Completed");
+                var docStats = await _context.Documents
+                    .GroupBy(_ => 1)
+                    .Select(g => new
+                    {
+                        Total = g.Count(),
+                        InMotion = g.Count(d => d.Status == "In Motion"),
+                        Received = g.Count(d => d.Status == "Received"),
+                        Completed = g.Count(d => d.Status == "Completed")
+                    })
+                    .FirstOrDefaultAsync();                                  
 
-                var workloadCounts = await _context.Documents
+                var totalOffices = await _context.Offices.CountAsync();      
+                var totalUsers = await _context.AppUsers.CountAsync();     
+
+                var officeWorkloads = await _context.Documents
                     .Where(d => d.CurrentOfficeId != null)
-                    .GroupBy(d => d.CurrentOfficeId)
-                    .Select(g => new { OfficeId = g.Key!.Value, Count = g.Count() })
-                    .ToListAsync();
-
-                var officeNames = await _context.Offices
-                    .Where(o => workloadCounts.Select(w => w.OfficeId).Contains(o.Id))
-                    .Select(o => new { o.Id, o.Name })
-                    .ToListAsync();
-
-                var officeWorkloads = workloadCounts
-                    .Join(officeNames, w => w.OfficeId, o => o.Id,
-                        (w, o) => new OfficeWorkload { OfficeId = w.OfficeId, OfficeName = o.Name, DocumentCount = w.Count })
+                    .GroupBy(d => new { d.CurrentOfficeId, d.CurrentOffice!.Name })
+                    .Select(g => new OfficeWorkload
+                    {
+                        OfficeId = g.Key.CurrentOfficeId!.Value,
+                        OfficeName = g.Key.Name,
+                        DocumentCount = g.Count()
+                    })
                     .OrderByDescending(w => w.DocumentCount)
-                    .ToList();
+                    .ToListAsync();                                       
 
-                var recentDocuments = await _context.Documents
+                var allRecent = await _context.Documents
                     .Include(d => d.Creator)
                     .OrderByDescending(d => d.LastActionDate ?? d.CreatedAt)
-                    .Take(4)
-                    .ToListAsync();
+                    .Take(10)
+                    .ToListAsync();                                       
 
-                var inMotionDocs = await _context.Documents
-                    .Include(d => d.Creator)
-                    .Where(d => d.Status == "In Motion")
-                    .OrderByDescending(d => d.LastActionDate ?? d.CreatedAt)
-                    .Take(5)
-                    .ToListAsync();
+                var recentDocuments = allRecent.Take(4).ToList();
+                var inMotionDocs = allRecent.Where(d => d.Status == "In Motion").Take(5).ToList();
 
-                int maxDoc = Math.Max(totalDocuments, 1);
+                int maxDoc = Math.Max(docStats?.Total ?? 1, 1);
                 foreach (var w in officeWorkloads)
                     w.Percentage = (int)Math.Round((double)w.DocumentCount / maxDoc * 100);
 
                 return new DashboardStats
                 {
-                    TotalDocuments = totalDocuments,
+                    TotalDocuments = docStats?.Total ?? 0,
                     TotalOffices = totalOffices,
                     TotalUsers = totalUsers,
-                    InMotionCount = inMotionCount,
-                    ReceivedCount = receivedCount,
-                    CompletedCount = completedCount,
+                    InMotionCount = docStats?.InMotion ?? 0,
+                    ReceivedCount = docStats?.Received ?? 0,
+                    CompletedCount = docStats?.Completed ?? 0,
                     OfficeWorkloads = officeWorkloads,
                     RecentDocuments = recentDocuments,
                     InMotionDocs = inMotionDocs
@@ -130,6 +128,8 @@ namespace DocTracking.Services
                 return new DashboardStats();
             }
         }
+
+
 
         public async Task<List<Document>> GetIncomingAsync(
             int officeId, int? unitId, bool isOfficeHead, string? search = null)
@@ -199,24 +199,15 @@ namespace DocTracking.Services
             {
                 List<int> forwardedDocIds;
 
-                if (unitId.HasValue)
-                {
-                    forwardedDocIds = await _context.DocumentLogs
-                        .Where(log => log.Action == "Forwarded" && log.AppUser != null && log.AppUser.UnitId == unitId)
-                        .Select(log => log.DocumentId)
-                        .Distinct()
-                        .ToListAsync();
-                }
-                else
-                {
-                    forwardedDocIds = await _context.DocumentLogs
-                        .Where(log => log.Action == "Forwarded" && log.AppUser != null &&
-                            ((log.AppUser.Unit != null && log.AppUser.Unit.OfficeId == officeId) ||
-                             (log.AppUser.Unit == null && log.AppUser.OfficeId == officeId)))
-                        .Select(log => log.DocumentId)
-                        .Distinct()
-                        .ToListAsync();
-                }
+                forwardedDocIds = await _context.DocumentLogs
+                    .Where(log => log.Action == "Forwarded" && log.AppUser != null &&
+                        (unitId.HasValue
+                            ? log.AppUser.UnitId == unitId
+                            : (log.AppUser.Unit != null && log.AppUser.Unit.OfficeId == officeId) ||
+                              (log.AppUser.Unit == null && log.AppUser.OfficeId == officeId)))
+                    .Select(log => log.DocumentId)
+                    .Distinct()
+                    .ToListAsync();
 
                 var query = _context.Documents
                     .Include(d => d.Creator)
