@@ -66,7 +66,7 @@ namespace DocTracking.Services
             }
         }
 
-        public async Task<DashboardStats> GetDashboardStatsAsync()
+        public async Task<AdminDashboardStats> GetDashboardStatsAsync()
         {
             try
             {
@@ -96,20 +96,24 @@ namespace DocTracking.Services
                     .OrderByDescending(w => w.DocumentCount)
                     .ToListAsync();                                       
 
-                var allRecent = await _context.Documents
+                var recentDocuments = await _context.Documents
                     .Include(d => d.Creator)
                     .OrderByDescending(d => d.LastActionDate ?? d.CreatedAt)
-                    .Take(10)
+                    .Take(4)
                     .ToListAsync();                                       
 
-                var recentDocuments = allRecent.Take(4).ToList();
-                var inMotionDocs = allRecent.Where(d => d.Status == "In Motion").Take(5).ToList();
+                var inMotionDocs = await _context.Documents
+                    .Include(d => d.Creator)
+                    .Where(d => d.Status == "In Motion")
+                    .OrderByDescending(d => d.LastActionDate ?? d.CreatedAt)
+                    .Take(5)
+                    .ToListAsync();
 
                 int maxDoc = Math.Max(docStats?.Total ?? 1, 1);
                 foreach (var w in officeWorkloads)
                     w.Percentage = (int)Math.Round((double)w.DocumentCount / maxDoc * 100);
 
-                return new DashboardStats
+                return new AdminDashboardStats
                 {
                     TotalDocuments = docStats?.Total ?? 0,
                     TotalOffices = totalOffices,
@@ -125,7 +129,7 @@ namespace DocTracking.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[GetDashboardStatsAsync] Failed");
-                return new DashboardStats();
+                return new AdminDashboardStats();
             }
         }
 
@@ -153,7 +157,12 @@ namespace DocTracking.Services
                         (d.Type != null && d.Type.Contains(search)) ||
                         (d.Creator != null && d.Creator.Name != null && d.Creator.Name.Contains(search)));
 
-                return await query.ToListAsync();
+                return await query
+                    .OrderBy(d => d.Priority == "Emergency" ? 0 :
+                        d.Priority == "Urgent" ? 1 :
+                        d.Priority == "Medium" ? 2 :
+                        d.Priority == "Low" ? 3 : 99)
+                    .ToListAsync();
             }
             catch (Exception ex)
             {
@@ -183,7 +192,12 @@ namespace DocTracking.Services
                         (d.Name != null && d.Name.Contains(search)) ||
                         (d.Type != null && d.Type.Contains(search)));
 
-                return await query.ToListAsync();
+                return await query
+                     .OrderBy(d => d.Priority == "Emergency" ? 0 :
+                        d.Priority == "Urgent" ? 1 :
+                        d.Priority == "Medium" ? 2 :
+                        d.Priority == "Low" ? 3 : 99)
+                    .ToListAsync();
             }
             catch (Exception ex)
             {
@@ -222,7 +236,11 @@ namespace DocTracking.Services
                         (d.NextOffice != null && d.NextOffice.Name != null && d.NextOffice.Name.Contains(search)));
 
                 return await query
-                    .OrderByDescending(d => d.LastActionDate ?? d.CreatedAt)
+                    .OrderBy(d => d.Priority == "Emergency" ? 0 :
+                        d.Priority == "Urgent" ? 1 :
+                        d.Priority == "Medium" ? 2 :
+                        d.Priority == "Low" ? 3 : 99)
+                    .ThenByDescending(d => d.LastActionDate ?? d.CreatedAt)
                     .ToListAsync();
             }
             catch (Exception ex)
@@ -370,7 +388,72 @@ namespace DocTracking.Services
                 return (new List<Document>(), 0);
             }
         }
+                                                                                     
+        public async Task<UserHomeData> GetUserHomeDataAsync(string? email)
+        {
+            try
+            {
+                var stats = await _context.Documents
+                    .Where(d => d.Creator != null && d.Creator.Email == email)
+                    .GroupBy(_ => -1)
+                    .Select(g => new
+                    {
+                        Total = g.Count(),
+                        InMotion = g.Count(d => d.Status == "In Motion"),
+                        Completed = g.Count(d => d.Status == "Completed")
+                    })
+                    .FirstOrDefaultAsync();
 
+
+
+                var allRecent = await _context.Documents
+                    .Include(d => d.Creator)
+                    .Include(d => d.NextOffice)
+                    .Include(d => d.CurrentOffice)
+                    .Where(d => d.Creator != null && d.Creator.Email == email)
+                    .OrderByDescending(d => d.LastActionDate ?? d.CreatedAt)
+                    .Take(500)
+                    .ToListAsync();
+
+                var inProgress = allRecent
+                    .Where(d => d.Status == "In Motion")
+                    .OrderByDescending(d => d.LastActionDate ?? d.CreatedAt)
+                    .Take(5)
+                    .ToList();
+
+                var completed = allRecent
+                    .Where(d => d.Status == "Completed")
+                    .OrderByDescending(d => d.LastActionDate ?? d.CreatedAt)
+                    .Take(5)
+                    .ToList();
+
+                var stuck = allRecent
+                    .Where(d => d.Status == "In Motion" &&
+                                (DateTime.UtcNow - (d.LastActionDate ?? d.CreatedAt)).TotalDays >= 1)
+                    .OrderByDescending(d => d.LastActionDate ?? d.CreatedAt)
+                    .ToList();
+
+                return new UserHomeData
+                {
+                    TotalDocumentsCount = stats?.Total ?? 0,
+                    TotalInProgressCount = stats?.InMotion ?? 0,
+                    TotalCompletedCount = stats?.Completed ?? 0,
+                    InProgressDoc = inProgress,
+                    CompletedDoc = completed,
+                    RecentDocuments = allRecent,
+                    StuckDocuments = stuck
+                };
+
+            }   
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[GetUserHomeDataAsync] Failed for email {Email}", email);
+                return new UserHomeData();
+            }
+
+
+
+        }
         public async Task<(List<DocumentLog> Items, int TotalCount)> GetAuditLogsAsync(
             int page, int pageSize,
             string? search = null, string? action = null, string? date = null)
@@ -475,8 +558,8 @@ namespace DocTracking.Services
                 .AsAsyncEnumerable();
         }
     }
-
-    public class DashboardStats
+                                                                                                
+    public class AdminDashboardStats
     {
         public int TotalDocuments { get; set; }
         public int TotalOffices { get; set; }
@@ -495,5 +578,17 @@ namespace DocTracking.Services
         public string? OfficeName { get; set; }
         public int DocumentCount { get; set; }
         public int Percentage { get; set; }
+    }
+
+    public class UserHomeData
+    {
+        public int TotalInProgressCount { get; set; }
+        public int TotalCompletedCount { get; set;}
+        public int TotalDocumentsCount { get; set; }
+        public List<Document> InProgressDoc { get; set; } = new();
+        public List<Document> CompletedDoc { get; set; } = new();
+        public List<Document> RecentDocuments { get; set; } = new();
+
+        public List<Document> StuckDocuments { get; set; } = new();
     }
 }

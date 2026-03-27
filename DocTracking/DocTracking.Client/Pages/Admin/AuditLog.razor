@@ -20,11 +20,11 @@
         </MudButton>
     </div>
 
-    <MudTextField @bind-Value="searchText" Placeholder="Search document, user, or action..."
+    <MudTextField Value="@searchText"
+                  ValueChanged="@((string v) => OnSearchChanged(v))"
+                  Placeholder="Search documents, senders, or locations..."
                   Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
-                  Variant="Variant.Outlined" Margin="Margin.Dense"
-                  DebounceInterval="400"
-                  TextChanged="@(async (string v) => { searchText = v; await OnFilterChanged(); })"
+                  IconSize="Size.Medium" Variant="Variant.Outlined" Margin="Margin.Dense"
                   Class="mb-4" />
 
     <div class="d-flex gap-2 flex-wrap align-center mb-4">
@@ -156,4 +156,16 @@
         "Admin Override" => Color.Error,
         _ => Color.Default
     };
+
+    private CancellationTokenSource _searchCts = new();
+
+    private async Task OnSearchChanged(string value)
+    {
+        searchText = value;
+        _searchCts.Cancel();
+        _searchCts = new CancellationTokenSource();
+        var ct = _searchCts.Token;
+        try { await Task.Delay(400, ct); } catch (OperationCanceledException) { return; }
+        await OnFilterChanged();
+    }
 }

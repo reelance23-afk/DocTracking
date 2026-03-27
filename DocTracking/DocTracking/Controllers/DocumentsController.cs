@@ -159,7 +159,7 @@ namespace DocTracking.Controllers
 
         [HttpGet("dashboard-stats")]
         [Authorize(Roles = "Admin")]
-        public async Task<ActionResult<DashboardStats>> GetDashboardStats()
+        public async Task<ActionResult<AdminDashboardStats>> GetDashboardStats()
         {
             var stats = await _docService.GetDashboardStatsAsync();
             return Ok(stats);
@@ -227,49 +227,11 @@ namespace DocTracking.Controllers
         }
 
         [HttpGet("user/{email}/home-data")]
-        public async Task<ActionResult> GetUserHomeData(string email)
+        public async Task<ActionResult<UserHomeData>> GetUserHomeData(string email)
         {
-            try
-            {
-                var stats = await _context.Documents
-                    .Where(d => d.Creator != null && d.Creator.Email == email)
-                    .GroupBy(_ => 1)
-                    .Select(g => new
-                    {
-                        InMotion = g.Count(d => d.Status == "In Motion"),
-                        Received = g.Count(d => d.Status == "Received"),
-                        Completed = g.Count(d => d.Status == "Completed"),
-                        Total = g.Count()
-                    })
-                    .FirstOrDefaultAsync();
-
-                var cutoff = DateTime.UtcNow.AddDays(-1);
-
-                var allDocs = await _context.Documents
-                    .Where(d => d.Creator != null && d.Creator.Email == email)
-                    .Include(d => d.NextOffice)
-                    .Include(d => d.NextUnit)
-                    .Include(d => d.CurrentOffice)
-                    .Include(d => d.CurrentUnit)
-                    .OrderByDescending(d => d.LastActionDate ?? d.CreatedAt)
-                    .Take(500)
-                    .ToListAsync();
-
-                var pending = allDocs.Where(d => d.Status != "Completed").Take(5).ToList();
-                var completed = allDocs.Where(d => d.Status == "Completed").Take(5).ToList();
-                var recent = allDocs.Take(5).ToList();
-                var stuck = allDocs.Take(5).Where(d => d.Status != "Completed"
-                    && d.LastActionDate.HasValue && d.LastActionDate < cutoff).Take(5).ToList();
-
-                return Ok(new { stats, pending, completed, recent, stuck });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[GetUserHomeData] Failed for {Email}", email);
-                return StatusCode(500, "Failed to load home data.");
-            }
+            var stats = await _docService.GetUserHomeDataAsync(email);
+            return Ok(stats);
         }
-
 
 
         [HttpGet("incoming/{officeId}")]

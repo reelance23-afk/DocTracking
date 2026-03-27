@@ -32,11 +32,15 @@
         </MudButton>
     </div>
 
-    <MudTextField Value="@searchString"
-                  ValueChanged="@((string v) => OnSearchChanged(v))"
-                  Placeholder="Search Offices..." Adornment="Adornment.Start"
-                  AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mb-6"
-                  Variant="Variant.Outlined" Margin="Margin.Dense" />
+    <MudTextField @bind-Value="searchString"
+                  @bind-Value:after="OnSearchChanged"
+                  DebounceInterval="400"
+                  Placeholder="Search Offices..."
+                  Adornment="Adornment.Start"
+                  AdornmentIcon="@Icons.Material.Filled.Search"
+                  Variant="Variant.Outlined"
+                  Margin="Margin.Dense"
+                  Class="mb-6" />
 
 
     @if (loading)
@@ -336,6 +340,11 @@
         await LoadOffices();
     }
 
+    private async Task OnSearchChanged()
+    {
+        await LoadOffices(showSpinner: false);
+    }
+
     private async Task LoadOffices(bool showSpinner = true)
     {
         if (showSpinner) loading = true;
@@ -351,18 +360,6 @@
             Snackbar.Add("Failed to load offices.", Severity.Error);
         }
         finally { if (showSpinner) loading = false; }
-    }
-
-    private CancellationTokenSource _searchCts = new();
-
-    private async Task OnSearchChanged(string value)
-    {
-        searchString = value;
-        _searchCts.Cancel();
-        _searchCts = new CancellationTokenSource();
-        var ct = _searchCts.Token;
-        try { await Task.Delay(400, ct); } catch (OperationCanceledException) { return; }
-        await LoadOffices(showSpinner: false);
     }
 
     private async Task LoadMore()

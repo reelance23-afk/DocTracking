@@ -455,6 +455,10 @@
     private string deskSearch = "";
     private string outgoingSearch = "";
 
+    private CancellationTokenSource _incomingCts = new();
+    private CancellationTokenSource _deskCts = new();
+    private CancellationTokenSource _outgoingCts = new();
+
     protected override async Task OnInitializedAsync()
     {
         try
@@ -515,6 +519,10 @@
     private async void OnIncomingSearchChanged(string value)
     {
         incomingSearch = value;
+        _incomingCts.Cancel();
+        _incomingCts = new CancellationTokenSource();
+        var ct = _incomingCts.Token;
+        try { await Task.Delay(400, ct); } catch (OperationCanceledException) { return; }
         incomingDocs = await DocService.GetIncomingAsync(myOffice!.Id, myUnitId, incomingSearch);
         await InvokeAsync(StateHasChanged);
     }
@@ -522,6 +530,10 @@
     private async void OnDeskSearchChanged(string value)
     {
         deskSearch = value;
+        _deskCts.Cancel();
+        _deskCts = new CancellationTokenSource();
+        var ct = _deskCts.Token;
+        try { await Task.Delay(400, ct); } catch (OperationCanceledException) { return; }
         deskDocs = await DocService.GetDeskDocumentsAsync(myOffice!.Id, isOfficeHead ? null : myUnitId, deskSearch);
         await InvokeAsync(StateHasChanged);
     }
@@ -529,6 +541,10 @@
     private async void OnOutgoingSearchChanged(string value)
     {
         outgoingSearch = value;
+        _outgoingCts.Cancel();
+        _outgoingCts = new CancellationTokenSource();
+        var ct = _outgoingCts.Token;
+        try { await Task.Delay(400, ct); } catch (OperationCanceledException) { return; }
         outgoingDocs = await DocService.GetOutgoingAsync(outgoingSearch);
         await InvokeAsync(StateHasChanged);
     }
@@ -625,6 +641,8 @@
             d.LastActionDate.HasValue &&
             (DateTime.UtcNow - d.LastActionDate.Value).TotalHours >= 24)
         .ToList();
+
+
 }
 
 

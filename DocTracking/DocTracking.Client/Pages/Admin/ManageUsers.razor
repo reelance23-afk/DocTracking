@@ -16,12 +16,12 @@
         </div>
     </div>
 
-    <MudTextField Value="@searchString"
-                  ValueChanged="@((string v) => OnSearchChanged(v))"
+    <MudTextField @bind-Value="searchString"
+                  @bind-Value:after="OnSearchChanged"
+                  DebounceInterval="400"
                   Placeholder="Search users..."
                   Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
                   Variant="Variant.Outlined" Margin="Margin.Dense"
-                  DebounceInterval="400"
                   Class="mb-6" />
 
     @if (isLoading)
@@ -333,14 +333,13 @@
         }
     }
 
-    private void OnSearchChanged(string value)
+    private async Task OnSearchChanged()
     {
-        searchString = value;
         _currentPage = 1;
         if (_table != null)
-            _ = _table.ReloadServerData();
+            await _table.ReloadServerData();
         else
-            _ = LoadMobileData();
+            await LoadMobileData();
     }
 
     private async Task LoadMobileData()

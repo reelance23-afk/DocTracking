@@ -230,29 +230,24 @@
             _profile = await DocService.GetProfileAsync();
 
             if (!string.IsNullOrEmpty(_userEmail))
-            {
-                var result = await DocService.GetUserDocumentsAsync(_userEmail, page: 1, pageSize: 100);
-                var allDocs = result.Items;
-                if (allDocs != null)
-                {
-                    myDocsCount = result.TotalCount;
-                    pendingCount = allDocs.Count(d => d.Status != "Completed");
-                    completedCount = allDocs.Count(d => d.Status == "Completed");
-                    pendingDocs = allDocs.Where(d => d.Status != "Completed").Take(5).ToList();
-                    completedDocs = allDocs.Where(d => d.Status == "Completed").Take(5).ToList();
-                    recentDocs = allDocs.OrderByDescending(d => d.LastActionDate).Take(5).ToList();
-                    stuckDocs = allDocs
-                        .Where(d => d.Status != "Completed" &&
-                               (DateTime.UtcNow - (d.LastActionDate ?? d.CreatedAt)).TotalDays >= 1)
-                        .OrderByDescending(d => d.LastActionDate ?? d.CreatedAt)
-                        .ToList();
-                }
-            }
+                await LoadData();
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error: {ex.Message}");
         }
+    }
+
+    private async Task LoadData()
+    {
+        var data = await DocService.GetUserHomeDataAsync(_userEmail);
+        myDocsCount = data.TotalDocumentsCount;
+        pendingCount = data.TotalInProgressCount;
+        completedCount = data.TotalCompletedCount;
+        pendingDocs = data.InProgressDoc;
+        completedDocs = data.CompletedDoc;
+        recentDocs = data.RecentDocuments;
+        stuckDocs = data.StuckDocuments;
     }
 
     protected override Task OnAfterRenderAsync(bool firstRender)
@@ -264,10 +259,7 @@
 
     private async Task OpenViewDialog(Document doc)
     {
-        var parameters = new DialogParameters<DocumentViewDialog>
-        {
-            { x => x.Doc, doc }
-        };
+        var parameters = new DialogParameters<DocumentViewDialog> { { x => x.Doc, doc } };
         var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
         await DialogService.ShowAsync<DocumentViewDialog>("Document Details", parameters, options);
     }
@@ -276,21 +268,7 @@
         _debounce.Trigger(async () =>
         {
             if (!string.IsNullOrEmpty(_userEmail))
-            {
-                var result = await DocService.GetUserDocumentsAsync(_userEmail, page: 1, pageSize: 100);
-                var allDocs = result.Items;
-                myDocsCount = result.TotalCount;
-                pendingCount = allDocs.Count(d => d.Status != "Completed");
-                completedCount = allDocs.Count(d => d.Status == "Completed");
-                pendingDocs = allDocs.Where(d => d.Status != "Completed").Take(5).ToList();
-                completedDocs = allDocs.Where(d => d.Status == "Completed").Take(5).ToList();
-                recentDocs = allDocs.OrderByDescending(d => d.LastActionDate).Take(5).ToList();
-                stuckDocs = allDocs
-                    .Where(d => d.Status != "Completed" &&
-                           (DateTime.UtcNow - (d.LastActionDate ?? d.CreatedAt)).TotalDays >= 1)
-                    .OrderByDescending(d => d.LastActionDate ?? d.CreatedAt)
-                    .ToList();
-            }
+                await LoadData();
             await InvokeAsync(StateHasChanged);
         });
 
@@ -300,3 +278,4 @@
         _debounce.Dispose();
     }
 }
+

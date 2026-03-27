@@ -154,8 +154,8 @@ namespace DocTracking.Client.Services
         public async Task<DocumentContext?> GetDocumentContextAsync(string referenceNumber) =>
             await GetJsonAsync<DocumentContext>($"api/documents/by-ref/{referenceNumber}/context");
 
-        public async Task<DashboardStats?> GetDashboardStatsAsync() =>
-            await GetJsonAsync<DashboardStats>("api/documents/dashboard-stats");
+        public async Task<AdminDashboardStats?> GetDashboardStatsAsync() =>
+            await GetJsonAsync<AdminDashboardStats>("api/documents/dashboard-stats");
 
         public async Task<PagedResult<Document>> GetUserDocumentsAsync(
             string email,
@@ -175,6 +175,9 @@ namespace DocTracking.Client.Services
 
         public async Task<UserDocumentStats?> GetUserDocumentStatsAsync(string email) =>
             await GetJsonAsync<UserDocumentStats>($"api/documents/user/{email}/stats");
+
+        public async Task<UserHomeData> GetUserHomeDataAsync(string email) =>
+            await GetJsonAsync<UserHomeData>($"api/documents/user/{email}/home-data");
 
         public async Task<List<Document>> GetIncomingAsync(int officeId, int? unitId = null, string? search = null)
         {
@@ -357,7 +360,7 @@ namespace DocTracking.Client.Services
         public string? ReassignComment { get; set; }
     }
 
-    public class DashboardStats
+    public class AdminDashboardStats
     {
         public int TotalDocuments { get; set; }
         public int TotalOffices { get; set; }
@@ -390,5 +393,16 @@ namespace DocTracking.Client.Services
     {
         public string RedirectTo { get; set; } = "public";
         public string? Tab { get; set; }
+    }
+
+    public class UserHomeData
+    {
+        public int TotalInProgressCount { get; set; }
+        public int TotalCompletedCount { get; set; }
+        public int TotalDocumentsCount { get; set; }
+        public List<Document> InProgressDoc { get; set; } = new();
+        public List<Document> CompletedDoc { get; set; } = new();
+        public List<Document> RecentDocuments { get; set; } = new();
+        public List<Document> StuckDocuments { get; set; } = new();
     }
 }

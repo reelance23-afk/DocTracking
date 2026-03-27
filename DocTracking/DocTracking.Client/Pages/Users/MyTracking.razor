@@ -79,7 +79,7 @@
                           IconSize="Size.Medium"
                           Variant="Variant.Outlined"
                           Margin="Margin.Dense"
-                          DebounceInterval="400"
+ 
                           Class="mb-4" />
 
             <MudHidden Breakpoint="Breakpoint.SmAndDown">
@@ -348,7 +348,10 @@
     {
         var parameters = new DialogParameters<DocumentViewDialog> { { x => x.Doc, doc } };
         var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
-        await DialogService.ShowAsync<DocumentViewDialog>("Document Details", parameters, options);
+        var dialog = await DialogService.ShowAsync<DocumentViewDialog>("Document Details", parameters, options);
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+            await LoadDocuments();
     }
 
     private async Task OpenQRDialog(Document doc)
