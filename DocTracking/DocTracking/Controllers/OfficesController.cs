@@ -62,8 +62,32 @@ namespace DocTracking.Controllers
                 .Take(pageSize)
                 .ToListAsync();
 
+            var unitIds = items.SelectMany(o => o.Units ?? new List<Unit>()).Select(u => u.Id).ToList();
+            var officeIds = items.Select(o => o.Id).ToList();
+
+            var unitWorkers = await _context.AppUsers
+                .Where(u => u.UnitId != null && unitIds.Contains(u.UnitId.Value))
+                .GroupBy(u => u.UnitId!.Value)
+                .Select(g => new { UnitId = g.Key, Count = g.Count() })
+                .ToListAsync();
+
+            var officeWorkers = await _context.AppUsers
+                .Where(u => u.UnitId == null && u.OfficeId != null && officeIds.Contains(u.OfficeId.Value))
+                .GroupBy(u => u.OfficeId!.Value)
+                .Select(g => new { OfficeId = g.Key, Count = g.Count() })
+                .ToListAsync();
+
+            foreach (var office in items)
+            {
+                var officeUnitIds = (office.Units ?? new List<Unit>()).Select(u => u.Id).ToHashSet();
+                var fromUnits = unitWorkers.Where(u => officeUnitIds.Contains(u.UnitId)).Sum(u => u.Count);
+                var fromOffice = officeWorkers.FirstOrDefault(o => o.OfficeId == office.Id)?.Count ?? 0;
+                office.WorkerCount = fromUnits + fromOffice;
+            }
+
             return Ok(new PagedResult<Office> { Items = items, TotalCount = total });
         }
+
 
         [HttpGet("{id}")]
         public async Task<ActionResult<Office>> GetOffice(int id)

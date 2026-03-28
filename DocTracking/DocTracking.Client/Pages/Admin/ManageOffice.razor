@@ -8,7 +8,7 @@
 @inject IDialogService DialogService
 @inject IJSRuntime JSRuntime
 @rendermode InteractiveAuto
-
+                                    
 <style>
     @@media (max-width: 599px) {
         .desktop-table { display: none !important; }
@@ -65,7 +65,7 @@
                                     <MudText Typo="Typo.body1" Class="font-weight-bold" Style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">@office.Name</MudText>
                                     <MudText Typo="Typo.caption" Class="mud-text-secondary">
                                         @(office.Units?.Count ?? 0) unit@(office.Units?.Count == 1 ? "" : "s") &bull;
-                                        @(allUsers.Count(u => (office.Units?.Any(un => un.Id == u.UnitId) == true) || (u.OfficeId == office.Id && u.UnitId == null))) worker@(allUsers.Count(u => (office.Units?.Any(un => un.Id == u.UnitId) == true) || (u.OfficeId == office.Id && u.UnitId == null)) == 1 ? "" : "s")
+                                        @office.WorkerCount worker@(office.WorkerCount == 1 ? "" : "s")
                                     </MudText>
                                 </div>
                             </div>

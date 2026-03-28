@@ -133,8 +133,6 @@ namespace DocTracking.Services
             }
         }
 
-
-
         public async Task<List<Document>> GetIncomingAsync(
             int officeId, int? unitId, bool isOfficeHead, string? search = null)
         {
@@ -388,7 +386,8 @@ namespace DocTracking.Services
                 return (new List<Document>(), 0);
             }
         }
-                                                                                     
+                                
+
         public async Task<UserHomeData> GetUserHomeDataAsync(string? email)
         {
             try
@@ -427,9 +426,10 @@ namespace DocTracking.Services
                     .Take(5)
                     .ToList();
 
+                var stuckThreshold = DateTime.UtcNow.AddDays(-1);
                 var stuck = allRecent
                     .Where(d => d.Status == "In Motion" &&
-                                (DateTime.UtcNow - (d.LastActionDate ?? d.CreatedAt)).TotalDays >= 1)
+                                (d.LastActionDate ?? d.CreatedAt) < stuckThreshold)
                     .OrderByDescending(d => d.LastActionDate ?? d.CreatedAt)
                     .ToList();
 
@@ -440,7 +440,7 @@ namespace DocTracking.Services
                     TotalCompletedCount = stats?.Completed ?? 0,
                     InProgressDoc = inProgress,
                     CompletedDoc = completed,
-                    RecentDocuments = allRecent,
+                    RecentDocuments = allRecent,                      
                     StuckDocuments = stuck
                 };
 
@@ -557,6 +557,48 @@ namespace DocTracking.Services
                 .OrderByDescending(m => m.TimeStamp)
                 .AsAsyncEnumerable();
         }
+
+        public async Task<LocationDocStats> GetLocationDocStatAsync(int? unitId, int? officeId)
+        {
+            try
+            {
+                IQueryable<Document> query;
+
+                if (unitId.HasValue)
+                {
+                    query = _context.Documents
+                        .Where(d => _context.DocumentLogs
+                        .Any(i => i.DocumentId == d.Id && i.UnitId == unitId));
+                }
+                else if (officeId.HasValue)
+                {
+                    query = _context.Documents
+                        .Where(d => _context.DocumentLogs
+                        .Any(i => i.DocumentId == d.Id &&
+                        ((i.UnitId != null && i.Unit != null && i.Unit.OfficeId == officeId) ||
+                        (i.UnitId == null && i.OfficeId == officeId))));
+                }
+                else
+                    return new LocationDocStats();
+
+                var stats = await query
+                    .GroupBy(_ => 1)
+                    .Select(d => new LocationDocStats
+                    {
+                        InMotion = d.Count(d => d.Status == "In Motion"),
+                        Received = d.Count(d => d.Status == "Received"),
+                        Completed = d.Count(d => d.Status == "Completed")
+                    })
+                    .FirstOrDefaultAsync();
+
+                return stats ?? new LocationDocStats();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[GetLocationDocStatsAsync] Failed");
+                    return new LocationDocStats();
+            }
+        }
     }
                                                                                                 
     public class AdminDashboardStats
@@ -590,5 +632,12 @@ namespace DocTracking.Services
         public List<Document> RecentDocuments { get; set; } = new();
 
         public List<Document> StuckDocuments { get; set; } = new();
+    }
+
+    public class LocationDocStats
+    {
+        public int InMotion { get; set; }
+        public int Received { get; set; }
+        public int Completed { get; set; }
     }
 }

@@ -18,7 +18,7 @@
             <MudText Typo="Typo.h4" Class="font-weight-bold">@(isOfficeHead ? "Office History" : "Unit History")</MudText>
         </div>
         <MudText Typo="Typo.body1" Class="mud-text-secondary mb-4">A complete record of all documents processed by @myUnitName.</MudText>
-        <DocStatCards Documents="@historyResult.Items" />
+        <DocStatCards InMotion="@_stats.InMotion" Received="@_stats.Received" Completed="@_stats.Completed" />
     </div>
 
     @if (isLoading)
@@ -38,8 +38,9 @@
                 </div>
             </div>
 
-            <MudTextField Value="@searchString"
-                          ValueChanged="@((string v) => OnSearchChanged(v))"
+            <MudTextField @bind-Value="searchString"
+                          @bind-Value:after="OnSearchChanged"
+                          DebounceInterval="400"
                           Placeholder="Search documents..."
                           Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
                           IconSize="Size.Medium" Variant="Variant.Outlined" Margin="Margin.Dense"
@@ -182,6 +183,7 @@
     [SupplyParameterFromQuery(Name = "ref")] public string? RefParam { get; set; }
 
     private PagedResult<Document> historyResult = new();
+    private LocationDocStats _stats = new();
     private bool isLoading = true;
     private bool isLoadingMore = false;
     private string myUnitName = "Unit";
@@ -203,14 +205,22 @@
             {
                 myUnitId = profile.UnitId;
                 myUnitName = profile.Unit?.Name ?? "Unit";
-                historyResult = await DocService.GetUnitHistoryAsync(profile.UnitId.Value, currentPage, PageSize);
+                var statsTask = DocService.GetLocationDocStatsAsync(profile.UnitId, null);
+                var historyTask = DocService.GetUnitHistoryAsync(profile.UnitId.Value, currentPage, PageSize);
+                await Task.WhenAll(historyTask, statsTask);
+                historyResult = historyTask.Result;
+                _stats = statsTask.Result ?? new();
             }
             else if (profile?.OfficeId != null)
             {
                 isOfficeHead = true;
                 myOfficeId = profile.OfficeId;
                 myUnitName = profile.Office?.Name ?? "Office";
-                historyResult = await DocService.GetOfficeHistoryAsync(profile.OfficeId.Value, currentPage, PageSize);
+                var statsTask = DocService.GetLocationDocStatsAsync(null, profile.OfficeId);
+                var historyTask = DocService.GetOfficeHistoryAsync(profile.OfficeId.Value, currentPage, PageSize);
+                await Task.WhenAll(historyTask, statsTask);
+                historyResult = historyTask.Result;
+                _stats = statsTask.Result ?? new();
             }
 
             if (!string.IsNullOrEmpty(RefParam))
@@ -252,23 +262,10 @@
         }
     }
 
-    private void OnSearchChanged(string value)
+    private async Task OnSearchChanged()
     {
-        searchString = value;
         currentPage = 1;
-        _ = InvokeAsync(async () =>
-        {
-            try
-            {
-                await LoadHistory();
-                StateHasChanged();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[UnitHistory] OnSearchChanged error: {ex.Message}");
-                Snackbar.Add("Failed to search history.", Severity.Error);
-            }
-        });
+        await LoadHistory();
     }
 
     private async Task LoadHistory()
@@ -276,9 +273,15 @@
         try
         {
             if (myUnitId.HasValue)
+            {
                 historyResult = await DocService.GetUnitHistoryAsync(myUnitId.Value, currentPage, PageSize, searchString);
+                _stats = await DocService.GetLocationDocStatsAsync(myUnitId, null) ?? new();
+            }
             else if (myOfficeId.HasValue)
+            {
                 historyResult = await DocService.GetOfficeHistoryAsync(myOfficeId.Value, currentPage, PageSize, searchString);
+                _stats = await DocService.GetLocationDocStatsAsync(null, myOfficeId) ?? new();
+            }
         }
         catch (Exception ex)
         {
@@ -286,6 +289,7 @@
             Snackbar.Add("Failed to load history.", Severity.Error);
         }
     }
+
 
     private async Task LoadMore()
     {

@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Graph;
 using System.Security.Claims;
 using System.Text;
 
@@ -231,6 +232,39 @@ namespace DocTracking.Controllers
         {
             var stats = await _docService.GetUserHomeDataAsync(email);
             return Ok(stats);
+        }
+
+        [HttpGet("stats/unit/{unitId}")]
+        public async Task<ActionResult<LocationDocStats>> GetUnitDocStats(int unitId)
+        {
+            try
+            {
+                var stats = await _docService.GetLocationDocStatAsync(unitId, null);
+                    return Ok(stats);
+
+            }  
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[GetUnitDocStats] Failed");
+                return StatusCode(500, "Failed to unit stats");
+
+            }
+        }
+
+        [HttpGet("stats/office/{officeId}")]
+        public async Task<ActionResult<LocationDocStats>> GetOfficeDocStats(int officeId)
+        {
+            try
+            {
+                var stats = await _docService.GetLocationDocStatAsync(null, officeId);
+                return Ok(stats);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[GetOfficeDocStats] Failed");
+                return StatusCode(500, "Failed to load office stats");
+            }
+            
         }
 
 

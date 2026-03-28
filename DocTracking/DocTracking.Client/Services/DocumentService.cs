@@ -179,6 +179,14 @@ namespace DocTracking.Client.Services
         public async Task<UserHomeData> GetUserHomeDataAsync(string email) =>
             await GetJsonAsync<UserHomeData>($"api/documents/user/{email}/home-data");
 
+        public async Task<LocationDocStats?> GetLocationDocStatsAsync(int? unitId, int? officeId)
+        {
+            var url = unitId.HasValue
+                ? $"api/documents/stats/unit/{unitId}"
+                : $"api/documents/stats/office/{officeId}";
+                return await GetJsonAsync<LocationDocStats>(url);
+        }
+
         public async Task<List<Document>> GetIncomingAsync(int officeId, int? unitId = null, string? search = null)
         {
             var url = $"api/documents/incoming/{officeId}";
@@ -404,5 +412,12 @@ namespace DocTracking.Client.Services
         public List<Document> CompletedDoc { get; set; } = new();
         public List<Document> RecentDocuments { get; set; } = new();
         public List<Document> StuckDocuments { get; set; } = new();
+    }
+
+    public class LocationDocStats
+    {
+        public int InMotion { get; set; }
+        public int Received { get; set; }
+        public int Completed { get; set; }
     }
 }
