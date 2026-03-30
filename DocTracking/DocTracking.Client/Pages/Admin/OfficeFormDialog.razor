@@ -1,11 +1,27 @@
 ﻿@inherits MudComponentBase
+@using DocTracking.Client.Models
+@using DocTracking.Client.Services
+@inject DocumentService DocService
 
 <MudDialog>
     <DialogContent>
         <MudForm @bind-IsValid="isValid" @ref="form" Class="mt-2">
-            <MudTextField @bind-Value="OfficeName" Label="Office Name" Variant="Variant.Outlined"
-                          Required="true" RequiredError="Office name is required!"
-                          AutoFocus="true" Immediate="true" />
+            <MudAutocomplete T="string"
+                             Label="Office Name"
+                             @bind-Value="officeName"
+                             SearchFunc="SearchOffices"
+                             Variant="Variant.Outlined"
+                             Required="true"
+                             RequiredError="Office name is required!"
+                             AutoFocus="true"
+                             Immediate="true"
+                             CoerceText="true"
+                             CoerceValue="true"
+                             Class="mb-4" />
+            <MudTextField @bind-Value="unitName"
+                          Label="Unit Name (optional)"
+                          Variant="Variant.Outlined"
+                          Disabled="@(string.IsNullOrWhiteSpace(officeName))" />
         </MudForm>
     </DialogContent>
     <DialogActions>
@@ -16,14 +32,46 @@
 
 @code {
     [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
-    [Parameter] public string OfficeName { get; set; } = "";
 
     private bool isValid;
     private MudForm? form;
+    private string officeName = "";
+    private string unitName = "";
+    private List<Office> _offices = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _offices = await DocService.GetOfficesAsync();
+    }
+
+    private Task<IEnumerable<string>> SearchOffices(string value, CancellationToken ct)
+    {
+        var results = string.IsNullOrWhiteSpace(value)
+            ? _offices.Select(o => o.Name!)
+            : _offices.Where(o => o.Name!.Contains(value, StringComparison.OrdinalIgnoreCase)).Select(o => o.Name!);
+        return Task.FromResult(results);
+    }
 
     private async Task Submit()
     {
         await form!.ValidateAsync();
-        if (isValid) MudDialog.Close(DialogResult.Ok(OfficeName));
+        if (!isValid) return;
+
+        var existingOffice = _offices.FirstOrDefault(o =>
+            o.Name!.Equals(officeName, StringComparison.OrdinalIgnoreCase));
+
+        MudDialog.Close(DialogResult.Ok(new OfficeFormResult
+        {
+            OfficeName = officeName.Trim(),
+            UnitName = string.IsNullOrWhiteSpace(unitName) ? null : unitName.Trim(),
+            ExistingOfficeId = existingOffice?.Id
+        }));
+    }
+
+    public class OfficeFormResult
+    {
+        public string OfficeName { get; set; } = "";
+        public string? UnitName { get; set; }
+        public int? ExistingOfficeId { get; set; }
     }
 }

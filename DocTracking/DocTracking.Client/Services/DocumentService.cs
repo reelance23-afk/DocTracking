@@ -69,9 +69,23 @@ namespace DocTracking.Client.Services
             if (!string.IsNullOrEmpty(search)) url += $"&search={Uri.EscapeDataString(search)}";
             return await GetJsonAsync<PagedResult<Office>>(url) ?? new();
         }
+        public async Task<(bool Success, string? Error, Office? Created)> AddOfficeAsync(Office office)
+        {
+            try
+            {
+                var response = await _http.PostAsJsonAsync("api/offices", office);
+                if (!response.IsSuccessStatusCode)
+                    return (false, await response.Content.ReadAsStringAsync(), null);
+                var created = await response.Content.ReadFromJsonAsync<Office>(_jsonOptions);
+                return (true, null, created);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[DocumentService] AddOfficeAsync failed: {ex.Message}");
+                return (false, "An unexpected error occurred.", null);
+            }
+        }
 
-        public Task<(bool Success, string? Error)> AddOfficeAsync(Office office) =>
-            ToResult(_http.PostAsJsonAsync("api/offices", office));
 
         public Task<(bool Success, string? Error)> UpdateOfficeAsync(Office office) =>
             ToResult(_http.PutAsJsonAsync($"api/offices/{office.Id}", office));

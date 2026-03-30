@@ -11,19 +11,11 @@
 @inject IJSRuntime JS
 @rendermode InteractiveAuto
 
-<style>
-    @@media (max-width: 959px) {
-        .desktop-table {
-            display: none !important;
-        }
-    }
-</style>
-
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
-    <div class="mb-6">
-        <div class="d-flex align-center mb-4">
-            <MudIcon Icon="@Icons.Material.Filled.TrackChanges" Size="Size.Large" Class="mr-3" Color="Color.Primary" />
+    <div class="d-flex justify-space-between align-center mb-4">
+        <div>
             <MudText Typo="Typo.h4" Class="font-weight-bold">Tracking List</MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">System-wide record of all document.</MudText>
         </div>
     </div>
 
@@ -50,7 +42,7 @@
                     @(_multiSelectMode ? "Cancel" : "Select")
                 </MudButton>
                 <MudButton Variant="Variant.Outlined" Color="Color.Success"
-                           StartIcon="@Icons.Material.Filled.Download" OnClick="ExportCsv"
+                           StartIcon="@Icons.Material.Filled.Download" Size="Size.Small" OnClick="ExportCsv"
                            Class="d-none d-md-flex">
                     Export CSV
                 </MudButton>
@@ -108,8 +100,8 @@
                 Export CSV
             </MudButton>
         </div>
-
-        <div class="desktop-table">
+        <MudHidden Breakpoint="Breakpoint.SmAndDown">
+          <div style="overflow-x: auto;">
             <MudTable @ref="_table" ServerData="LoadServerData" Hover="true" T="Document"
                       MultiSelection="@_multiSelectMode" @bind-SelectedItems="_selectedDocs">
                 <HeaderContent>
@@ -166,9 +158,11 @@
                 </NoRecordsContent>
                 <PagerContent><MudTablePager /></PagerContent>
             </MudTable>
-        </div>
+          </div>
+        </MudHidden>
 
-        <MudHidden Breakpoint="Breakpoint.SmAndDown" Invert="true">
+
+        <MudHidden Breakpoint="Breakpoint.MdAndUp">
             @if (_multiSelectMode && _selectedDocs.Any())
             {
                 <div class="d-flex align-center gap-2 mb-3 pa-2" style="background: rgba(var(--mud-palette-error-rgb),0.06); border-radius:8px;">
@@ -181,7 +175,7 @@
                     </MudButton>
                 </div>
             }
-            @if (!_serverItems.Any())
+            @if (!_mobileItems.Any())
             {
                 <div class="pa-8 text-center">
                     <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Large" Style="opacity: 0.3; font-size: 4rem;" Class="mb-4" />
@@ -190,7 +184,7 @@
             }
             else
             {
-                @foreach (var doc in _serverItems)
+                @foreach (var doc in _mobileItems)
                 {
                     <MudCard Elevation="2" Class="mb-3" @onclick="@(() => { if (_multiSelectMode) ToggleMobileSelect(doc); })"
                              Style="@(_multiSelectMode && _selectedDocs.Contains(doc) ? "border: 2px solid var(--mud-palette-error);" : "")">
@@ -232,23 +226,38 @@
                         @if (!_multiSelectMode)
                         {
                             <MudCardActions Class="pa-4 pt-0">
-                                <div class="d-flex gap-2 flex-wrap" style="width:100%">
+                                <div class="d-flex gap-2" style="width:100%">
                                     <MudButton Variant="Variant.Filled" Color="Color.Primary" Style="flex:1"
                                                StartIcon="@Icons.Material.Filled.Visibility"
                                                OnClick="@(async () => await OpenViewDialog(doc))">View</MudButton>
-                                    <MudIconButton Variant="Variant.Outlined" Color="Color.Secondary"
-                                                   Icon="@Icons.Material.Filled.QrCode"
-                                                   OnClick="@(async () => await OpenQRDialog(doc))" />
-                                    <MudIconButton Variant="Variant.Outlined" Color="Color.Error"
-                                                   Icon="@Icons.Material.Filled.Delete"
-                                                   OnClick="@(async () => await DeleteDocument(doc))" />
+                                    <MudMenu Icon="@Icons.Material.Filled.MoreVert" Variant="Variant.Outlined"
+                                             Color="Color.Default" AnchorOrigin="Origin.BottomRight"
+                                             TransformOrigin="Origin.TopRight">
+                                        <MudMenuItem Icon="@Icons.Material.Filled.QrCode" IconColor="Color.Secondary"
+                                                     OnClick="@(async () => await OpenQRDialog(doc))">QR Code</MudMenuItem>
+                                        <MudMenuItem Icon="@Icons.Material.Filled.Edit" IconColor="Color.Warning"
+                                                     OnClick="@(async () => await OpenEditDialog(doc))">Edit</MudMenuItem>
+                                        <MudMenuItem Icon="@Icons.Material.Filled.Delete" IconColor="Color.Error"
+                                                     OnClick="@(async () => await DeleteDocument(doc))">Delete</MudMenuItem>
+                                    </MudMenu>
                                 </div>
                             </MudCardActions>
                         }
                     </MudCard>
                 }
+
+                @if (_mobileItems.Count < _mobileTotalCount)
+                {
+                    <div class="d-flex justify-center mt-4 mb-2">
+                        <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                                   Disabled="@_isLoadingMore" OnClick="LoadMoreMobile">
+                            @(_isLoadingMore ? "Loading..." : $"Load More ({_mobileItems.Count} of {_mobileTotalCount})")
+                        </MudButton>
+                    </div>
+                }
             }
         </MudHidden>
+
 
     </MudPaper>
 </MudContainer>
@@ -257,7 +266,7 @@
     [SupplyParameterFromQuery(Name = "ref")] public string? RefParam { get; set; }
 
     private MudTable<Document>? _table;
-    private List<Document> _serverItems = new();
+    private List<Document> _mobileItems = new();
     private List<Office> allOffices = new();
     private string searchString = "";
     private string statusFilter = "";
@@ -268,20 +277,21 @@
     private HashSet<Document> _selectedDocs = new();
     private bool _isBulkDeleting;
     private bool _multiSelectMode;
+    private int _mobilePage = 1;
+    private int _mobileTotalCount = 0;
+    private bool _isLoadingMore = false;
+    private const int MobilePageSize = 10;
 
     private void ToggleMultiSelect()
     {
         _multiSelectMode = !_multiSelectMode;
-        if (!_multiSelectMode)
-            _selectedDocs.Clear();
+        if (!_multiSelectMode) _selectedDocs.Clear();
     }
 
     private void ToggleMobileSelect(Document doc)
     {
-        if (_selectedDocs.Contains(doc))
-            _selectedDocs.Remove(doc);
-        else
-            _selectedDocs.Add(doc);
+        if (_selectedDocs.Contains(doc)) _selectedDocs.Remove(doc);
+        else _selectedDocs.Add(doc);
     }
 
     private async Task<TableData<Document>> LoadServerData(TableState state, CancellationToken ct)
@@ -289,24 +299,47 @@
         try
         {
             var result = await DocumentService.GetAllDocumentsAsync(
-                page: state.Page + 1,
-                pageSize: state.PageSize,
-                search: searchString,
-                status: statusFilter,
-                office: officeFilter,
-                dateFrom: dateFrom?.ToString("yyyy-MM-dd"),
-                dateTo: dateTo?.ToString("yyyy-MM-dd"));
-            _serverItems = result.Items;
+                page: state.Page + 1, pageSize: state.PageSize,
+                search: searchString, status: statusFilter, office: officeFilter,
+                dateFrom: dateFrom?.ToString("yyyy-MM-dd"), dateTo: dateTo?.ToString("yyyy-MM-dd"));
+
+            _mobilePage = 1;
+            var mobileResult = await DocumentService.GetAllDocumentsAsync(
+                page: 1, pageSize: MobilePageSize,
+                search: searchString, status: statusFilter, office: officeFilter,
+                dateFrom: dateFrom?.ToString("yyyy-MM-dd"), dateTo: dateTo?.ToString("yyyy-MM-dd"));
+            _mobileItems = mobileResult.Items;
+            _mobileTotalCount = mobileResult.TotalCount;
+
             await InvokeAsync(StateHasChanged);
             return new TableData<Document> { Items = result.Items, TotalItems = result.TotalCount };
         }
         catch (Exception ex) { Console.WriteLine(ex.Message); return new TableData<Document>(); }
     }
 
+    private async Task LoadMoreMobile()
+    {
+        _isLoadingMore = true;
+        try
+        {
+            _mobilePage++;
+            var result = await DocumentService.GetAllDocumentsAsync(
+                page: _mobilePage, pageSize: MobilePageSize,
+                search: searchString, status: statusFilter, office: officeFilter,
+                dateFrom: dateFrom?.ToString("yyyy-MM-dd"), dateTo: dateTo?.ToString("yyyy-MM-dd"));
+            _mobileItems.AddRange(result.Items);
+            _mobileTotalCount = result.TotalCount;
+        }
+        catch (Exception ex) { Console.WriteLine($"[Tracking] LoadMoreMobile error: {ex.Message}"); }
+        finally { _isLoadingMore = false; }
+    }
+
     private async Task OnFilterChanged()
     {
         if (_table != null) await _table.ReloadServerData();
     }
+
+    private async Task OnSearchChanged() => await OnFilterChanged();
 
     private async Task OnOfficeFilterOpen(bool isOpen)
     {
@@ -319,10 +352,9 @@
         if (!dialogOpened && !string.IsNullOrEmpty(RefParam))
         {
             dialogOpened = true;
-            var doc = _serverItems.FirstOrDefault(d => d.ReferenceNumber == RefParam)
+            var doc = _mobileItems.FirstOrDefault(d => d.ReferenceNumber == RefParam)
                       ?? await DocumentService.GetDocumentByRefAsync(RefParam);
-            if (doc != null)
-                await OpenViewDialog(doc);
+            if (doc != null) await OpenViewDialog(doc);
         }
     }
 
@@ -341,11 +373,8 @@
         try
         {
             var url = DocumentService.GetDocumentsCsvUrl(
-                search: searchString,
-                status: statusFilter,
-                office: officeFilter,
-                dateFrom: dateFrom?.ToString("yyyy-MM-dd"),
-                dateTo: dateTo?.ToString("yyyy-MM-dd"));
+                search: searchString, status: statusFilter, office: officeFilter,
+                dateFrom: dateFrom?.ToString("yyyy-MM-dd"), dateTo: dateTo?.ToString("yyyy-MM-dd"));
             await JS.InvokeVoidAsync("open", url, "_blank");
         }
         catch (Exception ex) { Console.WriteLine($"[ExportCsv] Error: {ex.Message}"); }
@@ -385,8 +414,7 @@
         var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
         var dialog = await DialogService.ShowAsync<EditDocumentDialog>("Edit Document", parameters, options);
         var result = await dialog.Result;
-        if (!result!.Canceled)
-            await OnFilterChanged();
+        if (!result!.Canceled) await OnFilterChanged();
     }
 
     private async Task OpenViewDialog(Document doc)
@@ -395,8 +423,7 @@
         var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
         var dialog = await DialogService.ShowAsync<DocumentViewDialog>("Document Details", parameters, options);
         var result = await dialog.Result;
-        if (!result!.Canceled)
-            await OnFilterChanged();
+        if (!result!.Canceled) await OnFilterChanged();
     }
 
     private async Task DeleteDocument(Document doc)
@@ -441,10 +468,6 @@
         }
         finally { _isBulkDeleting = false; }
     }
-
-    private async Task OnSearchChanged()
-    {
-        await OnFilterChanged();
-    }
 }
+
 

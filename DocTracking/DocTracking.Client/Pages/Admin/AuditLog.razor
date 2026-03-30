@@ -14,79 +14,159 @@
             <MudText Typo="Typo.h4" Class="font-weight-bold">Audit Log</MudText>
             <MudText Typo="Typo.body2" Class="mud-text-secondary">System-wide record of all document actions.</MudText>
         </div>
-        <MudButton Variant="Variant.Outlined" Color="Color.Success"
-                   StartIcon="@Icons.Material.Filled.Download" OnClick="ExportCsv">
-            Export CSV
-        </MudButton>
     </div>
 
-    <MudTextField @bind-Value="@searchText"
-                  @bind-Value:after="OnSearchChanged"
-                  Placeholder="Search documents, senders, or locations..."
-                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
-                  IconSize="Size.Medium" Variant="Variant.Outlined" Margin="Margin.Dense"
-                  Class="mb-4" />
+    <MudPaper Elevation="3" Class="pa-4 pa-md-6 rounded-lg">
+        <div class="d-flex justify-space-between align-center mb-4">
+            <div>
+                <MudText Typo="Typo.h6" Class="font-weight-bold">All Logs</MudText>
+                <MudText Typo="Typo.body2" Class="mud-text-secondary">Browse and export all document actions.</MudText>
+            </div>
+            <MudButton Variant="Variant.Outlined" Color="Color.Success"
+                       StartIcon="@Icons.Material.Filled.Download" Size="Size.Small" OnClick="ExportCsv">
+                Export CSV
+            </MudButton>
+        </div>
 
-    <div class="d-flex gap-2 flex-wrap align-center mb-4">
-        <MudSelect T="string" Value="filterAction" Label="Action" Variant="Variant.Outlined"
-                   Margin="Margin.Dense" Style="min-width:160px;"
-                   ValueChanged="@(async (string v) => { filterAction = v; await OnFilterChanged(); })">
-            <MudSelectItem T="string" Value="@("")">All Actions</MudSelectItem>
-            @foreach (var a in actions)
-            {
-                <MudSelectItem T="string" Value="@a">@a</MudSelectItem>
-            }
-        </MudSelect>
-        <MudDatePicker Date="filterDate" Label="Date" Variant="Variant.Outlined"
+        <MudTextField @bind-Value="@searchText"
+                      @bind-Value:after="OnSearchChanged"
+                      Placeholder="Search documents, senders, or locations..."
+                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                      IconSize="Size.Medium" Variant="Variant.Outlined" Margin="Margin.Dense"
+                      Class="mb-4" />
+
+        <div class="d-flex gap-2 flex-wrap align-center mb-4">
+            <MudSelect T="string" Value="filterAction" Label="Action" Variant="Variant.Outlined"
                        Margin="Margin.Dense" Style="min-width:160px;"
-                       DateChanged="@(async (DateTime? v) => { filterDate = v; await OnFilterChanged(); })" />
-        @if (filterAction != null || filterDate != null)
-        {
-            <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="ClearFilters"
-                       StartIcon="@Icons.Material.Filled.Clear">Clear</MudButton>
-        }
-    </div>
+                       ValueChanged="@(async (string v) => { filterAction = v; await OnFilterChanged(); })">
+                <MudSelectItem T="string" Value="@("")">All Actions</MudSelectItem>
+                @foreach (var a in actions)
+                {
+                    <MudSelectItem T="string" Value="@a">@a</MudSelectItem>
+                }
+            </MudSelect>
+            <MudDatePicker Date="filterDate" Label="Date" Variant="Variant.Outlined"
+                           Margin="Margin.Dense" Style="min-width:160px;"
+                           DateChanged="@(async (DateTime? v) => { filterDate = v; await OnFilterChanged(); })" />
+            @if (filterAction != null || filterDate != null)
+            {
+                <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="ClearFilters"
+                           StartIcon="@Icons.Material.Filled.Clear">Clear</MudButton>
+            }
+        </div>
 
-    <MudTable @ref="_table" ServerData="LoadServerData" Dense="true" Hover="true" Striped="true" Breakpoint="Breakpoint.Sm" Elevation="3">
-        <HeaderContent>
-            <MudTh>Timestamp</MudTh>
-            <MudTh>Document</MudTh>
-            <MudTh>Action</MudTh>
-            <MudTh>By</MudTh>
-            <MudTh>Office / Unit</MudTh>
-            <MudTh>Comment</MudTh>
-        </HeaderContent>
-        <RowTemplate>
-            <MudTd>@context.TimeStamp.ToLocalTime().ToString("MMM dd, yyyy hh:mm tt")</MudTd>
-            <MudTd>
-                <MudText Typo="Typo.body2">@context.Document?.Name</MudText>
-                <MudText Typo="Typo.caption" Class="mud-text-secondary">@context.Document?.ReferenceNumber</MudText>
-            </MudTd>
-            <MudTd>
-                <MudChip T="string" Size="Size.Small" Color="@GetActionColor(context.Action)">@context.Action</MudChip>
-            </MudTd>
-            <MudTd>@(context.AppUser?.Name ?? "—")</MudTd>
-            <MudTd>
-                @if (context.Unit != null)
+        <MudHidden Breakpoint="Breakpoint.SmAndDown">
+            <div style="overflow-x: auto;">
+                <MudTable @ref="_table" ServerData="LoadServerData" Dense="true" Hover="true" Striped="true"
+                          Breakpoint="Breakpoint.None" Elevation="0">
+                    <HeaderContent>
+                        <MudTh>Timestamp</MudTh>
+                        <MudTh>Document</MudTh>
+                        <MudTh>Action</MudTh>
+                        <MudTh>By</MudTh>
+                        <MudTh>Office / Unit</MudTh>
+                        <MudTh>Comment</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@context.TimeStamp.ToLocalTime().ToString("MMM dd, yyyy hh:mm tt")</MudTd>
+                        <MudTd>
+                            <MudText Typo="Typo.body2">@context.Document?.Name</MudText>
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary">@context.Document?.ReferenceNumber</MudText>
+                        </MudTd>
+                        <MudTd>
+                            <MudChip T="string" Size="Size.Small" Color="@GetActionColor(context.Action)">@context.Action</MudChip>
+                        </MudTd>
+                        <MudTd>@(context.AppUser?.Name ?? "—")</MudTd>
+                        <MudTd>
+                            @if (context.Unit != null)
+                            {
+                                <span>@context.Unit.Name <MudText Typo="Typo.caption" Class="mud-text-secondary">(@context.Office?.Name)</MudText></span>
+                            }
+                            else
+                            {
+                                <span>@(context.Office?.Name ?? "—")</span>
+                            }
+                        </MudTd>
+                        <MudTd>@(context.Comment ?? "—")</MudTd>
+                    </RowTemplate>
+                    <NoRecordsContent>
+                        <div class="pa-8 text-center">
+                            <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Large" Style="opacity: 0.3; font-size: 4rem;" Class="mb-4" />
+                            <MudText Typo="Typo.h6" Class="mud-text-secondary">No logs found</MudText>
+                        </div>
+                    </NoRecordsContent>
+                    <PagerContent>
+                        <MudTablePager PageSizeOptions="new int[] { 25, 50, 100 }" />
+                    </PagerContent>
+                </MudTable>
+            </div>
+        </MudHidden>
+
+        <MudHidden Breakpoint="Breakpoint.MdAndUp">
+            @if (!_mobileItems.Any())
+            {
+                <div class="pa-8 text-center">
+                    <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Large" Style="opacity: 0.3; font-size: 4rem;" Class="mb-4" />
+                    <MudText Typo="Typo.h6" Class="mud-text-secondary">No logs found</MudText>
+                </div>
+            }
+            else
+            {
+                @foreach (var log in _mobileItems)
                 {
-                    <span>@context.Unit.Name <MudText Typo="Typo.caption" Class="mud-text-secondary">(@context.Office?.Name)</MudText></span>
+                    <MudCard Elevation="2" Class="mb-3">
+                        <MudCardContent Class="pa-4">
+                            <div class="d-flex justify-space-between align-start mb-2">
+                                <MudChip T="string" Size="Size.Small" Color="@GetActionColor(log.Action)">@log.Action</MudChip>
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                                    @log.TimeStamp.ToLocalTime().ToString("MMM dd, yyyy hh:mm tt")
+                                </MudText>
+                            </div>
+                            <MudText Typo="Typo.body2" Class="font-weight-bold mb-1">@log.Document?.Name</MudText>
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary mb-2">@log.Document?.ReferenceNumber</MudText>
+                            <MudText Typo="Typo.body2" Class="mb-1">
+                                <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Class="mr-1" />
+                                @(log.AppUser?.Name ?? "—")
+                            </MudText>
+                            <MudText Typo="Typo.body2" Class="mb-1">
+                                <MudIcon Icon="@Icons.Material.Filled.Business" Size="Size.Small" Class="mr-1" />
+                                @if (log.Unit != null)
+                                {
+                                    <span>@log.Unit.Name <span class="mud-text-secondary">(@log.Office?.Name)</span></span>
+                                }
+                                else
+                                {
+                                    <span>@(log.Office?.Name ?? "—")</span>
+                                }
+                            </MudText>
+                            @if (!string.IsNullOrEmpty(log.Comment))
+                            {
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                                    <MudIcon Icon="@Icons.Material.Filled.Comment" Size="Size.Small" Class="mr-1" />
+                                    @log.Comment
+                                </MudText>
+                            }
+                        </MudCardContent>
+                    </MudCard>
                 }
-                else
+
+                @if (_mobileItems.Count < _mobileTotalCount)
                 {
-                    <span>@(context.Office?.Name ?? "—")</span>
+                    <div class="d-flex justify-center mt-4 mb-2">
+                        <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                                   Disabled="@_isLoadingMore" OnClick="LoadMoreMobile">
+                            @(_isLoadingMore ? "Loading..." : $"Load More ({_mobileItems.Count} of {_mobileTotalCount})")
+                        </MudButton>
+                    </div>
                 }
-            </MudTd>
-            <MudTd>@(context.Comment ?? "—")</MudTd>
-        </RowTemplate>
-        <NoRecordsContent>
-            <MudText Class="pa-4 mud-text-secondary">No log entries found.</MudText>
-        </NoRecordsContent>
-        <PagerContent>
-            <MudTablePager PageSizeOptions="new int[] { 25, 50, 100 }" />
-        </PagerContent>
-    </MudTable>
+            }
+        </MudHidden>
+
+    </MudPaper>
 
 </MudContainer>
+
+
 
 @code {
     private MudTable<DocumentLog>? _table;
@@ -95,17 +175,30 @@
     private DateTime? filterDate;
 
     private static readonly string[] actions = { "Created", "Received", "Forwarded", "Completed", "Edited", "Admin Override" };
+    private List<DocumentLog> _mobileItems = new();
+    private int _mobilePage = 1;
+    private int _mobileTotalCount = 0;
+    private bool _isLoadingMore = false;
+    private const int MobilePageSize = 10;
 
     private async Task<TableData<DocumentLog>> LoadServerData(TableState state, CancellationToken ct)
     {
         try
         {
             var result = await DocService.GetAuditLogsAsync(
-                page: state.Page + 1,
-                pageSize: state.PageSize,
-                search: searchText,
-                action: filterAction,
+                page: state.Page + 1, pageSize: state.PageSize,
+                search: searchText, action: filterAction,
                 date: filterDate?.ToString("yyyy-MM-dd"));
+
+            _mobilePage = 1;
+            var mobileResult = await DocService.GetAuditLogsAsync(
+                page: 1, pageSize: MobilePageSize,
+                search: searchText, action: filterAction,
+                date: filterDate?.ToString("yyyy-MM-dd"));
+            _mobileItems = mobileResult.Items;
+            _mobileTotalCount = mobileResult.TotalCount;
+
+            await InvokeAsync(StateHasChanged);
             return new TableData<DocumentLog> { Items = result.Items, TotalItems = result.TotalCount };
         }
         catch (Exception ex)
@@ -132,6 +225,24 @@
             Snackbar.Add("Failed to export audit log.", Severity.Error);
         }
     }
+
+    private async Task LoadMoreMobile()
+    {
+        _isLoadingMore = true;
+        try
+        {
+            _mobilePage++;
+            var result = await DocService.GetAuditLogsAsync(
+                page: _mobilePage, pageSize: MobilePageSize,
+                search: searchText, action: filterAction,
+                date: filterDate?.ToString("yyyy-MM-dd"));
+            _mobileItems.AddRange(result.Items);
+            _mobileTotalCount = result.TotalCount;
+        }
+        catch (Exception ex) { Console.WriteLine($"[AuditLog] LoadMoreMobile error: {ex.Message}"); }
+        finally { _isLoadingMore = false; }
+    }
+
 
     private async Task OnFilterChanged()
     {
