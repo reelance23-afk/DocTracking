@@ -288,14 +288,26 @@
             if (string.IsNullOrEmpty(email))
                 errorMessage = "Could not find your user email to load documents.";
             if (!string.IsNullOrEmpty(email))
+            {
                 _stats = await DocService.GetUserDocumentStatsAsync(email) ?? new();
-
+                await LoadMobileData();
+            }
         }
-        catch (Exception ex)
-        {
-            errorMessage = ex.Message;
-        }
+        catch (Exception ex) { errorMessage = ex.Message; }
         finally { isLoading = false; }
+    }
+
+    private async Task LoadMobileData()
+    {
+        if (string.IsNullOrEmpty(email)) return;
+        try
+        {
+            _pagedResult = await DocService.GetUserDocumentsAsync(
+                email, page: 1, pageSize: 25,
+                search: searchString, status: statusFilter,
+                priority: priorityFilter, type: typeFilter);
+        }
+        catch (Exception ex) { Console.WriteLine($"[MyTracking] LoadMobileData error: {ex.Message}"); }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -343,6 +355,7 @@
 
     private async Task LoadDocuments()
     {
+        await LoadMobileData();
         if (_table != null) await _table.ReloadServerData();
     }
 
@@ -386,6 +399,7 @@
             return new TableData<Document>();
         }
     }
+
 
 
     private async void OnNotificationReceived()

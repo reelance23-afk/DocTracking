@@ -299,6 +299,11 @@
         else _selectedDocs.Add(doc);
     }
 
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadMobileData();
+    }
+
     private async Task<TableData<Document>> LoadServerData(TableState state, CancellationToken ct)
     {
         try
@@ -307,19 +312,24 @@
                 page: state.Page + 1, pageSize: state.PageSize,
                 search: searchString, status: statusFilter, office: officeFilter,
                 dateFrom: dateFrom?.ToString("yyyy-MM-dd"), dateTo: dateTo?.ToString("yyyy-MM-dd"));
-
-            _mobilePage = 1;
-            var mobileResult = await DocumentService.GetAllDocumentsAsync(
-                page: 1, pageSize: MobilePageSize,
-                search: searchString, status: statusFilter, office: officeFilter,
-                dateFrom: dateFrom?.ToString("yyyy-MM-dd"), dateTo: dateTo?.ToString("yyyy-MM-dd"));
-            _mobileItems = mobileResult.Items;
-            _mobileTotalCount = mobileResult.TotalCount;
-
-            await InvokeAsync(StateHasChanged);
             return new TableData<Document> { Items = result.Items, TotalItems = result.TotalCount };
         }
         catch (Exception ex) { Console.WriteLine(ex.Message); return new TableData<Document>(); }
+    }
+
+    private async Task LoadMobileData()
+    {
+        try
+        {
+            _mobilePage = 1;
+            var result = await DocumentService.GetAllDocumentsAsync(
+                page: 1, pageSize: MobilePageSize,
+                search: searchString, status: statusFilter, office: officeFilter,
+                dateFrom: dateFrom?.ToString("yyyy-MM-dd"), dateTo: dateTo?.ToString("yyyy-MM-dd"));
+            _mobileItems = result.Items;
+            _mobileTotalCount = result.TotalCount;
+        }
+        catch (Exception ex) { Console.WriteLine($"[Tracking] LoadMobileData error: {ex.Message}"); }
     }
 
     private async Task LoadMoreMobile()
@@ -341,6 +351,7 @@
 
     private async Task OnFilterChanged()
     {
+        await LoadMobileData();
         if (_table != null) await _table.ReloadServerData();
     }
 

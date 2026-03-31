@@ -181,6 +181,26 @@
     private bool _isLoadingMore = false;
     private const int MobilePageSize = 10;
 
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadMobileData();
+    }
+
+    private async Task LoadMobileData()
+    {
+        try
+        {
+            _mobilePage = 1;
+            var result = await DocService.GetAuditLogsAsync(
+                page: 1, pageSize: MobilePageSize,
+                search: searchText, action: filterAction,
+                date: filterDate?.ToString("yyyy-MM-dd"));
+            _mobileItems = result.Items;
+            _mobileTotalCount = result.TotalCount;
+        }
+        catch (Exception ex) { Console.WriteLine($"[AuditLog] LoadMobileData error: {ex.Message}"); }
+    }
+
     private async Task<TableData<DocumentLog>> LoadServerData(TableState state, CancellationToken ct)
     {
         try
@@ -189,16 +209,6 @@
                 page: state.Page + 1, pageSize: state.PageSize,
                 search: searchText, action: filterAction,
                 date: filterDate?.ToString("yyyy-MM-dd"));
-
-            _mobilePage = 1;
-            var mobileResult = await DocService.GetAuditLogsAsync(
-                page: 1, pageSize: MobilePageSize,
-                search: searchText, action: filterAction,
-                date: filterDate?.ToString("yyyy-MM-dd"));
-            _mobileItems = mobileResult.Items;
-            _mobileTotalCount = mobileResult.TotalCount;
-
-            await InvokeAsync(StateHasChanged);
             return new TableData<DocumentLog> { Items = result.Items, TotalItems = result.TotalCount };
         }
         catch (Exception ex)
@@ -246,6 +256,7 @@
 
     private async Task OnFilterChanged()
     {
+        await LoadMobileData();
         if (_table != null) await _table.ReloadServerData();
     }
 
