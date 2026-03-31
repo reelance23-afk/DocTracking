@@ -7,74 +7,133 @@
     <TitleContent>
         <div class="d-flex align-center gap-2">
             <MudIcon Icon="@Icons.Material.Filled.PersonAdd" Color="Color.Success" />
-            <MudText Typo="Typo.h6" Class="font-weight-bold">
-                Assign to @(Unit?.Name ?? Office?.Name)
-            </MudText>
+            <MudText Typo="Typo.h6" Class="font-weight-bold">Assign Users</MudText>
         </div>
     </TitleContent>
     <DialogContent>
-        <MudTextField @bind-Value="searchString" Placeholder="Search users..."
-                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
-                      Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" Class="mb-3" />
-        <MudText Typo="Typo.caption" Class="mud-text-secondary mb-3 d-block">
-            Check to assign, uncheck to remove.
-        </MudText>
-        <MudPaper Elevation="0" Style="max-height: 320px; overflow-y: auto;">
-            @foreach (var user in FilteredUsers)
-            {
-                <div class="d-flex align-center pa-1">
-                    <MudCheckBox T="bool" Value="@selectedIds.Contains(user.Id)"
-                                 ValueChanged="@(v => Toggle(user.Id, v))"
-                                 Color="Color.Success" Class="flex-grow-1">
-                        <div>
-                            <MudText Typo="Typo.body2" Class="font-weight-bold">@user.Name</MudText>
-                            <MudText Typo="Typo.caption" Class="mud-text-secondary">@GetCurrentAssignment(user)</MudText>
+        @if (_selectedOffice == null)
+        {
+            <MudText Typo="Typo.body2" Class="mud-text-secondary mb-3">Select an office to assign users to.</MudText>
+            <MudTextField @bind-Value="_officeSearch" Placeholder="Search offices..."
+                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                          Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" Class="mb-3" />
+            <MudPaper Elevation="0" Style="max-height: 360px; overflow-y: auto;">
+                @foreach (var office in FilteredOffices)
+                {
+                    <MudListItem T="string" OnClick="@(() => SelectOffice(office))"
+                                 Class="rounded mb-1" Style="cursor:pointer;">
+                        <div class="d-flex align-center gap-2">
+                            <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small">
+                                <MudIcon Icon="@Icons.Material.Filled.Business" Size="Size.Small" />
+                            </MudAvatar>
+                            <div>
+                                <MudText Typo="Typo.body2" Class="font-weight-bold">@office.Name</MudText>
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                                    @(AllUsers.Count(u => u.OfficeId == office.Id || u.Unit?.OfficeId == office.Id)) assigned
+                                </MudText>
+                            </div>
                         </div>
-                    </MudCheckBox>
-                </div>
-                <MudDivider />
-            }
-        </MudPaper>
+                    </MudListItem>
+                    <MudDivider />
+                }
+            </MudPaper>
+        }
+        else
+        {
+            <div class="d-flex align-center gap-2 mb-3">
+                <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" Size="Size.Small"
+                               OnClick="BackToOffices" />
+                <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small">
+                    <MudIcon Icon="@Icons.Material.Filled.Business" Size="Size.Small" />
+                </MudAvatar>
+                <MudText Typo="Typo.body2" Class="font-weight-bold">@_selectedOffice.Name</MudText>
+            </div>
+            <MudTextField @bind-Value="searchString" Placeholder="Search users..."
+                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                          Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" Class="mb-2" />
+            <MudText Typo="Typo.caption" Class="mud-text-secondary mb-3 d-block">
+                Check to assign, uncheck to remove.
+            </MudText>
+            <MudPaper Elevation="0" Style="max-height: 300px; overflow-y: auto;">
+                @foreach (var user in FilteredUsers)
+                {
+                    <div class="d-flex align-center pa-1">
+                        <MudCheckBox T="bool" Value="@selectedIds.Contains(user.Id)"
+                                     ValueChanged="@(v => Toggle(user.Id, v))"
+                                     Color="Color.Success" Class="flex-grow-1">
+                            <div>
+                                <MudText Typo="Typo.body2" Class="font-weight-bold">@user.Name</MudText>
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">@GetCurrentAssignment(user)</MudText>
+                            </div>
+                        </MudCheckBox>
+                    </div>
+                    <MudDivider />
+                }
+            </MudPaper>
+        }
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="@(() => MudDialog.Cancel())">Cancel</MudButton>
-        <MudButton Color="Color.Success" Variant="Variant.Filled" Disabled="@isSaving" OnClick="Save">
-            @(isSaving ? "Saving..." : $"Save ({selectedIds.Count} selected)")
-        </MudButton>
+        @if (_selectedOffice != null)
+        {
+            <MudButton Color="Color.Success" Variant="Variant.Filled" Disabled="@isSaving" OnClick="Save">
+                @(isSaving ? "Saving..." : $"Save ({selectedIds.Count} selected)")
+            </MudButton>
+        }
     </DialogActions>
 </MudDialog>
 
-
 @code {
     [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
-    [Parameter] public Office? Office { get; set; }
-    [Parameter] public Unit? Unit { get; set; }
+    [Parameter] public List<Office> AllOffices { get; set; } = new();
     [Parameter] public List<AppUser> AllUsers { get; set; } = new();
 
+    private Office? _selectedOffice;
+    private string _officeSearch = "";
     private string searchString = "";
     private HashSet<int> selectedIds = new();
     private bool isSaving = false;
     private List<AppUser> _sortedUsers = new();
 
+    private List<Office> FilteredOffices => string.IsNullOrWhiteSpace(_officeSearch)
+        ? AllOffices
+        : AllOffices.Where(o => o.Name?.Contains(_officeSearch, StringComparison.OrdinalIgnoreCase) == true).ToList();
+
     private List<AppUser> FilteredUsers => string.IsNullOrWhiteSpace(searchString)
         ? _sortedUsers
         : _sortedUsers.Where(u => u.Name?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true).ToList();
 
-
-    protected override void OnInitialized()
+    private void BackToOffices()
     {
-        if (Unit != null)
-            selectedIds = AllUsers.Where(u => u.UnitId == Unit.Id).Select(u => u.Id).ToHashSet();
-        else if (Office != null)
-            selectedIds = AllUsers.Where(u => u.OfficeId == Office.Id && u.UnitId == null)
-                                  .Select(u => u.Id).ToHashSet();
-
-        _sortedUsers = AllUsers
-            .Where(u => u.Role != "Admin")
-            .OrderByDescending(u => selectedIds.Contains(u.Id))
-            .ThenBy(u => u.Name)
-            .ToList();
+        _selectedOffice = null;
+        _officeSearch = "";
+        searchString = "";
+        selectedIds.Clear();
+        _sortedUsers.Clear();
     }
+
+    private void SelectOffice(Office office)
+    {
+        _selectedOffice = office;
+        searchString = "";
+        selectedIds = AllUsers
+            .Where(u => u.OfficeId == office.Id && u.UnitId == null)
+            .Select(u => u.Id)
+            .ToHashSet();
+
+        var assignedToOffice = AllUsers
+            .Where(u => u.Role != "Admin" && (u.OfficeId == office.Id || u.Unit?.OfficeId == office.Id))
+            .OrderBy(u => u.Name)
+            .ToList();
+
+        var unassigned = AllUsers
+            .Where(u => u.Role != "Admin" && u.OfficeId != office.Id && u.Unit?.OfficeId != office.Id)
+            .OrderBy(u => u.Name)
+            .ToList();
+
+        _sortedUsers = assignedToOffice.Concat(unassigned).ToList();
+    }
+
 
     private void Toggle(int userId, bool selected)
     {
@@ -93,91 +152,49 @@
 
     private async Task Save()
     {
+        if (_selectedOffice == null) return;
         isSaving = true;
         try
         {
-            if (Unit != null)
+            var toAssign = AllUsers.Where(u => selectedIds.Contains(u.Id) &&
+                !(u.OfficeId == _selectedOffice.Id && u.UnitId == null)).ToList();
+            foreach (var user in toAssign)
             {
-                var toAssign = AllUsers.Where(u => selectedIds.Contains(u.Id) && u.UnitId != Unit.Id).ToList();
-                foreach (var user in toAssign)
+                await DocService.UpdateAppUserAsync(new AppUser
                 {
-                    await DocService.UpdateAppUserAsync(new AppUser
-                    {
-                        Id = user.Id,
-                        Name = user.Name,
-                        Email = user.Email,
-                        Role = "Office",
-                        UnitId = Unit.Id,
-                        OfficeId = null,
-                        IsOfficeHead = false
-                    });
-                }
-
-                var toRemove = AllUsers.Where(u => u.OfficeId == Office.Id && u.UnitId == null &&
-                    !selectedIds.Contains(u.Id)).ToList();
-                foreach (var user in toRemove)
-                {
-                    await DocService.UpdateAppUserAsync(new AppUser
-                    {
-                        Id = user.Id,
-                        Name = user.Name,
-                        Email = user.Email,
-                        Role = "User",
-                        UnitId = null,
-                        OfficeId = null,
-                        IsOfficeHead = false
-                    });
-                }
-
-                var assigned = toAssign.Count;
-                var removed = toRemove.Count;
-                Snackbar.Add(assigned > 0 && removed > 0
-                    ? $"{assigned} assigned, {removed} removed from {Unit.Name}."
-                    : assigned > 0 ? $"{assigned} user(s) assigned to {Unit.Name}."
-                    : removed > 0 ? $"{removed} user(s) removed from {Unit.Name}."
-                    : "No changes made.", Severity.Success);
+                    Id = user.Id,
+                    Name = user.Name,
+                    Email = user.Email,
+                    Role = "Office",
+                    UnitId = null,
+                    OfficeId = _selectedOffice.Id,
+                    IsOfficeHead = false
+                });
             }
-            else if (Office != null)
+
+            var toRemove = AllUsers.Where(u => u.OfficeId == _selectedOffice.Id && u.UnitId == null
+                && !u.IsOfficeHead && !selectedIds.Contains(u.Id)).ToList();
+            foreach (var user in toRemove)
             {
-                var toAssign = AllUsers.Where(u => selectedIds.Contains(u.Id) &&
-                    !(u.OfficeId == Office.Id && u.UnitId == null)).ToList();
-                foreach (var user in toAssign)
+                await DocService.UpdateAppUserAsync(new AppUser
                 {
-                    await DocService.UpdateAppUserAsync(new AppUser
-                    {
-                        Id = user.Id,
-                        Name = user.Name,
-                        Email = user.Email,
-                        Role = "Office",
-                        UnitId = null,
-                        OfficeId = Office.Id,
-                        IsOfficeHead = false
-                    });
-                }
-
-                var toRemove = AllUsers.Where(u => u.OfficeId == Office.Id && u.UnitId == null && !u.IsOfficeHead && !selectedIds.Contains(u.Id)).ToList();
-                foreach (var user in toRemove)
-                {
-                    await DocService.UpdateAppUserAsync(new AppUser
-                    {
-                        Id = user.Id,
-                        Name = user.Name,
-                        Email = user.Email,
-                        Role = "User",
-                        UnitId = null,
-                        OfficeId = null,
-                        IsOfficeHead = false
-                    });
-                }
-
-                var assigned = toAssign.Count;
-                var removed = toRemove.Count;
-                Snackbar.Add(assigned > 0 && removed > 0
-                    ? $"{assigned} assigned, {removed} removed from {Office.Name}."
-                    : assigned > 0 ? $"{assigned} user(s) assigned to {Office.Name}."
-                    : removed > 0 ? $"{removed} user(s) removed from {Office.Name}."
-                    : "No changes made.", Severity.Success);
+                    Id = user.Id,
+                    Name = user.Name,
+                    Email = user.Email,
+                    Role = "User",
+                    UnitId = null,
+                    OfficeId = null,
+                    IsOfficeHead = false
+                });
             }
+
+            var assigned = toAssign.Count;
+            var removed = toRemove.Count;
+            Snackbar.Add(assigned > 0 && removed > 0
+                ? $"{assigned} assigned, {removed} removed from {_selectedOffice.Name}."
+                : assigned > 0 ? $"{assigned} user(s) assigned to {_selectedOffice.Name}."
+                : removed > 0 ? $"{removed} user(s) removed from {_selectedOffice.Name}."
+                : "No changes made.", Severity.Success);
 
             MudDialog.Close(DialogResult.Ok(true));
         }

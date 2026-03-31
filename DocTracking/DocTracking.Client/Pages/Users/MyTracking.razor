@@ -12,12 +12,14 @@
 @inject IDialogService DialogService
 @implements IDisposable
 @rendermode InteractiveAuto
-
+                                                                                                                  
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
     <div class="mb-6">
-        <div class="d-flex align-center mb-4">
-            <MudIcon Icon="@Icons.Material.Filled.TrackChanges" Size="Size.Large" Class="mr-3" Color="Color.Primary" />
-            <MudText Typo="Typo.h4" Class="font-weight-bold">My Document Tracking</MudText>
+        <div class="d-flex justify-space-between align-center mb-4">
+            <div >
+                <MudText Typo="Typo.h4" Class="font-weight-bold">My Document Tracking</MudText>
+                <MudText Typo="Typo.body2" Class="mud-text-secondary">Personal record of document.</MudText>
+            </div>
         </div>
 
         <MudGrid>

@@ -102,7 +102,7 @@
 
         <MudGrid Class="mb-6">
             <MudItem xs="12" md="7">
-                <MudPaper Elevation="2" Class="pa-4" Style="height: 100%;">
+                <MudPaper Elevation="2" Class="pa-4" Style="height: 100%; display: flex; flex-direction: column;">
                     <div class="d-flex align-center justify-space-between mb-4">
                         <div class="d-flex align-center">
                             <MudIcon Icon="@Icons.Material.Filled.ViewKanban" Class="mr-2" Color="Color.Primary" />
@@ -112,96 +112,96 @@
                             View All
                         </MudButton>
                     </div>
-                    <MudGrid>
-                        <MudItem xs="12" sm="6">
-                            <MudPaper Elevation="0" Class="pa-3" Style="background: rgba(var(--mud-palette-warning-rgb), 0.08); border-radius: 8px; min-height: 200px;">
-                                <MudText Typo="Typo.subtitle2" Color="Color.Warning" Class="mb-3 font-weight-bold">In Motion</MudText>
-                                @foreach (var doc in stats.InMotionDocs)
-                                {
-                                    <MudPaper Elevation="1" Class="pa-3 mb-2">
-                                        <MudText Typo="Typo.body2" Class="font-weight-bold mb-1">@doc.Name</MudText>
-                                        <div class="d-flex justify-space-between align-center">
-                                            <MudChip T="string" Size="Size.Small" Color="@DocHelpers.GetPriorityColor(doc.Priority)" Variant="Variant.Filled">@doc.Priority</MudChip>
-                                            <MudIconButton Icon="@Icons.Material.Filled.OpenInNew" Size="Size.Small" Color="Color.Primary" OnClick="@(async () => await OpenViewDialog(doc))" />
-                                        </div>
-                                    </MudPaper>
-                                }
-                                @if (!stats.InMotionDocs.Any())
-                                {
-                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">No documents in motion</MudText>
-                                }
-                            </MudPaper>
-                        </MudItem>
-                        <MudItem xs="12" sm="6">
-                            <MudPaper Elevation="0" Class="pa-3" Style="background: rgba(var(--mud-palette-info-rgb), 0.08); border-radius: 8px; min-height: 200px;">
-                                <MudText Typo="Typo.subtitle2" Color="Color.Info" Class="mb-3 font-weight-bold">Office Workload</MudText>
-                                @foreach (var workload in stats.OfficeWorkloads)
-                                {
-                                    <div class="mb-3">
-                                        <div class="d-flex justify-space-between mb-1">
-                                            <MudText Typo="Typo.caption" Class="font-weight-bold text-truncate" Style="max-width: 70%;">@workload.OfficeName</MudText>
-                                            <MudText Typo="Typo.caption" Class="mud-text-secondary">@workload.DocumentCount</MudText>
-                                        </div>
-                                        <MudProgressLinear Color="Color.Primary" Value="@workload.Percentage" Class="rounded-lg" Size="Size.Small" />
+                    <div class="d-flex gap-4 flex-grow-1">
+                        <div style="flex: 1; background: rgba(var(--mud-palette-warning-rgb), 0.08); border-radius: 8px; padding: 12px;">
+                            <MudText Typo="Typo.subtitle2" Color="Color.Warning" Class="mb-3 font-weight-bold">In Motion</MudText>
+                            @foreach (var doc in stats.InMotionDocs)
+                            {
+                                <MudPaper Elevation="1" Class="pa-3 mb-2">
+                                    <MudText Typo="Typo.body2" Class="font-weight-bold mb-1">@doc.Name</MudText>
+                                    <div class="d-flex justify-space-between align-center">
+                                        <MudChip T="string" Size="Size.Small" Color="@DocHelpers.GetPriorityColor(doc.Priority)" Variant="Variant.Filled">@doc.Priority</MudChip>
+                                        <MudIconButton Icon="@Icons.Material.Filled.OpenInNew" Size="Size.Small" Color="Color.Primary" OnClick="@(async () => await OpenViewDialog(doc))" />
                                     </div>
-                                }
-                                @if (!stats.OfficeWorkloads.Any())
-                                {
-                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">No workload data</MudText>
-                                }
-                            </MudPaper>
-                        </MudItem>
-                    </MudGrid>
+                                </MudPaper>
+                            }
+                            @if (!stats.InMotionDocs.Any())
+                            {
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">No documents in motion</MudText>
+                            }
+                        </div>
+                        <div style="flex: 1; background: rgba(var(--mud-palette-info-rgb), 0.08); border-radius: 8px; padding: 12px;">
+                            <MudText Typo="Typo.subtitle2" Color="Color.Info" Class="mb-3 font-weight-bold">Office Workload</MudText>
+                            @foreach (var workload in stats.OfficeWorkloads)
+                            {
+                                <div class="mb-3">
+                                    <div class="d-flex justify-space-between mb-1">
+                                        <MudText Typo="Typo.caption" Class="font-weight-bold text-truncate" Style="max-width: 70%;">@workload.OfficeName</MudText>
+                                        <MudText Typo="Typo.caption" Class="mud-text-secondary">@workload.DocumentCount</MudText>
+                                    </div>
+                                    <MudProgressLinear Color="Color.Primary" Value="@workload.Percentage" Class="rounded-lg" Size="Size.Small" />
+                                </div>
+                            }
+                            @if (!stats.OfficeWorkloads.Any())
+                            {
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">No workload data</MudText>
+                            }
+                        </div>
+                    </div>
                 </MudPaper>
+
             </MudItem>
 
             <MudItem xs="12" md="5">
-                <MudPaper Elevation="2" Class="pa-4" Style="height: 100%;">
+                <MudPaper Elevation="2" Class="pa-4" Style="height: 100%; display: flex; flex-direction: column;">
                     <div class="d-flex align-center mb-4">
                         <MudIcon Icon="@Icons.Material.Filled.Timeline" Class="mr-2" Color="Color.Primary" />
                         <MudText Typo="Typo.h6">Recent Activity</MudText>
                     </div>
-                    @if (!stats.RecentDocuments.Any())
-                    {
-                        <div class="text-center pa-6">
-                            <MudIcon Icon="@Icons.Material.Filled.Inbox" Size="Size.Large" Style="opacity: 0.3;" />
-                            <MudText Typo="Typo.body2" Class="mud-text-secondary mt-2">No recent activity</MudText>
-                        </div>
-                    }
-                    else
-                    {
-                        <MudTimeline TimelinePosition="TimelinePosition.Start">
-                            @foreach (var doc in stats.RecentDocuments)
-                            {
-                                <MudTimelineItem Color="@(doc.Status == "Completed" ? Color.Success : Color.Warning)"
-                                                 Size="Size.Small" TimelineAlign="TimelineAlign.Default">
-                                    <ItemContent>
-                                        <MudCard Elevation="1" Class="mb-1" Style="min-width:0;">
-                                            <MudCardContent Class="pa-3">
-                                                <MudText Typo="Typo.body2" Class="font-weight-bold text-truncate">@doc.Name</MudText>
-                                                <div class="d-flex align-center justify-space-between mt-1 flex-wrap gap-1">
-                                                    <MudChip T="string" Size="Size.Small"
-                                                             Color="@(doc.Status == "Completed" ? Color.Success : Color.Warning)"
-                                                             Variant="Variant.Outlined">
-                                                        @doc.Status
-                                                    </MudChip>
-                                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">
-                                                        @doc.LastActionDate?.ToLocalTime().ToString("MMM dd, hh:mm tt")
+                    <div style="flex-grow: 1; overflow-y: auto;">
+                        @if (!stats.RecentDocuments.Any())
+                        {
+                            <div class="text-center pa-6">
+                                <MudIcon Icon="@Icons.Material.Filled.Inbox" Size="Size.Large" Style="opacity: 0.3;" />
+                                <MudText Typo="Typo.body2" Class="mud-text-secondary mt-2">No recent activity</MudText>
+                            </div>
+                        }
+                        else
+                        {
+                            <MudTimeline TimelinePosition="TimelinePosition.Start">
+                                @foreach (var doc in stats.RecentDocuments)
+                                {
+                                    <MudTimelineItem Color="@(doc.Status == "Completed" ? Color.Success : Color.Warning)"
+                                                     Size="Size.Small" TimelineAlign="TimelineAlign.Default">
+                                        <ItemContent>
+                                            <MudCard Elevation="1" Class="mb-1" Style="min-width:0;">
+                                                <MudCardContent Class="pa-3">
+                                                    <MudText Typo="Typo.body2" Class="font-weight-bold text-truncate">@doc.Name</MudText>
+                                                    <div class="d-flex align-center justify-space-between mt-1 flex-wrap gap-1">
+                                                        <MudChip T="string" Size="Size.Small"
+                                                                 Color="@(doc.Status == "Completed" ? Color.Success : Color.Warning)"
+                                                                 Variant="Variant.Outlined">
+                                                            @doc.Status
+                                                        </MudChip>
+                                                        <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                                                            @doc.LastActionDate?.ToLocalTime().ToString("MMM dd, hh:mm tt")
+                                                        </MudText>
+                                                    </div>
+                                                    <MudText Typo="Typo.caption" Class="mud-text-secondary mt-1">
+                                                        <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Class="mr-1" />
+                                                        @doc.Creator?.Name
                                                     </MudText>
-                                                </div>
-                                                <MudText Typo="Typo.caption" Class="mud-text-secondary mt-1">
-                                                    <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Class="mr-1" />
-                                                    @doc.Creator?.Name
-                                                </MudText>
-                                            </MudCardContent>
-                                        </MudCard>
-                                    </ItemContent>
-                                </MudTimelineItem>
-                            }
-                        </MudTimeline>
-                    }
+                                                </MudCardContent>
+                                            </MudCard>
+                                        </ItemContent>
+                                    </MudTimelineItem>
+                                }
+                            </MudTimeline>
+                        }
+                    </div>
                 </MudPaper>
             </MudItem>
+
         </MudGrid>
     }
 

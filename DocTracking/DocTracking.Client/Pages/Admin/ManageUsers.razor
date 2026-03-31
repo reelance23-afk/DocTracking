@@ -14,15 +14,34 @@
             <MudText Typo="Typo.h4" Class="font-weight-bold">Manage Users</MudText>
             <MudText Typo="Typo.body2" Class="mud-text-secondary">View and manage all registered users.</MudText>
         </div>
+        <MudButton Variant="Variant.Filled" Color="Color.Success"
+                   StartIcon="@Icons.Material.Filled.PersonAdd"
+                   OnClick="OpenAssignDialog" Size="Size.Small">
+            Assign
+        </MudButton>
     </div>
 
-    <MudTextField @bind-Value="searchString"
-                  @bind-Value:after="StateHasChanged"
-                  DebounceInterval="300"
-                  Placeholder="Search users..."
-                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
-                  Variant="Variant.Outlined" Margin="Margin.Dense"
-                  Class="mb-4" />
+    <MudGrid Spacing="2" Class="mb-4">
+        <MudItem xs="12" sm="6" Class="mt-1">
+            <MudTextField @bind-Value="searchString"
+                          @bind-Value:after="StateHasChanged"
+                          DebounceInterval="300"
+                          Placeholder="Search users..."
+                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                          Variant="Variant.Outlined" Margin="Margin.Dense" />
+        </MudItem>
+        <MudItem xs="12" sm="6">
+            <MudSelect T="int?" @bind-Value="_selectedOfficeId"
+                       @bind-Value:after="StateHasChanged"
+                       Label="Filter by Office" Variant="Variant.Outlined"
+                       Margin="Margin.Dense" Clearable="true">
+                @foreach (var office in offices)
+                {
+                    <MudSelectItem T="int?" Value="@((int?)office.Id)">@office.Name</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+    </MudGrid>
 
     @if (isLoading)
     {
@@ -32,134 +51,102 @@
     }
     else
     {
-        <MudExpansionPanels MultiExpansion="true" Elevation="2">
-            @foreach (var office in offices.Where(OfficeShouldShow))
-            {
-                <MudExpansionPanel @key="office.Id" IsInitiallyExpanded="true">
-                    <TitleContent>
-                        <div class="d-flex align-center justify-space-between w-100 pr-2">
+        <MudHidden Breakpoint="Breakpoint.SmAndDown">
+            <MudPaper Elevation="2">
+                <MudTable Items="@FilteredUsers" Dense="true" Hover="true" Elevation="0"
+                          FixedHeader="true" Height="600px">
+                    <HeaderContent>
+                        <MudTh>User</MudTh>
+                        <MudTh>Office</MudTh>
+                        <MudTh>Unit</MudTh>
+                        <MudTh>Role</MudTh>
+                        <MudTh Style="text-align:right;">Actions</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="User">
                             <div class="d-flex align-center gap-2">
-                                <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small">
-                                    <MudIcon Icon="@Icons.Material.Filled.Business" Size="Size.Small" />
+                                <MudAvatar Color="Color.Secondary" Variant="Variant.Filled" Size="Size.Small" Style="font-size:0.75rem;">
+                                    @(context.Name?.FirstOrDefault().ToString().ToUpper() ?? "?")
                                 </MudAvatar>
-                                <MudText Typo="Typo.body1" Class="font-weight-bold">@office.Name</MudText>
+                                <div>
+                                    <MudText Typo="Typo.body2" Class="font-weight-bold">@context.Name</MudText>
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">@context.Email</MudText>
+                                </div>
+                                @if (context.IsOfficeHead)
+                                {
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Text">Head</MudChip>
+                                }
+                            </div>
+                        </MudTd>
+                        <MudTd DataLabel="Office">
+                            <MudText Typo="Typo.body2">
+                                @(context.Office?.Name ?? offices.FirstOrDefault(o => o.Id == context.Unit?.OfficeId)?.Name ?? "—")
+                            </MudText>
+                        </MudTd>
+                        <MudTd DataLabel="Unit">
+                            <MudText Typo="Typo.body2">@(context.Unit?.Name ?? "—")</MudText>
+                        </MudTd>
+                        <MudTd DataLabel="Role">
+                            <MudChip T="string" Color="@GetRoleColor(context.Role)" Size="Size.Small" Variant="Variant.Text">@context.Role</MudChip>
+                        </MudTd>
+                        <MudTd DataLabel="Actions" Style="text-align:right;">
+                            <div class="d-flex justify-end gap-1">
+                                <MudIconButton Icon="@Icons.Material.Filled.History" Size="Size.Small" Color="Color.Info"
+                                               OnClick="@(async () => await OpenActivityDialog(context))" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Warning"
+                                               OnClick="@(() => OpenEditDialog(context))" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                               OnClick="@(async () => await DeleteUser(context))" />
+                            </div>
+                        </MudTd>
+                    </RowTemplate>
+                    <PagerContent><MudTablePager /></PagerContent>
+                </MudTable>
+            </MudPaper>
+        </MudHidden>
+
+        <MudHidden Breakpoint="Breakpoint.MdAndUp">
+            @foreach (var user in FilteredUsers)
+            {
+                <MudPaper Elevation="1" Class="pa-3 mb-2">
+                    <div class="d-flex align-center justify-space-between">
+                        <div class="d-flex align-center gap-2" style="min-width:0;">
+                            <MudAvatar Color="Color.Secondary" Variant="Variant.Filled" Size="Size.Small"
+                                       Style="font-size:0.75rem; flex-shrink:0;">
+                                @(user.Name?.FirstOrDefault().ToString().ToUpper() ?? "?")
+                            </MudAvatar>
+                            <div style="min-width:0;">
+                                <div class="d-flex align-center gap-1 flex-wrap">
+                                    <MudText Typo="Typo.body2" Class="font-weight-bold">@user.Name</MudText>
+                                    @if (user.IsOfficeHead)
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Text">Head</MudChip>
+                                    }
+                                    <MudChip T="string" Color="@GetRoleColor(user.Role)" Size="Size.Small" Variant="Variant.Text">@user.Role</MudChip>
+                                </div>
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">@user.Email</MudText>
                                 <MudText Typo="Typo.caption" Class="mud-text-secondary">
-                                    @GetOfficeUserCount(office) user@(GetOfficeUserCount(office) == 1 ? "" : "s")
+                                    @(user.Office?.Name ?? offices.FirstOrDefault(o => o.Id == user.Unit?.OfficeId)?.Name ?? "Unassigned")
+                                    @if (user.Unit != null)
+                                    {
+                                        <span> — @user.Unit.Name</span>
+                                    }
                                 </MudText>
                             </div>
-                            <div @onclick:stopPropagation="true">
-                                <MudIconButton Icon="@Icons.Material.Filled.PersonAdd" Size="Size.Small"
-                                               Color="Color.Success" Title="Assign to Office"
-                                               OnClick="@(async () => await OpenAssignDialog(office, null))" />
-                            </div>
-
                         </div>
-                    </TitleContent>
-                    <ChildContent>
-                        <MudDivider />
-                        <div class="pa-2">
-                            @{
-                                var officeHead = GetOfficeHead(office);
-                                var officeWorkers = GetOfficeWorkers(office);
-                            }
-                            @if (officeHead != null || officeWorkers.Any())
-                            {
-                                <div class="pa-2 mb-2">
-                                    @if (officeHead != null)
-                                    {
-                                        @UserRow(officeHead)
-                                    }
-                                    @foreach (var worker in officeWorkers)
-                                    {
-                                        @UserRow(worker)
-                                    }
-                                </div>
-                            }
-
-                            @if (office.Units != null)
-                            {
-                                <MudExpansionPanels MultiExpansion="true" Elevation="0">
-                                    @foreach (var unit in office.Units.Where(u => UnitShouldShow(office, u)))
-                                    {
-                                        var unitUsers = GetUnitUsers(unit);
-                                        <MudExpansionPanel @key="unit.Id" IsInitiallyExpanded="true">
-                                            <TitleContent>
-                                                <div class="d-flex align-center justify-space-between w-100 pr-2">
-                                                    <div class="d-flex align-center gap-2">
-                                                        <MudIcon Icon="@Icons.Material.Filled.AccountTree" Size="Size.Small" Color="Color.Primary" />
-                                                        <MudText Typo="Typo.body2" Class="font-weight-bold">@unit.Name</MudText>
-                                                        <MudText Typo="Typo.caption" Class="mud-text-secondary">
-                                                            @unitUsers.Count user@(unitUsers.Count == 1 ? "" : "s")
-                                                        </MudText>
-                                                    </div>
-                                                    <div @onclick:stopPropagation="true">
-                                                        <MudIconButton Icon="@Icons.Material.Filled.PersonAdd" Size="Size.Small"
-                                                                       Color="Color.Success" Title="Assign to Unit"
-                                                                       OnClick="@(async () => await OpenAssignDialog(null, unit))" />
-                                                    </div>
-                                                </div>
-                                            </TitleContent>
-                                            <ChildContent>
-                                                <MudDivider />
-                                                <div class="pa-2">
-                                                    @if (unitUsers.Any())
-                                                    {
-                                                        @foreach (var user in unitUsers)
-                                                        {
-                                                            @UserRow(user)
-                                                        }
-                                                    }
-                                                    else
-                                                    {
-                                                        <MudText Typo="Typo.caption" Class="mud-text-secondary font-italic pa-2">
-                                                            No users in this unit.
-                                                        </MudText>
-                                                    }
-                                                </div>
-                                            </ChildContent>
-                                        </MudExpansionPanel>
-                                    }
-                                </MudExpansionPanels>
-                            }
-                        </div>
-                    </ChildContent>
-                </MudExpansionPanel>
+                        <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small"
+                                 AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight">
+                            <MudMenuItem Icon="@Icons.Material.Filled.History" IconColor="Color.Info"
+                                         OnClick="@(async () => await OpenActivityDialog(user))">Activity</MudMenuItem>
+                            <MudMenuItem Icon="@Icons.Material.Filled.Edit" IconColor="Color.Warning"
+                                         OnClick="@(() => OpenEditDialog(user))">Edit</MudMenuItem>
+                            <MudMenuItem Icon="@Icons.Material.Filled.Delete" IconColor="Color.Error"
+                                         OnClick="@(async () => await DeleteUser(user))">Delete</MudMenuItem>
+                        </MudMenu>
+                    </div>
+                </MudPaper>
             }
-        </MudExpansionPanels>
-
-        @if (allUsers.Any(u => u.OfficeId == null && u.UnitId == null && MatchesSearch(u)))
-        {
-            <MudExpansionPanels MultiExpansion="true" Elevation="2">
-                <MudExpansionPanel IsInitiallyExpanded="true">
-                    <TitleContent>
-                        <div class="d-flex align-center gap-2">
-                            <MudAvatar Color="Color.Default" Variant="Variant.Filled" Size="Size.Small">
-                                <MudIcon Icon="@Icons.Material.Filled.PersonOff" Size="Size.Small" />
-                            </MudAvatar>
-                            <MudText Typo="Typo.body1" Class="font-weight-bold">Unassigned</MudText>
-                        </div>
-                    </TitleContent>
-                    <ChildContent>
-                        <MudDivider />
-                        <div class="pa-2">
-                            @foreach (var user in allUsers.Where(u => u.OfficeId == null && u.UnitId == null && MatchesSearch(u)))
-                            {
-                                @UserRow(user)
-                            }
-                        </div>
-                    </ChildContent>
-                </MudExpansionPanel>
-            </MudExpansionPanels>
-        }
-        @if (_totalOffices > offices.Count)
-        {
-            <div class="d-flex justify-center mt-4">
-                <MudButton Variant="Variant.Outlined" Color="Color.Primary"
-                           Disabled="@isLoadingMore" OnClick="LoadMore">
-                    @(isLoadingMore ? "Loading..." : $"Load More ({offices.Count} of {_totalOffices})")
-                </MudButton>
-            </div>
-        }
+        </MudHidden>
     }
 </MudContainer>
 
@@ -273,11 +260,13 @@
 
 @code {
     private List<Office> offices = new();
+    private List<Office> allOffices = new();
     private List<AppUser> allUsers = new();
     private bool isLoading = true;
     private bool isSaving = false;
     private bool isOfficeHead = false;
     private string searchString = "";
+    private int? _selectedOfficeId;
     private Dictionary<int, int?> activeOfficeEdits = new();
 
     private AppUser? editingUser;
@@ -290,141 +279,56 @@
     private bool activityLoading = false;
     private DialogOptions activityDialogOptions = new() { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
 
-    private int _currentPage = 1;
     private const int PageSize = 25;
     private int _totalOffices = 0;
-    private bool isLoadingMore = false;
 
-private RenderFragment UserRow(AppUser user) =>
-    @<div class="d-flex align-center justify-space-between pa-2 mb-1 rounded"
-          style="background: var(--mud-palette-background);">
-        <div class="d-flex align-center gap-2">
-            <MudAvatar Color="Color.Secondary" Variant="Variant.Filled" Size="Size.Small" Style="font-size:0.75rem;">
-                @(user.Name?.FirstOrDefault().ToString().ToUpper() ?? "?")
-            </MudAvatar>
-            <MudText Typo="Typo.body2" Class="font-weight-bold">@user.Name</MudText>
-            <MudChip T="string" Color="@GetRoleColor(user.Role)" Size="Size.Small" Variant="Variant.Text">@user.Role</MudChip>
-            @if (user.IsOfficeHead)
-            {
-                <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Text">Head</MudChip>
-            }
-        </div>
-        <div class="d-flex gap-1">
-            <MudIconButton Icon="@Icons.Material.Filled.History" Size="Size.Small" Color="Color.Info"
-                           OnClick="@(async () => await OpenActivityDialog(user))"
-                           Class="d-none d-md-flex" />
-            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Warning"
-                           OnClick="@(() => OpenEditDialog(user))"
-                           Class="d-none d-md-flex" />
-            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
-                           OnClick="@(async () => await DeleteUser(user))"
-                           Class="d-none d-md-flex" />
-            <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small"
-                     AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight"
-                     Class="d-md-none">
-                <MudMenuItem Icon="@Icons.Material.Filled.History" IconColor="Color.Info"
-                             OnClick="@(async () => await OpenActivityDialog(user))">Activity</MudMenuItem>
-                <MudMenuItem Icon="@Icons.Material.Filled.Edit" IconColor="Color.Warning"
-                             OnClick="@(() => OpenEditDialog(user))">Edit</MudMenuItem>
-                <MudMenuItem Icon="@Icons.Material.Filled.Delete" IconColor="Color.Error"
-                             OnClick="@(async () => await DeleteUser(user))">Delete</MudMenuItem>
-            </MudMenu>
-        </div>
-    </div>;
+    private IEnumerable<AppUser> FilteredUsers => allUsers.Where(u =>
+        (string.IsNullOrWhiteSpace(searchString) ||
+            u.Name?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true ||
+            u.Email?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) &&
+        (_selectedOfficeId == null ||
+            u.OfficeId == _selectedOfficeId ||
+            u.Unit?.OfficeId == _selectedOfficeId));
 
-
-    private bool MatchesSearch(AppUser u) =>
-        string.IsNullOrWhiteSpace(searchString) ||
-        u.Name?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true;
-
-    private bool OfficeMatchesSearch(Office o) =>
-        string.IsNullOrWhiteSpace(searchString) ||
-        o.Name?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true;
-
-    private bool UnitMatchesSearch(Unit u) =>
-        string.IsNullOrWhiteSpace(searchString) ||
-        u.Name?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true;
-
-    private bool OfficeShouldShow(Office office) =>
-        OfficeMatchesSearch(office) ||
-        (office.Units?.Any(UnitMatchesSearch) == true) ||
-        allUsers.Any(u => (u.OfficeId == office.Id || u.Unit?.OfficeId == office.Id) && MatchesSearch(u));
-
-    private bool UnitShouldShow(Office office, Unit unit) =>
-        OfficeMatchesSearch(office) || UnitMatchesSearch(unit) ||
-        allUsers.Any(u => u.UnitId == unit.Id && MatchesSearch(u));
-
-    private AppUser? GetOfficeHead(Office office) =>
-        allUsers.FirstOrDefault(u => u.OfficeId == office.Id && u.IsOfficeHead &&
-            (OfficeMatchesSearch(office) || MatchesSearch(u)));
-
-    private List<AppUser> GetOfficeWorkers(Office office) =>
-        allUsers.Where(u => u.OfficeId == office.Id && u.UnitId == null && !u.IsOfficeHead &&
-            (OfficeMatchesSearch(office) || MatchesSearch(u))).ToList();
-
-    private List<AppUser> GetUnitUsers(Unit unit)
+    protected override async Task OnInitializedAsync()
     {
-        var office = offices.FirstOrDefault(o => o.Id == unit.OfficeId);
-        return allUsers.Where(u => u.UnitId == unit.Id &&
-            (office != null && OfficeMatchesSearch(office) || UnitMatchesSearch(unit) || MatchesSearch(u))).ToList();
+        try
+        {
+            var officesTask = DocService.GetOfficesPagedAsync(page: 1, pageSize: PageSize);
+            var allOfficesTask = DocService.GetOfficesAsync();
+            var usersTask = DocService.GetAppUserAsync();
+            await Task.WhenAll(officesTask, allOfficesTask, usersTask);
+            var officeResult = officesTask.Result;
+            offices = officeResult.Items;
+            _totalOffices = officeResult.TotalCount;
+            allOffices = allOfficesTask.Result;
+            allUsers = usersTask.Result;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ManageUsers] Load error: {ex.Message}");
+            Snackbar.Add("Failed to load data.", Severity.Error);
+        }
+        finally { isLoading = false; }
     }
 
-    private int GetOfficeUserCount(Office office) =>
-        allUsers.Count(u => u.OfficeId == office.Id || u.Unit?.OfficeId == office.Id);
+    private async Task RefreshAll()
+    {
+        try
+        {
+            var officesTask = DocService.GetOfficesPagedAsync(page: 1, pageSize: PageSize);
+            var allOfficesTask = DocService.GetOfficesAsync();
+            var usersTask = DocService.GetAppUserAsync();
+            await Task.WhenAll(officesTask, allOfficesTask, usersTask);
+            var officeResult = officesTask.Result;
+            offices = officeResult.Items;
+            _totalOffices = officeResult.TotalCount;
+            allOffices = allOfficesTask.Result;
+            allUsers = usersTask.Result;
+        }
+        catch (Exception ex) { Console.WriteLine($"[ManageUsers] Refresh error: {ex.Message}"); }
+    }
 
-protected override async Task OnInitializedAsync()
-{
-    try
-    {
-        var officesTask = DocService.GetOfficesPagedAsync(page: 1, pageSize: PageSize);
-        var usersTask = DocService.GetAppUserAsync();
-        await Task.WhenAll(officesTask, usersTask);
-        var officeResult = officesTask.Result;
-        offices = officeResult.Items;
-        _totalOffices = officeResult.TotalCount;
-        allUsers = usersTask.Result;
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"[ManageUsers] Load error: {ex.Message}");
-        Snackbar.Add("Failed to load data.", Severity.Error);
-    }
-    finally { isLoading = false; }
-}
-
-private async Task RefreshAll()
-{
-    try
-    {
-        var officesTask = DocService.GetOfficesPagedAsync(page: 1, pageSize: PageSize);
-        var usersTask = DocService.GetAppUserAsync();
-        await Task.WhenAll(officesTask, usersTask);
-        var officeResult = officesTask.Result;
-        offices = officeResult.Items;
-        _totalOffices = officeResult.TotalCount;
-        _currentPage = 1;
-        allUsers = usersTask.Result;
-    }
-    catch (Exception ex) { Console.WriteLine($"[ManageUsers] Refresh error: {ex.Message}"); }
-}
-
-private async Task LoadMore()
-{
-    isLoadingMore = true;
-    try
-    {
-        _currentPage++;
-        var result = await DocService.GetOfficesPagedAsync(page: _currentPage, pageSize: PageSize);
-        offices.AddRange(result.Items);
-        _totalOffices = result.TotalCount;
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"[ManageUsers] LoadMore error: {ex.Message}");
-        Snackbar.Add("Failed to load more offices.", Severity.Error);
-    }
-    finally { isLoadingMore = false; }
-}
 
     private int? GetActiveOfficeId(AppUser user)
     {
@@ -451,10 +355,15 @@ private async Task LoadMore()
     {
         editingUser = new AppUser
         {
-            Id = user.Id, Name = user.Name, Role = user.Role,
-            OfficeId = user.OfficeId, UnitId = user.UnitId,
-            Unit = user.Unit, Office = user.Office,
-            Email = user.Email, IsOfficeHead = user.IsOfficeHead
+            Id = user.Id,
+            Name = user.Name,
+            Role = user.Role,
+            OfficeId = user.OfficeId,
+            UnitId = user.UnitId,
+            Unit = user.Unit,
+            Office = user.Office,
+            Email = user.Email,
+            IsOfficeHead = user.IsOfficeHead
         };
         activeOfficeEdits.Remove(editingUser.Id);
         isOfficeHead = user.IsOfficeHead;
@@ -531,20 +440,19 @@ private async Task LoadMore()
         await RefreshAll();
     }
 
-    private async Task OpenAssignDialog(Office? office, Unit? unit)
+    private async Task OpenAssignDialog()
     {
         var parameters = new DialogParameters<AssignUsersDialog>
-        {
-            { x => x.Office, office },
-            { x => x.Unit, unit },
-            { x => x.AllUsers, allUsers }
-        };
+    {
+        { x => x.AllOffices, allOffices },
+        { x => x.AllUsers, allUsers }
+    };
         var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
         var dialog = await DialogService.ShowAsync<AssignUsersDialog>("Assign Users", parameters, options);
         var result = await dialog.Result;
-        if (result is { Canceled: false })
-            await RefreshAll();
+        if (result is { Canceled: false }) await RefreshAll();
     }
+
 
     private Color GetRoleColor(string? role) => role switch
     {
