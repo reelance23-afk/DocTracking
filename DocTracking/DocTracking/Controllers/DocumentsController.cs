@@ -35,35 +35,35 @@ namespace DocTracking.Controllers
             _docService = docService;
         }
 
+        #region Helpers
+
         private async Task Notify(string group, string message, string docName)
         {
-            await _hub.Clients.Group(group).SendAsync("ReceiveNotification", message, docName);
-
-            List<AppUser> targets = new();
-
-            if (group.StartsWith("user-") && int.TryParse(group[5..], out var uid))
-                targets = await _context.AppUsers.Where(u => u.Id == uid).ToListAsync();
-            else if (group.StartsWith("unit-") && int.TryParse(group[5..], out var unitId))
-                targets = await _context.AppUsers.Where(u => u.UnitId == unitId).ToListAsync();
-            else if (group.StartsWith("office-head-") && int.TryParse(group[12..], out var ohId))
-                targets = await _context.AppUsers.Where(u => u.OfficeId == ohId && u.IsOfficeHead).ToListAsync();
-            else if (group.StartsWith("office-") && int.TryParse(group[7..], out var offId))
-                targets = await _context.AppUsers.Where(u => u.OfficeId == offId && !u.IsOfficeHead && u.UnitId == null).ToListAsync();
-
-            var now = DateTime.UtcNow;
-            _context.AppNotifications.AddRange(targets.Select(u => new AppNotification
+            try
             {
-                AppUserId = u.Id,
-                Message = message,
-                DocumentName = docName,
-                Time = now
-            }));
-            await _context.SaveChangesAsync();
-        }
+                await _hub.Clients.Group(group).SendAsync("ReceiveNotification", message, docName);
 
-        private async Task TryNotify(string group, string message, string docName)
-        {
-            try { await Notify(group, message, docName); }
+                List<AppUser> targets = new();
+
+                if (group.StartsWith("user-") && int.TryParse(group[5..], out var uid))
+                    targets = await _context.AppUsers.Where(u => u.Id == uid).ToListAsync();
+                else if (group.StartsWith("unit-") && int.TryParse(group[5..], out var unitId))
+                    targets = await _context.AppUsers.Where(u => u.UnitId == unitId).ToListAsync();
+                else if (group.StartsWith("office-head-") && int.TryParse(group[12..], out var ohId))
+                    targets = await _context.AppUsers.Where(u => u.OfficeId == ohId && u.IsOfficeHead).ToListAsync();
+                else if (group.StartsWith("office-") && int.TryParse(group[7..], out var offId))
+                    targets = await _context.AppUsers.Where(u => u.OfficeId == offId && !u.IsOfficeHead && u.UnitId == null).ToListAsync();
+
+                var now = DateTime.UtcNow;
+                _context.AppNotifications.AddRange(targets.Select(u => new AppNotification
+                {
+                    AppUserId = u.Id,
+                    Message = message,
+                    DocumentName = docName,
+                    Time = now
+                }));
+                await _context.SaveChangesAsync();
+            }
             catch (Exception ex) { _logger.LogWarning(ex, "[Notify] Failed for group {Group}", group); }
         }
 
@@ -71,15 +71,34 @@ namespace DocTracking.Controllers
         {
             if (unitId.HasValue)
             {
-                await TryNotify($"unit-{unitId}", unitMsg, docName);
-                await TryNotify($"office-head-{officeId}", headMsg, docName);
+                await Notify($"unit-{unitId}", unitMsg, docName);
+                await Notify($"office-head-{officeId}", headMsg, docName);
             }
             else if (officeId.HasValue)
             {
-                await TryNotify($"office-{officeId}", officeMsg, docName);
-                await TryNotify($"office-head-{officeId}", headMsg, docName);
+                await Notify($"office-{officeId}", officeMsg, docName);
+                await Notify($"office-head-{officeId}", headMsg, docName);
             }
         }
+
+        #endregion
+
+        #region Profile
+
+        [HttpGet("my-profile")]
+        public async Task<ActionResult<AppUser>> GetMyProfile()
+        {
+            var email = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email);
+            var appUser = await _context.AppUsers
+                .Include(d => d.Unit)
+                .Include(d => d.Office)
+                .FirstOrDefaultAsync(d => d.Email == email);
+            return appUser == null ? NotFound() : Ok(appUser);
+        }
+
+        #endregion
+
+        #region Document Queries (Admin / Office)
 
         [HttpGet]
         [Authorize(Roles = "Admin,Office")]
@@ -94,6 +113,262 @@ namespace DocTracking.Controllers
         {
             var (items, total) = await _docService.GetAllDocumentsAsync(page, pageSize, search, status, office, dateFrom, dateTo);
             return Ok(new PagedResult<Document> { Items = items, TotalCount = total });
+        }
+
+        [HttpGet("dashboard-stats")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<AdminDashboardStats>> GetDashboardStats()
+        {
+            var stats = await _docService.GetDashboardStatsAsync();
+            return Ok(stats);
+        }
+
+        [HttpGet("activity/user/{userId}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<IEnumerable<Document>>> GetUserActivity(int userId)
+        {
+            try
+            {
+                var docIds = await _context.DocumentLogs
+                    .Where(l => l.AppUserId == userId)
+                    .Select(l => l.DocumentId)
+                    .Distinct()
+                    .ToListAsync();
+
+                var created = await _context.Documents
+                    .Where(d => d.CreatorId == userId)
+                    .Select(d => d.Id)
+                    .ToListAsync();
+
+                var allIds = docIds.Union(created).Distinct();
+
+                return await _context.Documents
+                    .Where(d => allIds.Contains(d.Id))
+                    .Include(d => d.Creator)
+                    .Include(d => d.CurrentOffice)
+                    .Include(d => d.CurrentUnit)
+                    .Include(d => d.NextOffice)
+                    .Include(d => d.NextUnit)
+                    .OrderByDescending(d => d.LastActionDate ?? d.CreatedAt)
+                    .ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[GetUserActivity] Failed for userId {UserId}", userId);
+                return StatusCode(500, "Failed to load user activity.");
+            }
+        }
+
+        [HttpGet("export-csv")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> ExportDocumentsCsv(
+            [FromQuery] string? search = null,
+            [FromQuery] string? status = null,
+            [FromQuery] string? office = null,
+            [FromQuery] string? dateFrom = null,
+            [FromQuery] string? dateTo = null)
+        {
+            try
+            {
+                Response.ContentType = "text/csv";
+                Response.Headers.Append("Content-Disposition", $"attachment; filename=documents_{DateTime.Now:yyyyMMdd}.csv");
+
+                var sb = new StringBuilder();
+                sb.AppendLine("Name,Type,Sender,Status,Priority,Current Office,Current Unit,Next Office,Created At");
+
+                await foreach (var doc in _docService.StreamAllDocumentsAsync(search, status, office, dateFrom, dateTo))
+                {
+                    sb.AppendLine($"\"{doc.Name}\",\"{doc.Type}\",\"{doc.Creator?.Name}\",\"{doc.Status}\"," +
+                                  $"\"{doc.Priority}\",\"{doc.CurrentOffice?.Name}\",\"{doc.CurrentUnit?.Name}\"," +
+                                  $"\"{doc.NextOffice?.Name}\",\"{doc.CreatedAt.ToLocalTime():yyyy-MM-dd}\"");
+                }
+
+                return Content(sb.ToString(), "text/csv", Encoding.UTF8);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[ExportDocumentsCsv] Failed");
+                return StatusCode(500, "Failed to export documents.");
+            }
+        }
+
+        #endregion
+
+        #region Document Queries (User)
+
+        [HttpGet("user/{email}")]
+        public async Task<ActionResult<PagedResult<Document>>> GetUserDocument(
+            string email,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 25,
+            [FromQuery] string? search = null,
+            [FromQuery] string? status = null,
+            [FromQuery] string? priority = null,
+            [FromQuery] string? type = null)
+        {
+            var (items, total) = await _docService.GetUserDocumentsAsync(email, page, pageSize, search, status, priority, type);
+            return Ok(new PagedResult<Document> { Items = items, TotalCount = total });
+        }
+
+        [HttpGet("user/{email}/stats")]
+        public async Task<ActionResult> GetUserDocumentStats(string email)
+        {
+            try
+            {
+                var stats = await _context.Documents
+                    .Where(d => d.Creator != null && d.Creator.Email == email)
+                    .GroupBy(_ => 1)
+                    .Select(g => new
+                    {
+                        InMotion = g.Count(d => d.Status == "In Motion"),
+                        Received = g.Count(d => d.Status == "Received"),
+                        Completed = g.Count(d => d.Status == "Completed"),
+                        Total = g.Count()
+                    })
+                    .FirstOrDefaultAsync();
+
+                return Ok(stats ?? new { InMotion = 0, Received = 0, Completed = 0, Total = 0 });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[GetUserDocumentStats] Failed for {Email}", email);
+                return StatusCode(500, "Failed to load stats");
+            }
+        }
+
+        [HttpGet("user/{email}/home-data")]
+        public async Task<ActionResult<UserHomeData>> GetUserHomeData(string email)
+        {
+            var stats = await _docService.GetUserHomeDataAsync(email);
+            return Ok(stats);
+        }
+
+        #endregion
+
+        #region Office Queues
+
+        [HttpGet("incoming/{officeId}")]
+        public async Task<ActionResult<IEnumerable<Document>>> GetIncoming(
+            int officeId,
+            [FromQuery] int? unitId = null,
+            [FromQuery] string? search = null)
+        {
+            var email = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email);
+            var appUser = await _context.AppUsers.Include(u => u.Unit).FirstOrDefaultAsync(u => u.Email == email);
+            bool isOfficeHead = appUser?.UnitId == null && appUser?.OfficeId == officeId;
+            var items = await _docService.GetIncomingAsync(officeId, unitId, isOfficeHead, search);
+            return Ok(items);
+        }
+
+        [HttpGet("desk/{officeId}")]
+        public async Task<ActionResult<IEnumerable<Document>>> GetDeskDocuments(
+            int officeId,
+            [FromQuery] int? unitId = null,
+            [FromQuery] string? search = null)
+        {
+            var items = await _docService.GetDeskDocumentsAsync(officeId, unitId, search);
+            return Ok(items);
+        }
+
+        [HttpGet("outgoing/user")]
+        public async Task<ActionResult<IEnumerable<Document>>> GetOutGoing(
+            [FromQuery] string? search = null)
+        {
+            var email = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email);
+            var appUser = await _context.AppUsers.Include(u => u.Unit).FirstOrDefaultAsync(u => u.Email == email);
+            if (appUser == null) return NotFound();
+
+            int? myOfficeId = appUser.Unit?.OfficeId ?? appUser.OfficeId;
+            if (myOfficeId == null) return Ok(new List<Document>());
+
+            var items = await _docService.GetOutgoingAsync(appUser.UnitId, myOfficeId, search);
+            return Ok(items);
+        }
+
+        #endregion
+
+        #region History
+
+        [HttpGet("history/unit/{unitId}")]
+        public async Task<ActionResult<PagedResult<Document>>> GetUnitHistory(
+            int unitId,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 25,
+            [FromQuery] string? search = null)
+        {
+            var (items, total) = await _docService.GetUnitHistoryAsync(unitId, page, pageSize, search);
+            return Ok(new PagedResult<Document> { Items = items, TotalCount = total });
+        }
+
+        [HttpGet("history/office/{officeId}")]
+        public async Task<ActionResult<PagedResult<Document>>> GetOfficeHistory(
+            int officeId,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 25,
+            [FromQuery] string? search = null)
+        {
+            var (items, total) = await _docService.GetOfficeHistoryAsync(officeId, page, pageSize, search);
+            return Ok(new PagedResult<Document> { Items = items, TotalCount = total });
+        }
+
+        #endregion
+
+        #region Stats
+
+        [HttpGet("stats/unit/{unitId}")]
+        public async Task<ActionResult<LocationDocStats>> GetUnitDocStats(int unitId)
+        {
+            try
+            {
+                var stats = await _docService.GetLocationDocStatAsync(unitId, null);
+                return Ok(stats);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[GetUnitDocStats] Failed");
+                return StatusCode(500, "Failed to unit stats");
+            }
+        }
+
+        [HttpGet("stats/office/{officeId}")]
+        public async Task<ActionResult<LocationDocStats>> GetOfficeDocStats(int officeId)
+        {
+            try
+            {
+                var stats = await _docService.GetLocationDocStatAsync(null, officeId);
+                return Ok(stats);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[GetOfficeDocStats] Failed");
+                return StatusCode(500, "Failed to load office stats");
+            }
+        }
+
+        #endregion
+
+        #region Public / Anonymous
+
+        [HttpGet("by-ref/{referenceNumber}")]
+        [AllowAnonymous]
+        public async Task<ActionResult<Document>> GetByReferenceNumber(string referenceNumber)
+        {
+            try
+            {
+                var doc = await _context.Documents
+                    .Include(d => d.Creator)
+                    .Include(d => d.NextOffice)
+                    .Include(d => d.CurrentOffice)
+                    .Include(d => d.NextUnit)
+                    .Include(d => d.CurrentUnit)
+                    .FirstOrDefaultAsync(d => d.ReferenceNumber == referenceNumber);
+                return doc == null ? NotFound() : Ok(doc);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[GetByReferenceNumber] Failed for ref {Ref}", referenceNumber);
+                return StatusCode(500, "Failed to load document.");
+            }
         }
 
         [HttpGet("by-ref/{referenceNumber}/context")]
@@ -157,295 +432,28 @@ namespace DocTracking.Controllers
             }
         }
 
-        [HttpGet("dashboard-stats")]
-        [Authorize(Roles = "Admin")]
-        public async Task<ActionResult<AdminDashboardStats>> GetDashboardStats()
-        {
-            var stats = await _docService.GetDashboardStatsAsync();
-            return Ok(stats);
-        }
-
-        [HttpGet("my-profile")]
-        public async Task<ActionResult<AppUser>> GetMyProfile()
-        {
-            var email = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email);
-            var appUser = await _context.AppUsers
-                .Include(d => d.Unit)
-                .Include(d => d.Office)
-                .FirstOrDefaultAsync(d => d.Email == email);
-            return appUser == null ? NotFound() : Ok(appUser);
-        }
-
-        [HttpGet("user/{email}")]
-        public async Task<ActionResult<PagedResult<Document>>> GetUserDocument(
-            string email,
-            [FromQuery] int page = 1,
-            [FromQuery] int pageSize = 25,
-            [FromQuery] string? search = null,
-            [FromQuery] string? status = null,
-            [FromQuery] string? priority = null,
-            [FromQuery] string? type = null)
-        {
-            var (items, total) = await _docService.GetUserDocumentsAsync(email, page, pageSize, search, status, priority, type);
-            return Ok(new PagedResult<Document> { Items = items, TotalCount = total });
-        }
-
-        [HttpGet("activity/user/{userId}")]
-        [Authorize(Roles = "Admin")]
-        public async Task<ActionResult<IEnumerable<Document>>> GetUserActivity(int userId)
-        {
-            try
-            {
-                var docIds = await _context.DocumentLogs
-                    .Where(l => l.AppUserId == userId)
-                    .Select(l => l.DocumentId)
-                    .Distinct()
-                    .ToListAsync();
-
-                var created = await _context.Documents
-                    .Where(d => d.CreatorId == userId)
-                    .Select(d => d.Id)
-                    .ToListAsync();
-
-                var allIds = docIds.Union(created).Distinct();
-
-                return await _context.Documents
-                    .Where(d => allIds.Contains(d.Id))
-                    .Include(d => d.Creator)
-                    .Include(d => d.CurrentOffice)
-                    .Include(d => d.CurrentUnit)
-                    .Include(d => d.NextOffice)
-                    .Include(d => d.NextUnit)
-                    .OrderByDescending(d => d.LastActionDate ?? d.CreatedAt)
-                    .ToListAsync();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[GetUserActivity] Failed for userId {UserId}", userId);
-                return StatusCode(500, "Failed to load user activity.");
-            }
-        }
-
-        [HttpGet("user/{email}/home-data")]
-        public async Task<ActionResult<UserHomeData>> GetUserHomeData(string email)
-        {
-            var stats = await _docService.GetUserHomeDataAsync(email);
-            return Ok(stats);
-        }
-
-        [HttpGet("stats/unit/{unitId}")]
-        public async Task<ActionResult<LocationDocStats>> GetUnitDocStats(int unitId)
-        {
-            try
-            {
-                var stats = await _docService.GetLocationDocStatAsync(unitId, null);
-                    return Ok(stats);
-
-            }  
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[GetUnitDocStats] Failed");
-                return StatusCode(500, "Failed to unit stats");
-
-            }
-        }
-
-        [HttpGet("stats/office/{officeId}")]
-        public async Task<ActionResult<LocationDocStats>> GetOfficeDocStats(int officeId)
-        {
-            try
-            {
-                var stats = await _docService.GetLocationDocStatAsync(null, officeId);
-                return Ok(stats);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[GetOfficeDocStats] Failed");
-                return StatusCode(500, "Failed to load office stats");
-            }
-            
-        }
-
-
-        [HttpGet("incoming/{officeId}")]
-        public async Task<ActionResult<IEnumerable<Document>>> GetIncoming(
-            int officeId,
-            [FromQuery] int? unitId = null,
-            [FromQuery] string? search = null)
-        {
-            var email = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email);
-            var appUser = await _context.AppUsers.Include(u => u.Unit).FirstOrDefaultAsync(u => u.Email == email);
-            bool isOfficeHead = appUser?.UnitId == null && appUser?.OfficeId == officeId;
-            var items = await _docService.GetIncomingAsync(officeId, unitId, isOfficeHead, search);
-            return Ok(items);
-        }
-
-        [HttpGet("desk/{officeId}")]
-        public async Task<ActionResult<IEnumerable<Document>>> GetDeskDocuments(
-            int officeId,
-            [FromQuery] int? unitId = null,
-            [FromQuery] string? search = null)
-        {
-            var items = await _docService.GetDeskDocumentsAsync(officeId, unitId, search);
-            return Ok(items);
-        }
-
-        [HttpGet("outgoing/user")]
-        public async Task<ActionResult<IEnumerable<Document>>> GetOutGoing(
-            [FromQuery] string? search = null)
-        {
-            var email = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email);
-            var appUser = await _context.AppUsers.Include(u => u.Unit).FirstOrDefaultAsync(u => u.Email == email);
-            if (appUser == null) return NotFound();
-
-            int? myOfficeId = appUser.Unit?.OfficeId ?? appUser.OfficeId;
-            if (myOfficeId == null) return Ok(new List<Document>());
-
-            var items = await _docService.GetOutgoingAsync(appUser.UnitId, myOfficeId, search);
-            return Ok(items);
-        }
-
-        [HttpGet("history/unit/{unitId}")]
-        public async Task<ActionResult<PagedResult<Document>>> GetUnitHistory(
-            int unitId,
-            [FromQuery] int page = 1,
-            [FromQuery] int pageSize = 25,
-            [FromQuery] string? search = null)
-        {
-            var (items, total) = await _docService.GetUnitHistoryAsync(unitId, page, pageSize, search);
-            return Ok(new PagedResult<Document> { Items = items, TotalCount = total });
-        }
-
-        [HttpGet("history/office/{officeId}")]
-        public async Task<ActionResult<PagedResult<Document>>> GetOfficeHistory(
-            int officeId,
-            [FromQuery] int page = 1,
-            [FromQuery] int pageSize = 25,
-            [FromQuery] string? search = null)
-        {
-            var (items, total) = await _docService.GetOfficeHistoryAsync(officeId, page, pageSize, search);
-            return Ok(new PagedResult<Document> { Items = items, TotalCount = total });
-        }
-
-        [HttpGet("by-ref/{referenceNumber}")]
+        [HttpGet("{id}/qrcode")]
         [AllowAnonymous]
-        public async Task<ActionResult<Document>> GetByReferenceNumber(string referenceNumber)
+        public async Task<IActionResult> GetDocumentQRCode(int id)
         {
-            try
-            {
-                var doc = await _context.Documents
-                    .Include(d => d.Creator)
-                    .Include(d => d.NextOffice)
-                    .Include(d => d.CurrentOffice)
-                    .Include(d => d.NextUnit)
-                    .Include(d => d.CurrentUnit)
-                    .FirstOrDefaultAsync(d => d.ReferenceNumber == referenceNumber);
-                return doc == null ? NotFound() : Ok(doc);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[GetByReferenceNumber] Failed for ref {Ref}", referenceNumber);
-                return StatusCode(500, "Failed to load document.");
-            }
+            var doc = await _context.Documents.FindAsync(id);
+            if (doc == null || string.IsNullOrEmpty(doc.ReferenceNumber)) return NotFound();
+
+            var request = HttpContext.Request;
+            var baseUrl = $"{request.Scheme}://{request.Host}";
+            var trackUrl = $"{baseUrl}/track/{doc.ReferenceNumber}";
+
+            using var qrGenerator = new QRCoder.QRCodeGenerator();
+            using var qrCodeData = qrGenerator.CreateQrCode(trackUrl, QRCoder.QRCodeGenerator.ECCLevel.Q);
+            using var qrCode = new QRCoder.PngByteQRCode(qrCodeData);
+            var qrCodeBytes = qrCode.GetGraphic(20);
+
+            return File(qrCodeBytes, "image/png");
         }
 
-        [HttpGet("export-csv")]
-        [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> ExportDocumentsCsv(
-            [FromQuery] string? search = null,
-            [FromQuery] string? status = null,
-            [FromQuery] string? office = null,
-            [FromQuery] string? dateFrom = null,
-            [FromQuery] string? dateTo = null)
-        {
-            try
-            {
-                Response.ContentType = "text/csv";
-                Response.Headers.Append("Content-Disposition", $"attachment; filename=documents_{DateTime.Now:yyyyMMdd}.csv");
+        #endregion
 
-                var sb = new StringBuilder();
-                sb.AppendLine("Name,Type,Sender,Status,Priority,Current Office,Current Unit,Next Office,Created At");
-
-                await foreach (var doc in _docService.StreamAllDocumentsAsync(search, status, office, dateFrom, dateTo))
-                {
-                    sb.AppendLine($"\"{doc.Name}\",\"{doc.Type}\",\"{doc.Creator?.Name}\",\"{doc.Status}\"," +
-                                  $"\"{doc.Priority}\",\"{doc.CurrentOffice?.Name}\",\"{doc.CurrentUnit?.Name}\"," +
-                                  $"\"{doc.NextOffice?.Name}\",\"{doc.CreatedAt.ToLocalTime():yyyy-MM-dd}\"");
-                }
-
-                return Content(sb.ToString(), "text/csv", Encoding.UTF8);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[ExportDocumentsCsv] Failed");
-                return StatusCode(500, "Failed to export documents.");
-            }
-        }
-
-        [HttpPost]
-        public async Task<ActionResult<Document>> CreateDocument([FromBody] Document doc)
-        {
-            if (!await _context.Offices.AnyAsync(o => o.Id == doc.NextOfficeId))
-                return BadRequest("Destination office does not exist.");
-
-            if (doc.NextUnitId.HasValue)
-            {
-                var unitBelongs = await _context.Units.AnyAsync(u => u.Id == doc.NextUnitId && u.OfficeId == doc.NextOfficeId);
-                if (!unitBelongs) return BadRequest("Unit does not belong to the specified office.");
-            }
-
-            if (string.IsNullOrEmpty(doc.FilePath))
-                return BadRequest("A file attachment is required.");
-
-            var email = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email);
-            var appuser = await _context.AppUsers.FirstOrDefaultAsync(u => u.Email == email);
-
-            doc.CreatedAt = DateTime.UtcNow;
-            doc.Status = "In Motion";
-            doc.CreatorId = appuser?.Id;
-
-            string randomNum = Guid.NewGuid().ToString("N").Substring(0, 6).ToUpper();
-            doc.ReferenceNumber = $"DOC-{DateTime.UtcNow:yyyyMMdd}-{randomNum}";
-            doc.LastActionDate = DateTime.UtcNow;
-
-            await using var tx = await _context.Database.BeginTransactionAsync();
-            try
-            {
-                _context.Documents.Add(doc);
-                await _context.SaveChangesAsync();
-
-                _context.DocumentLogs.Add(new DocumentLog
-                {
-                    DocumentId = doc.Id,
-                    Action = "Created",
-                    TimeStamp = DateTime.UtcNow,
-                    UnitId = doc.NextUnitId,
-                    OfficeId = doc.NextOfficeId,
-                    AppUserId = appuser?.Id
-                });
-                await _context.SaveChangesAsync();
-                await tx.CommitAsync();
-            }
-            catch (Exception ex)
-            {
-                await tx.RollbackAsync();
-                _logger.LogError(ex, "[CreateDocument] Failed");
-                return StatusCode(500, "Failed to create document.");
-            }
-
-            var creatorName = appuser?.Name ?? "Someone";
-
-            if (appuser != null)
-                await TryNotify($"user-{appuser.Id}", "You created a new document.", doc.Name ?? "");
-
-            await NotifyOfficeOrUnit(doc.NextUnitId, doc.NextOfficeId,
-                $"A document from {creatorName} is incoming to your unit",
-                $"A document from {creatorName} incoming to your office",
-                $"A document from {creatorName} incoming to your office",
-                doc.Name ?? "");
-
-            return Ok(doc);
-        }
+        #region File Management
 
         [HttpPost("upload")]
         public async Task<IActionResult> UploadFile(IFormFile file)
@@ -529,6 +537,75 @@ namespace DocTracking.Controllers
             return Ok();
         }
 
+        #endregion
+
+        #region Document Lifecycle
+
+        [HttpPost]
+        public async Task<ActionResult<Document>> CreateDocument([FromBody] Document doc)
+        {
+            if (!await _context.Offices.AnyAsync(o => o.Id == doc.NextOfficeId))
+                return BadRequest("Destination office does not exist.");
+
+            if (doc.NextUnitId.HasValue)
+            {
+                var unitBelongs = await _context.Units.AnyAsync(u => u.Id == doc.NextUnitId && u.OfficeId == doc.NextOfficeId);
+                if (!unitBelongs) return BadRequest("Unit does not belong to the specified office.");
+            }
+
+            if (string.IsNullOrEmpty(doc.FilePath))
+                return BadRequest("A file attachment is required.");
+
+            var email = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email);
+            var appuser = await _context.AppUsers.FirstOrDefaultAsync(u => u.Email == email);
+
+            doc.CreatedAt = DateTime.UtcNow;
+            doc.Status = "In Motion";
+            doc.CreatorId = appuser?.Id;
+
+            string randomNum = Guid.NewGuid().ToString("N").Substring(0, 6).ToUpper();
+            doc.ReferenceNumber = $"DOC-{DateTime.UtcNow:yyyyMMdd}-{randomNum}";
+            doc.LastActionDate = DateTime.UtcNow;
+
+            await using var tx = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                _context.Documents.Add(doc);
+                await _context.SaveChangesAsync();
+
+                _context.DocumentLogs.Add(new DocumentLog
+                {
+                    DocumentId = doc.Id,
+                    Action = "Created",
+                    TimeStamp = DateTime.UtcNow,
+                    UnitId = doc.NextUnitId,
+                    OfficeId = doc.NextOfficeId,
+                    AppUserId = appuser?.Id
+                });
+                await _context.SaveChangesAsync();
+                await tx.CommitAsync();
+            }
+            catch (Exception ex)
+            {
+                await tx.RollbackAsync();
+                _logger.LogError(ex, "[CreateDocument] Failed");
+                return StatusCode(500, "Failed to create document.");
+            }
+
+            var creatorName = appuser?.Name ?? "Someone";
+
+            if (appuser != null)
+                await Notify($"user-{appuser.Id}", "You created a new document.", doc.Name ?? "");
+
+            await NotifyOfficeOrUnit(doc.NextUnitId, doc.NextOfficeId,
+                $"A document from {creatorName} is incoming to your unit",
+                $"A document from {creatorName} incoming to your office",
+                $"A document from {creatorName} incoming to your office",
+                doc.Name ?? "");
+
+            return Ok(doc);
+        }
+
         [HttpPut("{id}/receive")]
         public async Task<IActionResult> ReceiveDocument(int id)
         {
@@ -584,9 +661,9 @@ namespace DocTracking.Controllers
                 if (doc.CreatorId.HasValue)
                 {
                     if (receivedUnitId.HasValue)
-                        await TryNotify($"user-{doc.CreatorId}", $"Your document has been received by {receivedBy} in {receivedUnitName} of {receivedOfficeName}.", docName);
+                        await Notify($"user-{doc.CreatorId}", $"Your document has been received by {receivedBy} in {receivedUnitName} of {receivedOfficeName}.", docName);
                     else if (receivedOfficeId.HasValue)
-                        await TryNotify($"user-{doc.CreatorId}", $"Your document has been received by {receivedBy} in {receivedOfficeName}.", docName);
+                        await Notify($"user-{doc.CreatorId}", $"Your document has been received by {receivedBy} in {receivedOfficeName}.", docName);
                 }
 
                 await NotifyOfficeOrUnit(receivedUnitId, receivedOfficeId,
@@ -660,6 +737,31 @@ namespace DocTracking.Controllers
 
                 await _context.SaveChangesAsync();
                 await tx.CommitAsync();
+
+                var docName = doc.Name ?? "";
+                var forwardedBy = appUser?.Name ?? "Someone";
+
+                if (doc.CreatorId.HasValue)
+                {
+                    if (request.NextUnitId.HasValue)
+                        await Notify($"user-{doc.CreatorId}", $"Your document was forwarded by {forwardedBy} to {nextUnit?.Name} of {nextOffice?.Name}.", docName);
+                    else
+                        await Notify($"user-{doc.CreatorId}", $"Your document was forwarded by {forwardedBy} to {nextOffice?.Name}.", docName);
+                }
+
+                await NotifyOfficeOrUnit(fromUnitId, fromOfficeId,
+                    $"{forwardedBy} forwarded a document to {destination}.",
+                    $"{forwardedBy} forwarded a document to {destination}.",
+                    $"{forwardedBy} forwarded a document from {fromUnitName ?? fromOfficeName} of {fromOfficeName} to {destination}.",
+                    docName);
+
+                await NotifyOfficeOrUnit(request.NextUnitId, request.NextOfficeId,
+                    $"{forwardedBy} forwarded a document to your unit.",
+                    $"{forwardedBy} forwarded a document to your office.",
+                    $"{forwardedBy} forwarded a document to {nextUnit?.Name ?? nextOffice?.Name}.",
+                    docName);
+
+                return Ok();
             }
             catch (Exception ex)
             {
@@ -667,31 +769,6 @@ namespace DocTracking.Controllers
                 _logger.LogError(ex, "[ForwardDocument] Failed");
                 return StatusCode(500, "Failed to forward document.");
             }
-
-            var docName = doc.Name ?? "";
-            var forwardedBy = appUser?.Name ?? "Someone";
-
-            if (doc.CreatorId.HasValue)
-            {
-                if (request.NextUnitId.HasValue)
-                    await TryNotify($"user-{doc.CreatorId}", $"Your document was forwarded by {forwardedBy} to {nextUnit?.Name} of {nextOffice?.Name}.", docName);
-                else
-                    await TryNotify($"user-{doc.CreatorId}", $"Your document was forwarded by {forwardedBy} to {nextOffice?.Name}.", docName);
-            }
-
-            await NotifyOfficeOrUnit(fromUnitId, fromOfficeId,
-                $"{forwardedBy} forwarded a document to {destination}.",
-                $"{forwardedBy} forwarded a document to {destination}.",
-                $"{forwardedBy} forwarded a document from {fromUnitName ?? fromOfficeName} of {fromOfficeName} to {destination}.",
-                docName);
-
-            await NotifyOfficeOrUnit(request.NextUnitId, request.NextOfficeId,
-                $"{forwardedBy} forwarded a document to your unit.",
-                $"{forwardedBy} forwarded a document to your office.",
-                $"{forwardedBy} forwarded a document to {nextUnit?.Name ?? nextOffice?.Name}.",
-                docName);
-
-            return Ok();
         }
 
         [HttpPut("{id}/finish")]
@@ -743,6 +820,20 @@ namespace DocTracking.Controllers
 
                 await _context.SaveChangesAsync();
                 await tx.CommitAsync();
+
+                var docName = doc.Name ?? "";
+                var finishedBy = appUser?.Name ?? "Someone";
+
+                if (doc.CreatorId.HasValue)
+                    await Notify($"user-{doc.CreatorId}", $"Your document has been completed by {finishedBy}.", docName);
+
+                await NotifyOfficeOrUnit(finishedAtUnit, finishedAtOffice,
+                    $"{finishedBy} completed a document in your unit.",
+                    $"{finishedBy} completed a document.",
+                    $"{finishedBy} completed a document in {finishedUnitName ?? finishedOfficeName} of {finishedOfficeName}.",
+                    docName);
+
+                return Ok();
             }
             catch (Exception ex)
             {
@@ -750,21 +841,11 @@ namespace DocTracking.Controllers
                 _logger.LogError(ex, "[FinishDocument] Failed");
                 return StatusCode(500, "Failed to complete document.");
             }
-
-            var docName = doc.Name ?? "";
-            var finishedBy = appUser?.Name ?? "Someone";
-
-            if (doc.CreatorId.HasValue)
-                await TryNotify($"user-{doc.CreatorId}", $"Your document has been completed by {finishedBy}.", docName);
-
-            await NotifyOfficeOrUnit(finishedAtUnit, finishedAtOffice,
-                $"{finishedBy} completed a document in your unit.",
-                $"{finishedBy} completed a document.",
-                $"{finishedBy} completed a document in {finishedUnitName ?? finishedOfficeName} of {finishedOfficeName}.",
-                docName);
-
-            return Ok();
         }
+
+        #endregion
+
+        #region Document Editing
 
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateDocument(int id, [FromBody] Document doc)
@@ -840,24 +921,37 @@ namespace DocTracking.Controllers
             return Ok();
         }
 
-        [HttpGet("{id}/qrcode")]
-        [AllowAnonymous]
-        public async Task<IActionResult> GetDocumentQRCode(int id)
+        [HttpDelete("bulk")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> BulkDeleteDocuments([FromBody] List<int> ids)
         {
-            var doc = await _context.Documents.FindAsync(id);
-            if (doc == null || string.IsNullOrEmpty(doc.ReferenceNumber)) return NotFound();
+            if (ids == null || !ids.Any()) return BadRequest("No document IDs provided.");
 
-            var request = HttpContext.Request;
-            var baseUrl = $"{request.Scheme}://{request.Host}";
-            var trackUrl = $"{baseUrl}/track/{doc.ReferenceNumber}";
+            var docs = await _context.Documents.Where(d => ids.Contains(d.Id)).ToListAsync();
+            if (!docs.Any()) return NotFound();
 
-            using var qrGenerator = new QRCoder.QRCodeGenerator();
-            using var qrCodeData = qrGenerator.CreateQrCode(trackUrl, QRCoder.QRCodeGenerator.ECCLevel.Q);
-            using var qrCode = new QRCoder.PngByteQRCode(qrCodeData);
-            var qrCodeBytes = qrCode.GetGraphic(20);
+            var logs = await _context.DocumentLogs.Where(l => ids.Contains(l.DocumentId)).ToListAsync();
 
-            return File(qrCodeBytes, "image/png");
+            await using var tx = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                _context.DocumentLogs.RemoveRange(logs);
+                _context.Documents.RemoveRange(docs);
+                await _context.SaveChangesAsync();
+                await tx.CommitAsync();
+            }
+            catch (Exception ex)
+            {
+                await tx.RollbackAsync();
+                _logger.LogError(ex, "[BulkDeleteDocuments] Failed");
+                return StatusCode(500, "Failed to delete documents.");
+            }
+            return Ok(new { deleted = docs.Count });
         }
+
+        #endregion
+
+        #region Admin Override
 
         [HttpPut("{id}/admin-override")]
         [Authorize(Roles = "Admin")]
@@ -877,7 +971,6 @@ namespace DocTracking.Controllers
             try
             {
                 var beforeStatus = doc.Status;
-
                 doc.LastActionDate = DateTime.UtcNow;
 
                 if (request.NextOfficeId.HasValue)
@@ -938,6 +1031,11 @@ namespace DocTracking.Controllers
 
                 await _context.SaveChangesAsync();
                 await tx.CommitAsync();
+
+                if (doc.CreatorId.HasValue)
+                    await Notify($"user-{doc.CreatorId}", "Your document status was updated by an admin.", doc.Name ?? "");
+
+                return Ok();
             }
             catch (Exception ex)
             {
@@ -945,66 +1043,12 @@ namespace DocTracking.Controllers
                 _logger.LogError(ex, "[AdminOverride] Failed");
                 return StatusCode(500, "Failed to apply admin override.");
             }
-
-            if (doc.CreatorId.HasValue)
-                await TryNotify($"user-{doc.CreatorId}", "Your document status was updated by an admin.", doc.Name ?? "");
-            return Ok();
         }
 
-        [HttpDelete("bulk")]
-        [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> BulkDeleteDocuments([FromBody] List<int> ids)
-        {
-            if (ids == null || !ids.Any()) return BadRequest("No document IDs provided.");
-
-            var docs = await _context.Documents.Where(d => ids.Contains(d.Id)).ToListAsync();
-            if (!docs.Any()) return NotFound();
-
-            var logs = await _context.DocumentLogs.Where(l => ids.Contains(l.DocumentId)).ToListAsync();
-
-            await using var tx = await _context.Database.BeginTransactionAsync();
-            try
-            {
-                _context.DocumentLogs.RemoveRange(logs);
-                _context.Documents.RemoveRange(docs);
-                await _context.SaveChangesAsync();
-                await tx.CommitAsync();
-            }
-            catch (Exception ex)
-            {
-                await tx.RollbackAsync();
-                _logger.LogError(ex, "[BulkDeleteDocuments] Failed");
-                return StatusCode(500, "Failed to delete documents.");
-            }
-            return Ok(new { deleted = docs.Count });
-        }
-
-        [HttpGet("user/{email}/stats")]
-        public async Task<ActionResult> GetUserDocumentStats(string email)
-        {
-            try
-            {
-                var stats = await _context.Documents
-                    .Where(d => d.Creator != null && d.Creator.Email == email)
-                    .GroupBy(_ => 1)
-                    .Select(g => new
-                    {
-                        InMotion = g.Count(d => d.Status == "In Motion"),
-                        Received = g.Count(d => d.Status == "Received"),
-                        Completed = g.Count(d => d.Status == "Completed"),
-                        Total = g.Count()
-                    })
-                    .FirstOrDefaultAsync();
-
-                return Ok(stats ?? new { InMotion = 0, Received = 0, Completed = 0, Total = 0 });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[GetUserDocumentStats] Failed for {Email}", email);
-                return StatusCode(500, "Failed to load stats");
-            }
-        }
+        #endregion
     }
+
+    #region Request Models
 
     public class ForwardRequest
     {
@@ -1026,7 +1070,6 @@ namespace DocTracking.Controllers
         public int? NextUnitId { get; set; }
         public string? ReassignComment { get; set; }
     }
+
+    #endregion
 }
-
-
-
