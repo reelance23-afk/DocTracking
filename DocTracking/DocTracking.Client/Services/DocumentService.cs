@@ -403,14 +403,6 @@ namespace DocTracking.Client.Services
         public int Percentage { get; set; }
     }
 
-    public class UserDocumentStats
-    {
-        public int InMotion { get; set; }
-        public int Received { get; set; }
-        public int Completed { get; set; }
-        public int Total { get; set; }
-    }
-
     public class DocumentContext
     {
         public string RedirectTo { get; set; } = "public";
@@ -426,6 +418,14 @@ namespace DocTracking.Client.Services
         public List<Document> CompletedDoc { get; set; } = new();
         public List<Document> RecentDocuments { get; set; } = new();
         public List<Document> StuckDocuments { get; set; } = new();
+    }
+
+    public class UserDocumentStats
+    {
+        public int TotalInMotionCount { get; set; }
+        public int TotalReceivedCount { get; set; }
+        public int TotalCompletedCount { get; set; }
+        public int TotalCount { get; set; }
     }
 
     public class LocationDocStats

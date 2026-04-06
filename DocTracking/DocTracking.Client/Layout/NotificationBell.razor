@@ -76,7 +76,12 @@
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
-        try { await JS.InvokeVoidAsync("eval", "0"); } catch { return; }
+        try { await JS.InvokeVoidAsync("eval", "0"); }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Bell] JS not ready, skipping connect: {ex.Message}");
+            return;
+        }
 
         NotifService.OnChange += StateHasChanged;
 

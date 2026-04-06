@@ -213,27 +213,8 @@ namespace DocTracking.Controllers
         [HttpGet("user/{email}/stats")]
         public async Task<ActionResult> GetUserDocumentStats(string email)
         {
-            try
-            {
-                var stats = await _context.Documents
-                    .Where(d => d.Creator != null && d.Creator.Email == email)
-                    .GroupBy(_ => 1)
-                    .Select(g => new
-                    {
-                        InMotion = g.Count(d => d.Status == "In Motion"),
-                        Received = g.Count(d => d.Status == "Received"),
-                        Completed = g.Count(d => d.Status == "Completed"),
-                        Total = g.Count()
-                    })
-                    .FirstOrDefaultAsync();
-
-                return Ok(stats ?? new { InMotion = 0, Received = 0, Completed = 0, Total = 0 });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[GetUserDocumentStats] Failed for {Email}", email);
-                return StatusCode(500, "Failed to load stats");
-            }
+            var stats = await _docService.GetUserDocumentStatsAsync(email);
+            return Ok(stats);
         }
 
         [HttpGet("user/{email}/home-data")]

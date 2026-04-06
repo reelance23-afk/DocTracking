@@ -15,6 +15,8 @@ namespace DocTracking.Services
             _logger = logger;
         }
 
+        #region Document Queries (Admin / Office)
+
         public async Task<(List<Document> Items, int TotalCount)> GetAllDocumentsAsync(
             int page, int pageSize,
             string? search = null, string? status = null,
@@ -79,10 +81,10 @@ namespace DocTracking.Services
                         Received = g.Count(d => d.Status == "Received"),
                         Completed = g.Count(d => d.Status == "Completed")
                     })
-                    .FirstOrDefaultAsync();                                  
+                    .FirstOrDefaultAsync();
 
-                var totalOffices = await _context.Offices.CountAsync();      
-                var totalUsers = await _context.AppUsers.CountAsync();     
+                var totalOffices = await _context.Offices.CountAsync();
+                var totalUsers = await _context.AppUsers.CountAsync();
 
                 var officeWorkloads = await _context.Documents
                     .Where(d => d.CurrentOfficeId != null)
@@ -94,13 +96,13 @@ namespace DocTracking.Services
                         DocumentCount = g.Count()
                     })
                     .OrderByDescending(w => w.DocumentCount)
-                    .ToListAsync();                                       
+                    .ToListAsync();
 
                 var recentDocuments = await _context.Documents
                     .Include(d => d.Creator)
                     .OrderByDescending(d => d.LastActionDate ?? d.CreatedAt)
                     .Take(4)
-                    .ToListAsync();                                       
+                    .ToListAsync();
 
                 var inMotionDocs = await _context.Documents
                     .Include(d => d.Creator)
@@ -132,6 +134,191 @@ namespace DocTracking.Services
                 return new AdminDashboardStats();
             }
         }
+
+        public IAsyncEnumerable<Document> StreamAllDocumentsAsync(
+            string? search = null, string? status = null, string? office = null,
+            string? dateFrom = null, string? dateTo = null)
+        {
+            var query = _context.Documents
+                .Include(d => d.Creator)
+                .Include(d => d.CurrentOffice)
+                .Include(d => d.CurrentUnit)
+                .Include(d => d.NextOffice)
+                .AsQueryable();
+
+            if (!string.IsNullOrEmpty(search))
+                query = query.Where(d =>
+                    (d.Name != null && d.Name.Contains(search)) ||
+                    (d.ReferenceNumber != null && d.ReferenceNumber.Contains(search)));
+
+            if (!string.IsNullOrEmpty(status))
+                query = query.Where(d => d.Status == status);
+
+            if (!string.IsNullOrEmpty(office))
+                query = query.Where(d =>
+                    (d.CurrentOffice != null && d.CurrentOffice.Name == office) ||
+                    (d.NextOffice != null && d.NextOffice.Name == office));
+
+            if (DateTime.TryParse(dateFrom, out var from))
+                query = query.Where(d => d.CreatedAt >= from);
+
+            if (DateTime.TryParse(dateTo, out var to))
+                query = query.Where(d => d.CreatedAt <= to.AddDays(1));
+
+            return query
+                .OrderByDescending(d => d.CreatedAt)
+                .AsAsyncEnumerable();
+        }
+
+        #endregion
+
+        #region Document Queries (User)
+
+        public async Task<(List<Document> Items, int TotalCount)> GetUserDocumentsAsync(
+            string email, int page, int pageSize,
+            string? search = null, string? status = null,
+            string? priority = null, string? type = null)
+        {
+            try
+            {
+                var query = _context.Documents
+                    .Include(d => d.Creator)
+                    .Include(d => d.NextOffice)
+                    .Include(d => d.NextUnit)
+                    .Include(d => d.CurrentOffice)
+                    .Include(d => d.CurrentUnit)
+                    .Where(d => d.Creator != null && d.Creator.Email == email);
+
+                if (!string.IsNullOrEmpty(search))
+                    query = query.Where(d =>
+                        (d.Name != null && d.Name.Contains(search)) ||
+                        (d.Type != null && d.Type.Contains(search)) ||
+                        (d.Status != null && d.Status.Contains(search)) ||
+                        (d.Priority != null && d.Priority.Contains(search)) ||
+                        (d.CurrentOffice != null && d.CurrentOffice.Name != null && d.CurrentOffice.Name.Contains(search)) ||
+                        (d.NextOffice != null && d.NextOffice.Name != null && d.NextOffice.Name.Contains(search)));
+
+                if (!string.IsNullOrEmpty(status))
+                    query = query.Where(d => d.Status == status);
+
+                if (!string.IsNullOrEmpty(priority))
+                    query = query.Where(d => d.Priority == priority);
+
+                if (!string.IsNullOrEmpty(type))
+                    query = query.Where(d => d.Type == type);
+
+                var total = await query.CountAsync();
+                var items = await query
+                    .OrderByDescending(d => d.CreatedAt)
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
+
+                return (items, total);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[GetUserDocumentsAsync] Failed for email {Email}", email);
+                return (new List<Document>(), 0);
+            }
+        }
+
+        public async Task<UserDocumentStats> GetUserDocumentStatsAsync(string? email)
+        {
+            try
+            {
+                var stats = await _context.Documents
+                    .Where(g => g.Creator != null && g.Creator.Email == email)
+                    .GroupBy(_ => 1)
+                    .Select(g => new
+                    {
+                        TotalInMotion = g.Count(g => g.Status == "In Motion"),
+                        TotalReceived = g.Count(g => g.Status == "Received"),
+                        TotalCompleted = g.Count(g => g.Status == "Completed"),
+                        Total = g.Count()
+                    }) 
+                    .FirstOrDefaultAsync();
+
+                return new UserDocumentStats
+                {
+                    TotalInMotionCount = stats?.TotalInMotion ?? 0,
+                    TotalReceivedCount = stats?.TotalReceived ?? 0,
+                    TotalCompletedCount = stats?.TotalCompleted ?? 0,
+                    TotalCount = stats?.Total ?? 0
+                };
+
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[GetUserDocumentStatsAsync] Failed");
+                return new UserDocumentStats();
+            }
+        }
+
+        public async Task<UserHomeData> GetUserHomeDataAsync(string? email)
+        {
+            try
+            {
+                var stats = await _context.Documents
+                    .Where(d => d.Creator != null && d.Creator.Email == email)
+                    .GroupBy(_ => 1)
+                    .Select(g => new
+                    {
+                        Total = g.Count(),
+                        InMotion = g.Count(d => d.Status == "In Motion"),
+                        Completed = g.Count(d => d.Status == "Completed")
+                    })
+                    .FirstOrDefaultAsync();
+
+                var allRecent = await _context.Documents
+                    .Include(d => d.Creator)
+                    .Include(d => d.NextOffice)
+                    .Include(d => d.CurrentOffice)
+                    .Where(d => d.Creator != null && d.Creator.Email == email)
+                    .OrderByDescending(d => d.LastActionDate ?? d.CreatedAt)
+                    .Take(500)
+                    .ToListAsync();
+
+                var inProgress = allRecent
+                    .Where(d => d.Status == "In Motion")
+                    .OrderByDescending(d => d.LastActionDate ?? d.CreatedAt)
+                    .Take(5)
+                    .ToList();
+
+                var completed = allRecent
+                    .Where(d => d.Status == "Completed")
+                    .OrderByDescending(d => d.LastActionDate ?? d.CreatedAt)
+                    .Take(5)
+                    .ToList();
+
+                var stuckThreshold = DateTime.UtcNow.AddDays(-1);
+                var stuck = allRecent
+                    .Where(d => d.Status == "In Motion" &&
+                                (d.LastActionDate ?? d.CreatedAt) < stuckThreshold)
+                    .OrderByDescending(d => d.LastActionDate ?? d.CreatedAt)
+                    .ToList();
+
+                return new UserHomeData
+                {
+                    TotalDocumentsCount = stats?.Total ?? 0,
+                    TotalInProgressCount = stats?.InMotion ?? 0,
+                    TotalCompletedCount = stats?.Completed ?? 0,
+                    InProgressDoc = inProgress,
+                    CompletedDoc = completed,
+                    RecentDocuments = allRecent,
+                    StuckDocuments = stuck
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[GetUserHomeDataAsync] Failed for email {Email}", email);
+                return new UserHomeData();
+            }
+        }
+
+        #endregion
+
+        #region Office Queues
 
         public async Task<List<Document>> GetIncomingAsync(
             int officeId, int? unitId, bool isOfficeHead, string? search = null)
@@ -191,7 +378,7 @@ namespace DocTracking.Services
                         (d.Type != null && d.Type.Contains(search)));
 
                 return await query
-                     .OrderBy(d => d.Priority == "Emergency" ? 0 :
+                    .OrderBy(d => d.Priority == "Emergency" ? 0 :
                         d.Priority == "Urgent" ? 1 :
                         d.Priority == "Medium" ? 2 :
                         d.Priority == "Low" ? 3 : 99)
@@ -209,9 +396,7 @@ namespace DocTracking.Services
         {
             try
             {
-                List<int> forwardedDocIds;
-
-                forwardedDocIds = await _context.DocumentLogs
+                var forwardedDocIds = await _context.DocumentLogs
                     .Where(log => log.Action == "Forwarded" && log.AppUser != null &&
                         (unitId.HasValue
                             ? log.AppUser.UnitId == unitId
@@ -247,6 +432,10 @@ namespace DocTracking.Services
                 return new List<Document>();
             }
         }
+
+        #endregion
+
+        #region History
 
         public async Task<(List<Document> Items, int TotalCount)> GetUnitHistoryAsync(
             int unitId, int page, int pageSize, string? search = null)
@@ -338,122 +527,56 @@ namespace DocTracking.Services
             }
         }
 
-        public async Task<(List<Document> Items, int TotalCount)> GetUserDocumentsAsync(
-            string email, int page, int pageSize,
-            string? search = null, string? status = null,
-            string? priority = null, string? type = null)
+        #endregion
+
+        #region Stats
+
+        public async Task<LocationDocStats> GetLocationDocStatAsync(int? unitId, int? officeId)
         {
             try
             {
-                var query = _context.Documents
-                    .Include(d => d.Creator)
-                    .Include(d => d.NextOffice)
-                    .Include(d => d.NextUnit)
-                    .Include(d => d.CurrentOffice)
-                    .Include(d => d.CurrentUnit)
-                    .Where(d => d.Creator != null && d.Creator.Email == email);
+                IQueryable<Document> query;
 
-                if (!string.IsNullOrEmpty(search))
-                    query = query.Where(d =>
-                        (d.Name != null && d.Name.Contains(search)) ||
-                        (d.Type != null && d.Type.Contains(search)) ||
-                        (d.Status != null && d.Status.Contains(search)) ||
-                        (d.Priority != null && d.Priority.Contains(search)) ||
-                        (d.CurrentOffice != null && d.CurrentOffice.Name != null && d.CurrentOffice.Name.Contains(search)) ||
-                        (d.NextOffice != null && d.NextOffice.Name != null && d.NextOffice.Name.Contains(search)));
+                if (unitId.HasValue)
+                {
+                    query = _context.Documents
+                        .Where(d => _context.DocumentLogs
+                        .Any(i => i.DocumentId == d.Id && i.UnitId == unitId));
+                }
+                else if (officeId.HasValue)
+                {
+                    query = _context.Documents
+                        .Where(d => _context.DocumentLogs
+                        .Any(i => i.DocumentId == d.Id &&
+                        ((i.UnitId != null && i.Unit != null && i.Unit.OfficeId == officeId) ||
+                        (i.UnitId == null && i.OfficeId == officeId))));
+                }
+                else
+                    return new LocationDocStats();
 
-                if (!string.IsNullOrEmpty(status))
-                    query = query.Where(d => d.Status == status);
-
-                if (!string.IsNullOrEmpty(priority))
-                    query = query.Where(d => d.Priority == priority);
-
-                if (!string.IsNullOrEmpty(type))
-                    query = query.Where(d => d.Type == type);
-
-                var total = await query.CountAsync();
-                var items = await query
-                    .OrderByDescending(d => d.CreatedAt)
-                    .Skip((page - 1) * pageSize)
-                    .Take(pageSize)
-                    .ToListAsync();
-
-                return (items, total);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[GetUserDocumentsAsync] Failed for email {Email}", email);
-                return (new List<Document>(), 0);
-            }
-        }
-                                
-
-        public async Task<UserHomeData> GetUserHomeDataAsync(string? email)
-        {
-            try
-            {
-                var stats = await _context.Documents
-                    .Where(d => d.Creator != null && d.Creator.Email == email)
-                    .GroupBy(_ => -1)
-                    .Select(g => new
+                var stats = await query
+                    .GroupBy(_ => 1)
+                    .Select(d => new LocationDocStats
                     {
-                        Total = g.Count(),
-                        InMotion = g.Count(d => d.Status == "In Motion"),
-                        Completed = g.Count(d => d.Status == "Completed")
+                        InMotion = d.Count(d => d.Status == "In Motion"),
+                        Received = d.Count(d => d.Status == "Received"),
+                        Completed = d.Count(d => d.Status == "Completed")
                     })
                     .FirstOrDefaultAsync();
 
-
-
-                var allRecent = await _context.Documents
-                    .Include(d => d.Creator)
-                    .Include(d => d.NextOffice)
-                    .Include(d => d.CurrentOffice)
-                    .Where(d => d.Creator != null && d.Creator.Email == email)
-                    .OrderByDescending(d => d.LastActionDate ?? d.CreatedAt)
-                    .Take(500)
-                    .ToListAsync();
-
-                var inProgress = allRecent
-                    .Where(d => d.Status == "In Motion")
-                    .OrderByDescending(d => d.LastActionDate ?? d.CreatedAt)
-                    .Take(5)
-                    .ToList();
-
-                var completed = allRecent
-                    .Where(d => d.Status == "Completed")
-                    .OrderByDescending(d => d.LastActionDate ?? d.CreatedAt)
-                    .Take(5)
-                    .ToList();
-
-                var stuckThreshold = DateTime.UtcNow.AddDays(-1);
-                var stuck = allRecent
-                    .Where(d => d.Status == "In Motion" &&
-                                (d.LastActionDate ?? d.CreatedAt) < stuckThreshold)
-                    .OrderByDescending(d => d.LastActionDate ?? d.CreatedAt)
-                    .ToList();
-
-                return new UserHomeData
-                {
-                    TotalDocumentsCount = stats?.Total ?? 0,
-                    TotalInProgressCount = stats?.InMotion ?? 0,
-                    TotalCompletedCount = stats?.Completed ?? 0,
-                    InProgressDoc = inProgress,
-                    CompletedDoc = completed,
-                    RecentDocuments = allRecent,                      
-                    StuckDocuments = stuck
-                };
-
-            }   
+                return stats ?? new LocationDocStats();
+            }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[GetUserHomeDataAsync] Failed for email {Email}", email);
-                return new UserHomeData();
+                _logger.LogError(ex, "[GetLocationDocStatsAsync] Failed");
+                return new LocationDocStats();
             }
-
-
-
         }
+
+        #endregion
+
+        #region Audit Logs
+
         public async Task<(List<DocumentLog> Items, int TotalCount)> GetAuditLogsAsync(
             int page, int pageSize,
             string? search = null, string? action = null, string? date = null)
@@ -496,41 +619,6 @@ namespace DocTracking.Services
             }
         }
 
-        public IAsyncEnumerable<Document> StreamAllDocumentsAsync(
-            string? search = null, string? status = null, string? office = null,
-            string? dateFrom = null, string? dateTo = null)
-        {
-            var query = _context.Documents
-                .Include(d => d.Creator)
-                .Include(d => d.CurrentOffice)
-                .Include(d => d.CurrentUnit)
-                .Include(d => d.NextOffice)
-                .AsQueryable();
-
-            if (!string.IsNullOrEmpty(search))
-                query = query.Where(d =>
-                    (d.Name != null && d.Name.Contains(search)) ||
-                    (d.ReferenceNumber != null && d.ReferenceNumber.Contains(search)));
-
-            if (!string.IsNullOrEmpty(status))
-                query = query.Where(d => d.Status == status);
-
-            if (!string.IsNullOrEmpty(office))
-                query = query.Where(d =>
-                    (d.CurrentOffice != null && d.CurrentOffice.Name == office) ||
-                    (d.NextOffice != null && d.NextOffice.Name == office));
-
-            if (DateTime.TryParse(dateFrom, out var from))
-                query = query.Where(d => d.CreatedAt >= from);
-
-            if (DateTime.TryParse(dateTo, out var to))
-                query = query.Where(d => d.CreatedAt <= to.AddDays(1));
-
-            return query
-                .OrderByDescending(d => d.CreatedAt)
-                .AsAsyncEnumerable();
-        }
-
         public IAsyncEnumerable<DocumentLog> StreamAllAuditLogsAsync(
             string? search = null, string? action = null, string? date = null)
         {
@@ -558,49 +646,11 @@ namespace DocTracking.Services
                 .AsAsyncEnumerable();
         }
 
-        public async Task<LocationDocStats> GetLocationDocStatAsync(int? unitId, int? officeId)
-        {
-            try
-            {
-                IQueryable<Document> query;
-
-                if (unitId.HasValue)
-                {
-                    query = _context.Documents
-                        .Where(d => _context.DocumentLogs
-                        .Any(i => i.DocumentId == d.Id && i.UnitId == unitId));
-                }
-                else if (officeId.HasValue)
-                {
-                    query = _context.Documents
-                        .Where(d => _context.DocumentLogs
-                        .Any(i => i.DocumentId == d.Id &&
-                        ((i.UnitId != null && i.Unit != null && i.Unit.OfficeId == officeId) ||
-                        (i.UnitId == null && i.OfficeId == officeId))));
-                }
-                else
-                    return new LocationDocStats();
-
-                var stats = await query
-                    .GroupBy(_ => 1)
-                    .Select(d => new LocationDocStats
-                    {
-                        InMotion = d.Count(d => d.Status == "In Motion"),
-                        Received = d.Count(d => d.Status == "Received"),
-                        Completed = d.Count(d => d.Status == "Completed")
-                    })
-                    .FirstOrDefaultAsync();
-
-                return stats ?? new LocationDocStats();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[GetLocationDocStatsAsync] Failed");
-                    return new LocationDocStats();
-            }
-        }
+        #endregion
     }
-                                                                                                
+
+    #region Response Models
+
     public class AdminDashboardStats
     {
         public int TotalDocuments { get; set; }
@@ -625,13 +675,20 @@ namespace DocTracking.Services
     public class UserHomeData
     {
         public int TotalInProgressCount { get; set; }
-        public int TotalCompletedCount { get; set;}
+        public int TotalCompletedCount { get; set; }
         public int TotalDocumentsCount { get; set; }
         public List<Document> InProgressDoc { get; set; } = new();
         public List<Document> CompletedDoc { get; set; } = new();
         public List<Document> RecentDocuments { get; set; } = new();
-
         public List<Document> StuckDocuments { get; set; } = new();
+    }
+
+    public class UserDocumentStats
+    {
+        public int TotalInMotionCount { get; set; }
+        public int TotalReceivedCount { get; set; }
+        public int TotalCompletedCount { get; set; }
+        public int TotalCount { get; set; }
     }
 
     public class LocationDocStats
@@ -640,4 +697,6 @@ namespace DocTracking.Services
         public int Received { get; set; }
         public int Completed { get; set; }
     }
+
+    #endregion
 }

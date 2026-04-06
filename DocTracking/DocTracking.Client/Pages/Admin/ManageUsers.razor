@@ -24,7 +24,7 @@
     <MudGrid Spacing="2" Class="mb-4">
         <MudItem xs="12" sm="6" Class="mt-1">
             <MudTextField @bind-Value="searchString"
-                          @bind-Value:after="StateHasChanged"
+                          @bind-Value:after="OnFilterChanged"
                           DebounceInterval="300"
                           Placeholder="Search users..."
                           Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
@@ -32,10 +32,10 @@
         </MudItem>
         <MudItem xs="12" sm="6">
             <MudSelect T="int?" @bind-Value="_selectedOfficeId"
-                       @bind-Value:after="StateHasChanged"
+                       @bind-Value:after="OnFilterChanged"
                        Label="Filter by Office" Variant="Variant.Outlined"
                        Margin="Margin.Dense" Clearable="true">
-                @foreach (var office in offices)
+                @foreach (var office in allOffices)
                 {
                     <MudSelectItem T="int?" Value="@((int?)office.Id)">@office.Name</MudSelectItem>
                 }
@@ -53,7 +53,7 @@
     {
         <MudHidden Breakpoint="Breakpoint.SmAndDown">
             <MudPaper Elevation="2">
-                <MudTable Items="@FilteredUsers" Dense="true" Hover="true" Elevation="0"
+                <MudTable @ref="_table" ServerData="LoadServerData" Dense="true" Hover="true" Elevation="0"
                           FixedHeader="true" Height="600px">
                     <HeaderContent>
                         <MudTh>User</MudTh>
@@ -80,7 +80,7 @@
                         </MudTd>
                         <MudTd DataLabel="Office">
                             <MudText Typo="Typo.body2">
-                                @(context.Office?.Name ?? offices.FirstOrDefault(o => o.Id == context.Unit?.OfficeId)?.Name ?? "—")
+                                @(context.Office?.Name ?? allOffices.FirstOrDefault(o => o.Id == context.Unit?.OfficeId)?.Name ?? "—")
                             </MudText>
                         </MudTd>
                         <MudTd DataLabel="Unit">
@@ -100,13 +100,19 @@
                             </div>
                         </MudTd>
                     </RowTemplate>
+                    <NoRecordsContent>
+                        <div class="pa-8 text-center">
+                            <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Large" Style="opacity:0.3; font-size:4rem;" Class="mb-4" />
+                            <MudText Typo="Typo.h6" Class="mud-text-secondary">No users found</MudText>
+                        </div>
+                    </NoRecordsContent>
                     <PagerContent><MudTablePager /></PagerContent>
                 </MudTable>
             </MudPaper>
         </MudHidden>
 
         <MudHidden Breakpoint="Breakpoint.MdAndUp">
-            @foreach (var user in FilteredUsers)
+            @foreach (var user in _mobileUsers)
             {
                 <MudPaper Elevation="1" Class="pa-3 mb-2">
                     <div class="d-flex align-center justify-space-between">
@@ -126,7 +132,7 @@
                                 </div>
                                 <MudText Typo="Typo.caption" Class="mud-text-secondary">@user.Email</MudText>
                                 <MudText Typo="Typo.caption" Class="mud-text-secondary">
-                                    @(user.Office?.Name ?? offices.FirstOrDefault(o => o.Id == user.Unit?.OfficeId)?.Name ?? "Unassigned")
+                                    @(user.Office?.Name ?? allOffices.FirstOrDefault(o => o.Id == user.Unit?.OfficeId)?.Name ?? "Unassigned")
                                     @if (user.Unit != null)
                                     {
                                         <span> — @user.Unit.Name</span>
@@ -146,10 +152,20 @@
                     </div>
                 </MudPaper>
             }
+            @if (_mobileTotalCount > _mobileUsers.Count)
+            {
+                <div class="d-flex justify-center mt-4 mb-2">
+                    <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                               Disabled="@_isLoadingMore" OnClick="LoadMoreMobile">
+                        @(_isLoadingMore ? "Loading..." : $"Load More ({_mobileUsers.Count} of {_mobileTotalCount})")
+                    </MudButton>
+                </div>
+            }
         </MudHidden>
     }
 </MudContainer>
 
+<!-- Edit and Activity dialogs unchanged -->
 <MudDialog @bind-Visible="isEditDialogOpen" Options="dialogOptions">
     <TitleContent>
         <MudText Typo="Typo.h6" Class="font-weight-bold">
@@ -170,7 +186,7 @@
                 <MudSelect T="int?" Value="GetActiveOfficeId(editingUser)"
                            ValueChanged="@((int? id) => OnOfficeChanged(editingUser, id))"
                            Label="Select Office" Variant="Variant.Outlined" Class="mb-3">
-                    @foreach (var office in offices)
+                    @foreach (var office in allOffices)
                     {
                         <MudSelectItem T="int?" Value="@((int?)office.Id)">@office.Name</MudSelectItem>
                     }
@@ -190,7 +206,7 @@
                     @if (isOfficeHead)
                     {
                         <MudAlert Severity="Severity.Warning" Dense="true">
-                            This user will become an Office Head of @(offices.FirstOrDefault(o => o.Id == GetActiveOfficeId(editingUser))?.Name).
+                            This user will become an Office Head of @(allOffices.FirstOrDefault(o => o.Id == GetActiveOfficeId(editingUser))?.Name).
                         </MudAlert>
                     }
                 }
@@ -259,9 +275,13 @@
 </MudDialog>
 
 @code {
-    private List<Office> offices = new();
+    private MudTable<AppUser>? _table;
+    private List<AppUser> _mobileUsers = new();
+    private int _mobileTotalCount = 0;
+    private bool _isLoadingMore = false;
+    private const int MobilePageSize = 25;
+
     private List<Office> allOffices = new();
-    private List<AppUser> allUsers = new();
     private bool isLoading = true;
     private bool isSaving = false;
     private bool isOfficeHead = false;
@@ -279,30 +299,12 @@
     private bool activityLoading = false;
     private DialogOptions activityDialogOptions = new() { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
 
-    private const int PageSize = 25;
-    private int _totalOffices = 0;
-
-    private IEnumerable<AppUser> FilteredUsers => allUsers.Where(u =>
-        (string.IsNullOrWhiteSpace(searchString) ||
-            u.Name?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true ||
-            u.Email?.Contains(searchString, StringComparison.OrdinalIgnoreCase) == true) &&
-        (_selectedOfficeId == null ||
-            u.OfficeId == _selectedOfficeId ||
-            u.Unit?.OfficeId == _selectedOfficeId));
-
     protected override async Task OnInitializedAsync()
     {
         try
         {
-            var officesTask = DocService.GetOfficesPagedAsync(page: 1, pageSize: PageSize);
-            var allOfficesTask = DocService.GetOfficesAsync();
-            var usersTask = DocService.GetAppUserAsync();
-            await Task.WhenAll(officesTask, allOfficesTask, usersTask);
-            var officeResult = officesTask.Result;
-            offices = officeResult.Items;
-            _totalOffices = officeResult.TotalCount;
-            allOffices = allOfficesTask.Result;
-            allUsers = usersTask.Result;
+            allOffices = await DocService.GetOfficesAsync();
+            await LoadMobileData();
         }
         catch (Exception ex)
         {
@@ -312,23 +314,64 @@
         finally { isLoading = false; }
     }
 
-    private async Task RefreshAll()
+    private async Task<TableData<AppUser>> LoadServerData(TableState state, CancellationToken ct)
     {
         try
         {
-            var officesTask = DocService.GetOfficesPagedAsync(page: 1, pageSize: PageSize);
-            var allOfficesTask = DocService.GetOfficesAsync();
-            var usersTask = DocService.GetAppUserAsync();
-            await Task.WhenAll(officesTask, allOfficesTask, usersTask);
-            var officeResult = officesTask.Result;
-            offices = officeResult.Items;
-            _totalOffices = officeResult.TotalCount;
-            allOffices = allOfficesTask.Result;
-            allUsers = usersTask.Result;
+            var result = await DocService.GetAppUsersPagedAsync(
+                page: state.Page + 1, pageSize: state.PageSize, search: searchString);
+            var filtered = FilterByOffice(result.Items);
+            return new TableData<AppUser> { Items = filtered, TotalItems = result.TotalCount };
         }
-        catch (Exception ex) { Console.WriteLine($"[ManageUsers] Refresh error: {ex.Message}"); }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ManageUsers] LoadServerData error: {ex.Message}");
+            return new TableData<AppUser>();
+        }
     }
 
+    private async Task LoadMobileData()
+    {
+        try
+        {
+            var result = await DocService.GetAppUsersPagedAsync(
+                page: 1, pageSize: MobilePageSize, search: searchString);
+            _mobileUsers = FilterByOffice(result.Items);
+            _mobileTotalCount = result.TotalCount;
+        }
+        catch (Exception ex) { Console.WriteLine($"[ManageUsers] LoadMobileData error: {ex.Message}"); }
+    }
+
+    private async Task LoadMoreMobile()
+    {
+        _isLoadingMore = true;
+        try
+        {
+            var nextPage = (_mobileUsers.Count / MobilePageSize) + 1;
+            var result = await DocService.GetAppUsersPagedAsync(
+                page: nextPage, pageSize: MobilePageSize, search: searchString);
+            _mobileUsers.AddRange(FilterByOffice(result.Items));
+            _mobileTotalCount = result.TotalCount;
+        }
+        catch (Exception ex) { Console.WriteLine($"[ManageUsers] LoadMoreMobile error: {ex.Message}"); }
+        finally { _isLoadingMore = false; }
+    }
+
+    private List<AppUser> FilterByOffice(List<AppUser> users) =>
+        _selectedOfficeId == null ? users :
+        users.Where(u => u.OfficeId == _selectedOfficeId || u.Unit?.OfficeId == _selectedOfficeId).ToList();
+
+    private async Task OnFilterChanged()
+    {
+        await LoadMobileData();
+        if (_table != null) await _table.ReloadServerData();
+    }
+
+    private async Task RefreshAll()
+    {
+        await LoadMobileData();
+        if (_table != null) await _table.ReloadServerData();
+    }
 
     private int? GetActiveOfficeId(AppUser user)
     {
@@ -348,7 +391,7 @@
     {
         var officeId = GetActiveOfficeId(user);
         if (officeId == null) return new List<Unit>();
-        return offices.FirstOrDefault(o => o.Id == officeId)?.Units ?? new List<Unit>();
+        return allOffices.FirstOrDefault(o => o.Id == officeId)?.Units ?? new List<Unit>();
     }
 
     private void OpenEditDialog(AppUser user)
@@ -428,8 +471,7 @@
         var parameters = new DialogParameters
         {
             { "Message", $"Delete '{user.Name ?? "this user"}'? This cannot be undone." },
-            { "YesText", "Delete" },
-            { "CancelText", "Cancel" }
+            { "YesText", "Delete" }, { "CancelText", "Cancel" }
         };
         var dialog = await DialogService.ShowAsync<MudMessageBox>("Delete User", parameters);
         var result = await dialog.Result;
@@ -442,17 +484,17 @@
 
     private async Task OpenAssignDialog()
     {
+        var allUsers = await DocService.GetAppUserAsync();
         var parameters = new DialogParameters<AssignUsersDialog>
-    {
-        { x => x.AllOffices, allOffices },
-        { x => x.AllUsers, allUsers }
-    };
+        {
+            { x => x.AllOffices, allOffices },
+            { x => x.AllUsers, allUsers }
+        };
         var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
         var dialog = await DialogService.ShowAsync<AssignUsersDialog>("Assign Users", parameters, options);
         var result = await dialog.Result;
         if (result is { Canceled: false }) await RefreshAll();
     }
-
 
     private Color GetRoleColor(string? role) => role switch
     {

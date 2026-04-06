@@ -17,43 +17,60 @@
     </div>
 
     <MudPaper Elevation="3" Class="pa-4 pa-md-6 rounded-lg">
-        <div class="d-flex justify-space-between align-center mb-4">
-            <div>
-                <MudText Typo="Typo.h6" Class="font-weight-bold">All Logs</MudText>
-                <MudText Typo="Typo.body2" Class="mud-text-secondary">Browse and export all document actions.</MudText>
+        <div class="mb-4">
+            <div style="width:100%;" class="mb-2">
+                <MudTextField @bind-Value="@searchText"
+                              @bind-Value:after="OnSearchChanged"
+                              Placeholder="Search documents, senders, or locations..."
+                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                              IconSize="Size.Medium" Variant="Variant.Outlined" Margin="Margin.Dense" />
             </div>
-            <MudButton Variant="Variant.Outlined" Color="Color.Success"
-                       StartIcon="@Icons.Material.Filled.Download" Size="Size.Small" OnClick="ExportCsv">
-                Export CSV
-            </MudButton>
+            <div class="d-flex gap-2 align-center flex-wrap">
+                <div style="position:relative;">
+                    <MudBadge Content="@ActiveFilterCount" Color="Color.Error" Overlap="true"
+                              Visible="@(ActiveFilterCount > 0)">
+                        <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.FilterList"
+                                   OnClick="@(() => _filterOpen = !_filterOpen)">
+                            Filters
+                        </MudButton>
+                    </MudBadge>
+                    <MudPopover Open="_filterOpen" AnchorOrigin="Origin.BottomLeft"
+                                TransformOrigin="Origin.TopLeft" Paper="true" Class="pa-4"
+                                Style="min-width:300px; z-index:1300;">
+                        <div class="d-flex justify-space-between align-center mb-3">
+                            <MudText Typo="Typo.subtitle2" Class="font-weight-bold">Filters</MudText>
+                            <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small"
+                                           OnClick="@(() => _filterOpen = false)" />
+                        </div>
+                        <MudSelect T="string" Value="filterAction" Label="Action" Variant="Variant.Outlined"
+                                   Margin="Margin.Dense" FullWidth="true" Class="mb-3"
+                                   ValueChanged="@(async (string v) => { filterAction = v; await OnFilterChanged(); })">
+                            <MudSelectItem T="string" Value="@("")">All Actions</MudSelectItem>
+                            @foreach (var a in actions)
+                            {
+                                <MudSelectItem T="string" Value="@a">@a</MudSelectItem>
+                            }
+                        </MudSelect>
+                        <MudDatePicker Date="filterDate" Label="Date" Variant="Variant.Outlined"
+                                       Margin="Margin.Dense" Style="width:100%;" Class="mb-3"
+                                       DateChanged="@(async (DateTime? v) => { filterDate = v; await OnFilterChanged(); })" />
+                        @if (ActiveFilterCount > 0)
+                        {
+                            <MudButton Variant="Variant.Text" Color="Color.Error" FullWidth="true"
+                                       StartIcon="@Icons.Material.Filled.Clear" OnClick="ClearFilters">
+                                Clear All Filters
+                            </MudButton>
+                        }
+                    </MudPopover>
+                </div>
+                <MudButton Variant="Variant.Outlined" Color="Color.Success" Size="Size.Small"
+                           StartIcon="@Icons.Material.Filled.Download" OnClick="ExportCsv">
+                    Export CSV
+                </MudButton>
+            </div>
         </div>
 
-        <MudTextField @bind-Value="@searchText"
-                      @bind-Value:after="OnSearchChanged"
-                      Placeholder="Search documents, senders, or locations..."
-                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
-                      IconSize="Size.Medium" Variant="Variant.Outlined" Margin="Margin.Dense"
-                      Class="mb-4" />
-
-        <div class="d-flex gap-2 flex-wrap align-center mb-4">
-            <MudSelect T="string" Value="filterAction" Label="Action" Variant="Variant.Outlined"
-                       Margin="Margin.Dense" Style="min-width:160px;"
-                       ValueChanged="@(async (string v) => { filterAction = v; await OnFilterChanged(); })">
-                <MudSelectItem T="string" Value="@("")">All Actions</MudSelectItem>
-                @foreach (var a in actions)
-                {
-                    <MudSelectItem T="string" Value="@a">@a</MudSelectItem>
-                }
-            </MudSelect>
-            <MudDatePicker Date="filterDate" Label="Date" Variant="Variant.Outlined"
-                           Margin="Margin.Dense" Style="min-width:160px;"
-                           DateChanged="@(async (DateTime? v) => { filterDate = v; await OnFilterChanged(); })" />
-            @if (filterAction != null || filterDate != null)
-            {
-                <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="ClearFilters"
-                           StartIcon="@Icons.Material.Filled.Clear">Clear</MudButton>
-            }
-        </div>
 
         <MudHidden Breakpoint="Breakpoint.SmAndDown">
             <div style="overflow-x: auto;">
@@ -283,4 +300,11 @@
     {
         await OnFilterChanged();
     }
+
+    private bool _filterOpen = false;
+
+    private int ActiveFilterCount =>
+        (string.IsNullOrEmpty(filterAction) ? 0 : 1) +
+        (filterDate == null ? 0 : 1);
+
 }

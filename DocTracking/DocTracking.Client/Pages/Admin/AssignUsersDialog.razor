@@ -38,23 +38,52 @@
                 }
             </MudPaper>
         }
-        else
+        else if (_selectedUnit == null)
         {
             <div class="d-flex align-center gap-2 mb-3">
-                <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" Size="Size.Small"
-                               OnClick="BackToOffices" />
+                <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" Size="Size.Small" OnClick="BackToOffices" />
                 <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small">
                     <MudIcon Icon="@Icons.Material.Filled.Business" Size="Size.Small" />
                 </MudAvatar>
                 <MudText Typo="Typo.body2" Class="font-weight-bold">@_selectedOffice.Name</MudText>
             </div>
+
+            @if (_selectedOffice.Units != null && _selectedOffice.Units.Any())
+            {
+                <MudText Typo="Typo.caption" Class="mud-text-secondary mb-2 d-block">
+                    Assign to the office directly, or pick a unit below.
+                </MudText>
+                <MudPaper Elevation="0" Class="pa-2 mb-3 rounded"
+                          Style="background: rgba(var(--mud-palette-primary-rgb), 0.05);">
+                    <MudText Typo="Typo.subtitle2" Class="mb-1 font-weight-bold">Units</MudText>
+                    @foreach (var unit in _selectedOffice.Units)
+                    {
+                        <MudListItem T="string" OnClick="@(() => SelectUnit(unit))"
+                                     Class="rounded mb-1" Style="cursor:pointer;">
+                            <div class="d-flex align-center justify-space-between">
+                                <div class="d-flex align-center gap-2">
+                                    <MudIcon Icon="@Icons.Material.Filled.AccountTree" Size="Size.Small" Color="Color.Secondary" />
+                                    <MudText Typo="Typo.body2" Class="font-weight-bold">@unit.Name</MudText>
+                                </div>
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                                    @(AllUsers.Count(u => u.UnitId == unit.Id)) assigned
+                                </MudText>
+                            </div>
+                        </MudListItem>
+                        <MudDivider />
+                    }
+                </MudPaper>
+                <MudDivider Class="mb-3" />
+                <MudText Typo="Typo.subtitle2" Class="mb-1 font-weight-bold">Office-level Assignment</MudText>
+            }
+
             <MudTextField @bind-Value="searchString" Placeholder="Search users..."
                           Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
                           Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" Class="mb-2" />
             <MudText Typo="Typo.caption" Class="mud-text-secondary mb-3 d-block">
-                Check to assign, uncheck to remove.
+                Check to assign to office, uncheck to remove.
             </MudText>
-            <MudPaper Elevation="0" Style="max-height: 300px; overflow-y: auto;">
+            <MudPaper Elevation="0" Style="max-height: 260px; overflow-y: auto;">
                 @foreach (var user in FilteredUsers)
                 {
                     <div class="d-flex align-center pa-1">
@@ -71,12 +100,53 @@
                 }
             </MudPaper>
         }
+        else
+        {
+            <div class="d-flex align-center gap-2 mb-3">
+                <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" Size="Size.Small" OnClick="BackToOffice" />
+                <MudAvatar Color="Color.Secondary" Variant="Variant.Filled" Size="Size.Small">
+                    <MudIcon Icon="@Icons.Material.Filled.AccountTree" Size="Size.Small" />
+                </MudAvatar>
+                <div>
+                    <MudText Typo="Typo.body2" Class="font-weight-bold">@_selectedUnit.Name</MudText>
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">@_selectedOffice!.Name</MudText>
+                </div>
+            </div>
+            <MudTextField @bind-Value="searchString" Placeholder="Search users..."
+                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                          Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" Class="mb-2" />
+            <MudText Typo="Typo.caption" Class="mud-text-secondary mb-3 d-block">
+                Check to assign to this unit, uncheck to remove.
+            </MudText>
+            <MudPaper Elevation="0" Style="max-height: 300px; overflow-y: auto;">
+                @foreach (var user in FilteredUsers)
+                {
+                    <div class="d-flex align-center pa-1">
+                        <MudCheckBox T="bool" Value="@selectedIds.Contains(user.Id)"
+                                     ValueChanged="@(v => Toggle(user.Id, v))"
+                                     Color="Color.Secondary" Class="flex-grow-1">
+                            <div>
+                                <MudText Typo="Typo.body2" Class="font-weight-bold">@user.Name</MudText>
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">@GetCurrentAssignment(user)</MudText>
+                            </div>
+                        </MudCheckBox>
+                    </div>
+                    <MudDivider />
+                }
+            </MudPaper>
+        }
     </DialogContent>
     <DialogActions>
         <MudButton OnClick="@(() => MudDialog.Cancel())">Cancel</MudButton>
-        @if (_selectedOffice != null)
+        @if (_selectedOffice != null && _selectedUnit == null)
         {
-            <MudButton Color="Color.Success" Variant="Variant.Filled" Disabled="@isSaving" OnClick="Save">
+            <MudButton Color="Color.Success" Variant="Variant.Filled" Disabled="@isSaving" OnClick="SaveOfficeAssignment">
+                @(isSaving ? "Saving..." : $"Save ({selectedIds.Count} selected)")
+            </MudButton>
+        }
+        @if (_selectedUnit != null)
+        {
+            <MudButton Color="Color.Secondary" Variant="Variant.Filled" Disabled="@isSaving" OnClick="SaveUnitAssignment">
                 @(isSaving ? "Saving..." : $"Save ({selectedIds.Count} selected)")
             </MudButton>
         }
@@ -89,6 +159,7 @@
     [Parameter] public List<AppUser> AllUsers { get; set; } = new();
 
     private Office? _selectedOffice;
+    private Unit? _selectedUnit;
     private string _officeSearch = "";
     private string searchString = "";
     private HashSet<int> selectedIds = new();
@@ -106,18 +177,29 @@
     private void BackToOffices()
     {
         _selectedOffice = null;
+        _selectedUnit = null;
         _officeSearch = "";
         searchString = "";
         selectedIds.Clear();
         _sortedUsers.Clear();
     }
 
+    private void BackToOffice()
+    {
+        _selectedUnit = null;
+        searchString = "";
+        selectedIds.Clear();
+        SelectOffice(_selectedOffice!);
+    }
+
     private void SelectOffice(Office office)
     {
         _selectedOffice = office;
+        _selectedUnit = null;
         searchString = "";
+
         selectedIds = AllUsers
-            .Where(u => u.OfficeId == office.Id && u.UnitId == null)
+            .Where(u => u.OfficeId == office.Id || u.Unit?.OfficeId == office.Id)
             .Select(u => u.Id)
             .ToHashSet();
 
@@ -135,6 +217,36 @@
     }
 
 
+    private void SelectUnit(Unit unit)
+    {
+        _selectedUnit = unit;
+        searchString = "";
+
+        selectedIds = AllUsers
+            .Where(u => u.UnitId == unit.Id)
+            .Select(u => u.Id)
+            .ToHashSet();
+
+        var assignedToUnit = AllUsers
+            .Where(u => u.Role != "Admin" && u.UnitId == unit.Id)
+            .OrderBy(u => u.Name)
+            .ToList();
+
+        var assignedToOffice = AllUsers
+            .Where(u => u.Role != "Admin" && u.UnitId != unit.Id &&
+                        (u.OfficeId == _selectedOffice!.Id || u.Unit?.OfficeId == _selectedOffice.Id))
+            .OrderBy(u => u.Name)
+            .ToList();
+
+        var unassigned = AllUsers
+            .Where(u => u.Role != "Admin" && u.UnitId != unit.Id &&
+                        u.OfficeId != _selectedOffice!.Id && u.Unit?.OfficeId != _selectedOffice.Id)
+            .OrderBy(u => u.Name)
+            .ToList();
+
+        _sortedUsers = assignedToUnit.Concat(assignedToOffice).Concat(unassigned).ToList();
+    }
+
     private void Toggle(int userId, bool selected)
     {
         if (selected) selectedIds.Add(userId);
@@ -150,14 +262,14 @@
         return "Unassigned";
     }
 
-    private async Task Save()
+    private async Task SaveOfficeAssignment()
     {
         if (_selectedOffice == null) return;
         isSaving = true;
         try
         {
             var toAssign = AllUsers.Where(u => selectedIds.Contains(u.Id) &&
-                !(u.OfficeId == _selectedOffice.Id && u.UnitId == null)).ToList();
+                u.OfficeId != _selectedOffice.Id && u.Unit?.OfficeId != _selectedOffice.Id).ToList();
             foreach (var user in toAssign)
             {
                 await DocService.UpdateAppUserAsync(new AppUser
@@ -172,8 +284,10 @@
                 });
             }
 
-            var toRemove = AllUsers.Where(u => u.OfficeId == _selectedOffice.Id && u.UnitId == null
-                && !u.IsOfficeHead && !selectedIds.Contains(u.Id)).ToList();
+            var toRemove = AllUsers.Where(u =>
+                !u.IsOfficeHead &&
+                !selectedIds.Contains(u.Id) &&
+                (u.OfficeId == _selectedOffice.Id || u.Unit?.OfficeId == _selectedOffice.Id)).ToList();
             foreach (var user in toRemove)
             {
                 await DocService.UpdateAppUserAsync(new AppUser
@@ -200,8 +314,61 @@
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[AssignUsersDialog] Save error: {ex.Message}");
+            Console.WriteLine($"[AssignUsersDialog] SaveOffice error: {ex.Message}");
             Snackbar.Add("Failed to save assignments.", Severity.Error);
+        }
+        finally { isSaving = false; }
+    }
+
+
+    private async Task SaveUnitAssignment()
+    {
+        if (_selectedUnit == null) return;
+        isSaving = true;
+        try
+        {
+            var toAssign = AllUsers
+                .Where(u => selectedIds.Contains(u.Id) && u.UnitId != _selectedUnit.Id)
+                .Select(u => u.Id)
+                .ToList();
+
+            if (toAssign.Any())
+            {
+                var (ok, error) = await DocService.SelectiveReassignUsersAsync(toAssign, _selectedUnit.Id);
+                if (!ok) { Snackbar.Add(error ?? "Failed to assign users.", Severity.Error); return; }
+            }
+
+            var toRemove = AllUsers
+                .Where(u => u.UnitId == _selectedUnit.Id && !selectedIds.Contains(u.Id))
+                .ToList();
+            foreach (var user in toRemove)
+            {
+                await DocService.UpdateAppUserAsync(new AppUser
+                {
+                    Id = user.Id,
+                    Name = user.Name,
+                    Email = user.Email,
+                    Role = "Office",
+                    UnitId = null,
+                    OfficeId = _selectedOffice!.Id,
+                    IsOfficeHead = false
+                });
+            }
+
+            var assigned = toAssign.Count;
+            var removed = toRemove.Count;
+            Snackbar.Add(assigned > 0 && removed > 0
+                ? $"{assigned} assigned, {removed} moved to office level in {_selectedUnit.Name}."
+                : assigned > 0 ? $"{assigned} user(s) assigned to {_selectedUnit.Name}."
+                : removed > 0 ? $"{removed} user(s) moved to office level."
+                : "No changes made.", Severity.Success);
+
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[AssignUsersDialog] SaveUnit error: {ex.Message}");
+            Snackbar.Add("Failed to save unit assignments.", Severity.Error);
         }
         finally { isSaving = false; }
     }

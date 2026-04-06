@@ -8,6 +8,7 @@
 @inject DocumentService DocumentService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
+@inject NotificationService NotifService
 @implements IDisposable
 @rendermode InteractiveAuto
 
@@ -211,21 +212,34 @@
     private AdminDashboardStats stats = new();
     private List<Office> allOffices = new();
     private bool isLoading = true;
-    private PeriodicTimer? _pollTimer;
     private string broadcastMessage = "";
     private int? broadcastOfficeId;
     private bool isBroadcasting;
+    private readonly DebounceHelper _debounce = new();
 
     protected override async Task OnInitializedAsync()
     {
         try
         {
-            allOffices = await DocumentService.GetOfficesAsync(); 
+            allOffices = await DocumentService.GetOfficesAsync();
             await LoadStats();
         }
         finally { isLoading = false; }
-        StartPolling();
     }
+
+    protected override Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+            NotifService.OnChange += OnNotificationReceived;
+        return Task.CompletedTask;
+    }
+
+    private void OnNotificationReceived() =>
+        _debounce.Trigger(async () =>
+        {
+            await LoadStats();
+            await InvokeAsync(StateHasChanged);
+        });
 
     private async Task LoadStats()
     {
@@ -255,27 +269,6 @@
         finally { isBroadcasting = false; }
     }
 
-    private async void StartPolling()
-    {
-        _pollTimer = new PeriodicTimer(TimeSpan.FromSeconds(30));
-        try
-        {
-            while (await _pollTimer.WaitForNextTickAsync())
-            {
-                try
-                {
-                    await LoadStats();
-                    await InvokeAsync(StateHasChanged);
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"[AdminMaster] Poll error: {ex.Message}");
-                }
-            }
-        }
-        catch (OperationCanceledException) { }
-    }
-
     private async Task OpenViewDialog(Document doc)
     {
         var parameters = new DialogParameters<DocumentViewDialog> { { x => x.Doc, doc } };
@@ -285,6 +278,8 @@
 
     public void Dispose()
     {
-        _pollTimer?.Dispose();
+        NotifService.OnChange -= OnNotificationReceived;
+        _debounce.Dispose();
     }
 }
+
