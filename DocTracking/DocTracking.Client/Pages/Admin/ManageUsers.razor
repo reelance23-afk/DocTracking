@@ -53,8 +53,7 @@
     {
         <MudHidden Breakpoint="Breakpoint.SmAndDown">
             <MudPaper Elevation="2">
-                <MudTable @ref="_table" ServerData="LoadServerData" Dense="true" Hover="true" Elevation="0"
-                          FixedHeader="true" Height="600px">
+                <MudTable @ref="_table" ServerData="LoadServerData" Dense="true" Hover="true" Elevation="0">
                     <HeaderContent>
                         <MudTh>User</MudTh>
                         <MudTh>Office</MudTh>
@@ -165,7 +164,6 @@
     }
 </MudContainer>
 
-<!-- Edit and Activity dialogs unchanged -->
 <MudDialog @bind-Visible="isEditDialogOpen" Options="dialogOptions">
     <TitleContent>
         <MudText Typo="Typo.h6" Class="font-weight-bold">
@@ -301,10 +299,9 @@
 
     protected override async Task OnInitializedAsync()
     {
-        try
-        {
-            allOffices = await DocService.GetOfficesAsync();
-            await LoadMobileData();
+        try 
+        { 
+            allOffices = await DocService.GetOfficesAsync(); 
         }
         catch (Exception ex)
         {
@@ -319,27 +316,22 @@
         try
         {
             var result = await DocService.GetAppUsersPagedAsync(
-                page: state.Page + 1, pageSize: state.PageSize, search: searchString);
-            var filtered = FilterByOffice(result.Items);
-            return new TableData<AppUser> { Items = filtered, TotalItems = result.TotalCount };
+                page: state.Page + 1, pageSize: state.PageSize,
+                search: searchString, officeId: _selectedOfficeId);
+
+            if (state.Page == 0)
+            {
+                _mobileUsers = result.Items;
+                _mobileTotalCount = result.TotalCount;
+            }
+
+            return new TableData<AppUser> { Items = result.Items, TotalItems = result.TotalCount };
         }
         catch (Exception ex)
         {
             Console.WriteLine($"[ManageUsers] LoadServerData error: {ex.Message}");
             return new TableData<AppUser>();
         }
-    }
-
-    private async Task LoadMobileData()
-    {
-        try
-        {
-            var result = await DocService.GetAppUsersPagedAsync(
-                page: 1, pageSize: MobilePageSize, search: searchString);
-            _mobileUsers = FilterByOffice(result.Items);
-            _mobileTotalCount = result.TotalCount;
-        }
-        catch (Exception ex) { Console.WriteLine($"[ManageUsers] LoadMobileData error: {ex.Message}"); }
     }
 
     private async Task LoadMoreMobile()
@@ -349,27 +341,18 @@
         {
             var nextPage = (_mobileUsers.Count / MobilePageSize) + 1;
             var result = await DocService.GetAppUsersPagedAsync(
-                page: nextPage, pageSize: MobilePageSize, search: searchString);
-            _mobileUsers.AddRange(FilterByOffice(result.Items));
+                page: nextPage, pageSize: MobilePageSize,
+                search: searchString, officeId: _selectedOfficeId);
+            _mobileUsers.AddRange(result.Items);
             _mobileTotalCount = result.TotalCount;
         }
         catch (Exception ex) { Console.WriteLine($"[ManageUsers] LoadMoreMobile error: {ex.Message}"); }
         finally { _isLoadingMore = false; }
     }
 
-    private List<AppUser> FilterByOffice(List<AppUser> users) =>
-        _selectedOfficeId == null ? users :
-        users.Where(u => u.OfficeId == _selectedOfficeId || u.Unit?.OfficeId == _selectedOfficeId).ToList();
 
     private async Task OnFilterChanged()
     {
-        await LoadMobileData();
-        if (_table != null) await _table.ReloadServerData();
-    }
-
-    private async Task RefreshAll()
-    {
-        await LoadMobileData();
         if (_table != null) await _table.ReloadServerData();
     }
 
@@ -441,7 +424,7 @@
             Snackbar.Add($"Updated {editingUser.Name} successfully!", Severity.Success);
             activeOfficeEdits.Remove(editingUser.Id);
             isEditDialogOpen = false;
-            await RefreshAll();
+            if (_table != null) await _table.ReloadServerData();
         }
         catch (Exception ex)
         {
@@ -479,7 +462,7 @@
         var (ok, error) = await DocService.DeleteAppUserAsync(user.Id);
         if (!ok) { Snackbar.Add(error ?? "Error deleting user.", Severity.Error); return; }
         Snackbar.Add("User deleted.", Severity.Success);
-        await RefreshAll();
+        if (_table != null) await _table.ReloadServerData();
     }
 
     private async Task OpenAssignDialog()
@@ -493,7 +476,8 @@
         var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
         var dialog = await DialogService.ShowAsync<AssignUsersDialog>("Assign Users", parameters, options);
         var result = await dialog.Result;
-        if (result is { Canceled: false }) await RefreshAll();
+        if (result is { Canceled: false })
+            if (_table != null) await _table.ReloadServerData();
     }
 
     private Color GetRoleColor(string? role) => role switch
@@ -503,3 +487,4 @@
         _ => Color.Default
     };
 }
+

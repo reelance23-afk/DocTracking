@@ -34,9 +34,6 @@ namespace DocTracking.Controllers
             _logger = logger;
             _docService = docService;
         }
-
-        #region Helpers
-
         private async Task Notify(string group, string message, string docName)
         {
             try
@@ -81,10 +78,6 @@ namespace DocTracking.Controllers
             }
         }
 
-        #endregion
-
-        #region Profile
-
         [HttpGet("my-profile")]
         public async Task<ActionResult<AppUser>> GetMyProfile()
         {
@@ -95,10 +88,6 @@ namespace DocTracking.Controllers
                 .FirstOrDefaultAsync(d => d.Email == email);
             return appUser == null ? NotFound() : Ok(appUser);
         }
-
-        #endregion
-
-        #region Document Queries (Admin / Office)
 
         [HttpGet]
         [Authorize(Roles = "Admin,Office")]
@@ -192,10 +181,6 @@ namespace DocTracking.Controllers
             }
         }
 
-        #endregion
-
-        #region Document Queries (User)
-
         [HttpGet("user/{email}")]
         public async Task<ActionResult<PagedResult<Document>>> GetUserDocument(
             string email,
@@ -223,10 +208,6 @@ namespace DocTracking.Controllers
             var stats = await _docService.GetUserHomeDataAsync(email);
             return Ok(stats);
         }
-
-        #endregion
-
-        #region Office Queues
 
         [HttpGet("incoming/{officeId}")]
         public async Task<ActionResult<IEnumerable<Document>>> GetIncoming(
@@ -266,10 +247,6 @@ namespace DocTracking.Controllers
             return Ok(items);
         }
 
-        #endregion
-
-        #region History
-
         [HttpGet("history/unit/{unitId}")]
         public async Task<ActionResult<PagedResult<Document>>> GetUnitHistory(
             int unitId,
@@ -291,10 +268,6 @@ namespace DocTracking.Controllers
             var (items, total) = await _docService.GetOfficeHistoryAsync(officeId, page, pageSize, search);
             return Ok(new PagedResult<Document> { Items = items, TotalCount = total });
         }
-
-        #endregion
-
-        #region Stats
 
         [HttpGet("stats/unit/{unitId}")]
         public async Task<ActionResult<LocationDocStats>> GetUnitDocStats(int unitId)
@@ -325,10 +298,6 @@ namespace DocTracking.Controllers
                 return StatusCode(500, "Failed to load office stats");
             }
         }
-
-        #endregion
-
-        #region Public / Anonymous
 
         [HttpGet("by-ref/{referenceNumber}")]
         [AllowAnonymous]
@@ -432,10 +401,6 @@ namespace DocTracking.Controllers
             return File(qrCodeBytes, "image/png");
         }
 
-        #endregion
-
-        #region File Management
-
         [HttpPost("upload")]
         public async Task<IActionResult> UploadFile(IFormFile file)
         {
@@ -517,10 +482,6 @@ namespace DocTracking.Controllers
                 System.IO.File.Delete(fullPath);
             return Ok();
         }
-
-        #endregion
-
-        #region Document Lifecycle
 
         [HttpPost]
         public async Task<ActionResult<Document>> CreateDocument([FromBody] Document doc)
@@ -824,10 +785,6 @@ namespace DocTracking.Controllers
             }
         }
 
-        #endregion
-
-        #region Document Editing
-
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateDocument(int id, [FromBody] Document doc)
         {
@@ -930,10 +887,6 @@ namespace DocTracking.Controllers
             return Ok(new { deleted = docs.Count });
         }
 
-        #endregion
-
-        #region Admin Override
-
         [HttpPut("{id}/admin-override")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> AdminOverride(int id, [FromBody] AdminOverrideRequest request)
@@ -1025,12 +978,7 @@ namespace DocTracking.Controllers
                 return StatusCode(500, "Failed to apply admin override.");
             }
         }
-
-        #endregion
     }
-
-    #region Request Models
-
     public class ForwardRequest
     {
         public int NextOfficeId { get; set; }
@@ -1051,6 +999,4 @@ namespace DocTracking.Controllers
         public int? NextUnitId { get; set; }
         public string? ReassignComment { get; set; }
     }
-
-    #endregion
 }

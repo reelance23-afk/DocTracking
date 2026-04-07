@@ -112,10 +112,11 @@ namespace DocTracking.Client.Services
         }
 
         public async Task<PagedResult<AppUser>> GetAppUsersPagedAsync(
-            int page = 1, int pageSize = 25, string? search = null)
+            int page = 1, int pageSize = 25, string? search = null, int? officeId = null)
         {
             var url = $"api/appusers?page={page}&pageSize={pageSize}";
             if (!string.IsNullOrEmpty(search)) url += $"&search={Uri.EscapeDataString(search)}";
+            if (officeId.HasValue) url += $"&officeId={officeId.Value}";
             return await GetJsonAsync<PagedResult<AppUser>>(url) ?? new();
         }
 

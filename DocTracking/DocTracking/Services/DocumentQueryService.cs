@@ -15,8 +15,6 @@ namespace DocTracking.Services
             _logger = logger;
         }
 
-        #region Document Queries (Admin / Office)
-
         public async Task<(List<Document> Items, int TotalCount)> GetAllDocumentsAsync(
             int page, int pageSize,
             string? search = null, string? status = null,
@@ -170,10 +168,6 @@ namespace DocTracking.Services
                 .AsAsyncEnumerable();
         }
 
-        #endregion
-
-        #region Document Queries (User)
-
         public async Task<(List<Document> Items, int TotalCount)> GetUserDocumentsAsync(
             string email, int page, int pageSize,
             string? search = null, string? status = null,
@@ -316,10 +310,6 @@ namespace DocTracking.Services
             }
         }
 
-        #endregion
-
-        #region Office Queues
-
         public async Task<List<Document>> GetIncomingAsync(
             int officeId, int? unitId, bool isOfficeHead, string? search = null)
         {
@@ -433,10 +423,6 @@ namespace DocTracking.Services
             }
         }
 
-        #endregion
-
-        #region History
-
         public async Task<(List<Document> Items, int TotalCount)> GetUnitHistoryAsync(
             int unitId, int page, int pageSize, string? search = null)
         {
@@ -527,10 +513,6 @@ namespace DocTracking.Services
             }
         }
 
-        #endregion
-
-        #region Stats
-
         public async Task<LocationDocStats> GetLocationDocStatAsync(int? unitId, int? officeId)
         {
             try
@@ -572,11 +554,6 @@ namespace DocTracking.Services
                 return new LocationDocStats();
             }
         }
-
-        #endregion
-
-        #region Audit Logs
-
         public async Task<(List<DocumentLog> Items, int TotalCount)> GetAuditLogsAsync(
             int page, int pageSize,
             string? search = null, string? action = null, string? date = null)
@@ -645,12 +622,7 @@ namespace DocTracking.Services
                 .OrderByDescending(m => m.TimeStamp)
                 .AsAsyncEnumerable();
         }
-
-        #endregion
     }
-
-    #region Response Models
-
     public class AdminDashboardStats
     {
         public int TotalDocuments { get; set; }
@@ -697,6 +669,4 @@ namespace DocTracking.Services
         public int Received { get; set; }
         public int Completed { get; set; }
     }
-
-    #endregion
 }

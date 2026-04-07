@@ -25,33 +25,6 @@ namespace DocTracking.Controllers
             _logger = logger;
         }
 
-        [HttpGet]
-        public async Task<ActionResult<PagedResult<AppUser>>> GetUsers(
-            [FromQuery] int page = 1,
-            [FromQuery] int pageSize = 25,
-            [FromQuery] string? search = null)
-        {
-            var query = _context.AppUsers
-                .Include(u => u.Unit)
-                .ThenInclude(unit => unit.Office)
-                .Include(u => u.Office)
-                .AsQueryable();
-
-            if (!string.IsNullOrEmpty(search))
-                query = query.Where(u =>
-                    (u.Name != null && u.Name.Contains(search)) ||
-                    (u.Role != null && u.Role.Contains(search)));
-
-            var total = await query.CountAsync();
-            var items = await query
-                .OrderBy(u => u.Name)
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
-                .ToListAsync();
-
-            return Ok(new PagedResult<AppUser> { Items = items, TotalCount = total });
-        }
-
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateUser(int id, [FromBody] AppUser updatedUser)
         {
@@ -189,6 +162,37 @@ namespace DocTracking.Controllers
                 return StatusCode(500, "Failed to reassign users.");
             }
             return Ok(new { moved = users.Count });
+        }
+
+        [HttpGet]
+        public async Task<ActionResult<PagedResult<AppUser>>> GetUsers(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 25,
+            [FromQuery] string? search = null,
+            [FromQuery] int? officeId = null)
+        {
+            var query = _context.AppUsers
+                .Include(u => u.Unit)
+                .ThenInclude(unit => unit.Office)
+                .Include(u => u.Office)
+                .AsQueryable();
+
+            if (!string.IsNullOrEmpty(search))
+                query = query.Where(u =>
+                    (u.Name != null && u.Name.Contains(search)) ||
+                    (u.Role != null && u.Role.Contains(search)));
+
+            if (officeId.HasValue)
+                query = query.Where(u => u.OfficeId == officeId || u.Unit.OfficeId == officeId);
+
+            var total = await query.CountAsync();
+            var items = await query
+                .OrderBy(u => u.Name)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return Ok(new PagedResult<AppUser> { Items = items, TotalCount = total });
         }
     }
 
