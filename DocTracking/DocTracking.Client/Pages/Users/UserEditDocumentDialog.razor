@@ -2,9 +2,8 @@
 @using DocTracking.Client.Services
 @using Microsoft.AspNetCore.Components.Forms
 @inject DocumentService DocService
-@inject ISnackbar Snackbar
 @inject IDialogService DialogService
-@rendermode InteractiveAuto
+@inject ISnackbar Snackbar
 
 <MudDialog>
     <TitleContent>
@@ -39,36 +38,6 @@
                     <MudSelectItem Value="@("Low")">Low</MudSelectItem>
                 </MudSelect>
             </MudItem>
-            <MudItem xs="12" md="6">
-                <MudSelect @bind-Value="overrideStatus" Label="Status" Variant="Variant.Outlined" T="string">
-                    <MudSelectItem T="string" Value="@("In Motion")">In Motion</MudSelectItem>
-                    <MudSelectItem T="string" Value="@("Received")">Received</MudSelectItem>
-                    <MudSelectItem T="string" Value="@("Completed")">Completed</MudSelectItem>
-                </MudSelect>
-            </MudItem>
-            <MudItem xs="12" md="6">
-                <MudSelect Value="reassignOfficeId" Label="Office" Variant="Variant.Outlined" T="int?"
-                           ValueChanged="OnOfficeChanged"
-                           HelperText="@($"Current: {Doc.CurrentOffice?.Name ?? Doc.NextOffice?.Name ?? "—"}")">
-                    @foreach (var office in Offices)
-                    {
-                        <MudSelectItem T="int?" Value="@((int?)office.Id)">@office.Name</MudSelectItem>
-                    }
-                </MudSelect>
-            </MudItem>
-            @if (reassignOfficeId != null && reassignOfficeUnits.Any())
-            {
-                <MudItem xs="12" md="6">
-                    <MudSelect @bind-Value="reassignUnitId" Label="Reassign to Unit"
-                               Variant="Variant.Outlined" T="int?">
-                        <MudSelectItem T="int?" Value="@((int?)null)">— No specific unit —</MudSelectItem>
-                        @foreach (var unit in reassignOfficeUnits)
-                        {
-                            <MudSelectItem T="int?" Value="@((int?)unit.Id)">@unit.Name</MudSelectItem>
-                        }
-                    </MudSelect>
-                </MudItem>
-            }
             <MudItem xs="12">
                 <MudTextField @bind-Value="Doc.Description" Label="Description / Notes" Variant="Variant.Outlined"
                               Lines="3" />
@@ -95,31 +64,28 @@
             </MudItem>
         </MudGrid>
     </DialogContent>
-
     <DialogActions>
         <MudButton OnClick="Cancel" Variant="Variant.Text">Cancel</MudButton>
         <MudSpacer />
-        <MudButton Color="Color.Error" Variant="Variant.Outlined"
-                   StartIcon="@Icons.Material.Filled.Delete" OnClick="DeleteDocument">Delete</MudButton>
         <MudButton Color="Color.Primary" Variant="Variant.Filled"
                    StartIcon="@Icons.Material.Filled.Save" Disabled="@isSaving" OnClick="Submit">
             @(isSaving ? "Saving..." : "Save Changes")
         </MudButton>
+        @if (CanDelete)
+        {
+            <MudButton Color="Color.Error" Variant="Variant.Outlined"
+                       StartIcon="@Icons.Material.Filled.Delete" OnClick="DeleteDocument">Delete</MudButton>
+        }
     </DialogActions>
 </MudDialog>
 
 @code {
     [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
     [Parameter] public Document Doc { get; set; } = new();
-    [Parameter] public List<Office> Offices { get; set; } = new();
 
+    private bool CanDelete => Doc.CurrentOfficeId == null && Doc.NextOfficeId != null;
     private IBrowserFile? selectedFile;
-    private List<Unit> reassignOfficeUnits = new();
-    private string overrideStatus = "";
-    private int? reassignOfficeId;
-    private int? reassignUnitId;
     private bool isSaving;
-
     private static readonly string[] AllowedExtensions = { ".pdf", ".doc", ".docx", ".jpg", ".png" };
 
     private void OnFileSelected(IBrowserFile file)
@@ -134,33 +100,8 @@
         Doc.FileName = file.Name;
     }
 
-    private void OnOfficeChanged(int? officeId)
-    {
-        reassignOfficeId = officeId;
-        reassignUnitId = null;
-        reassignOfficeUnits = Offices.FirstOrDefault(o => o.Id == officeId)?.Units?.ToList() ?? new();
-    }
-
-    protected override void OnParametersSet()
-    {
-        overrideStatus = Doc.Status ?? "";
-        reassignOfficeId = Doc.CurrentOfficeId ?? Doc.NextOfficeId;
-        reassignOfficeUnits = Offices.FirstOrDefault(o => o.Id == reassignOfficeId)?.Units?.ToList() ?? new();
-        reassignUnitId = Doc.CurrentUnitId ?? Doc.NextUnitId;
-    }
-
     private async Task Submit()
     {
-        var confirm = new DialogParameters
-        {
-            { "Message", "Are you sure you want to save these changes?" },
-            { "YesText", "Save" },
-            { "CancelText", "Cancel" }
-        };
-        var confirmDialog = await DialogService.ShowAsync<MudMessageBox>("Confirm Save", confirm);
-        var confirmResult = await confirmDialog.Result;
-        if (confirmResult.Canceled) return;
-
         isSaving = true;
         string? uploadedPath = null;
         try
@@ -172,68 +113,52 @@
                 else Snackbar.Add("File upload failed, saving without new file.", Severity.Warning);
             }
 
-            var (docOk, docError) = await DocService.UpdateDocumentAsync(Doc);
-            if (!docOk)
+            var (ok, error) = await DocService.UpdateDocumentAsync(Doc);
+            if (!ok)
             {
                 if (uploadedPath != null)
                     try { await DocService.DeleteUploadAsync(uploadedPath); } catch { }
-                Snackbar.Add(docError ?? "Failed to save document.", Severity.Error);
+                Snackbar.Add(error ?? "Failed to save document.", Severity.Error);
                 return;
             }
 
-            if (!string.IsNullOrEmpty(overrideStatus) || reassignOfficeId.HasValue)
-            {
-                var payload = new AdminOverridePayload
-                {
-                    Status = overrideStatus,
-                    NextOfficeId = reassignOfficeId,
-                    NextUnitId = reassignUnitId
-                };
-                var (overrideOk, overrideError) = await DocService.AdminOverrideDocumentAsync(Doc.Id, payload);
-                if (!overrideOk)
-                {
-                    Snackbar.Add(overrideError ?? "Failed to apply admin override.", Severity.Error);
-                    return;
-                }
-
-            }
-
+            Snackbar.Add("Document updated successfully.", Severity.Success);
             MudDialog.Close(DialogResult.Ok(Doc));
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[EditDoc] Submit error: {ex.Message}");
-            Snackbar.Add("An unexpected error occurred while saving.", Severity.Error);
+            Console.WriteLine($"[UserEditDoc] Submit error: {ex.Message}");
+            Snackbar.Add("An unexpected error occurred.", Severity.Error);
             if (uploadedPath != null)
                 try { await DocService.DeleteUploadAsync(uploadedPath); } catch { }
         }
         finally { isSaving = false; }
     }
 
-    private void Cancel() => MudDialog.Cancel();
-
     private async Task DeleteDocument()
     {
-        var parameters = new DialogParameters
+        if (!CanDelete)
         {
-            { "Message", $"Are you sure you want to delete '{Doc.Name}'? This action cannot be undone." },
-            { "YesText", "Delete" },
-            { "CancelText", "Cancel" }
-        };
-        var dialog = await DialogService.ShowAsync<MudMessageBox>("Confirm Delete", parameters);
+            Snackbar.Add("Cannot delete a document that has already been received.", Severity.Warning);
+            return;
+        }
+
+        var parameters = new DialogParameters
+    {
+        { "Message", $"Delete '{Doc.Name}'? This cannot be undone." },
+        { "YesText", "Delete" },
+        { "CancelText", "Cancel" }
+    };
+        var dialog = await DialogService.ShowAsync<MudMessageBox>("Delete Document", parameters);
         var result = await dialog.Result;
         if (result.Canceled) return;
 
-        var (success, error) = await DocService.DeleteDocumentAsync(Doc.Id);
-        if (success)
-        {
-            Snackbar.Add("Document deleted successfully!", Severity.Success);
-            MudDialog.Close(DialogResult.Ok("deleted"));
-        }
-        else
-        {
-            Snackbar.Add($"Failed to delete document: {error}", Severity.Error);
-        }
+        var (ok, error) = await DocService.DeleteDocumentAsync(Doc.Id);
+        if (!ok) { Snackbar.Add(error ?? "Failed to delete document.", Severity.Error); return; }
+        Snackbar.Add("Document deleted.", Severity.Success);
+        MudDialog.Close(DialogResult.Ok("deleted"));
     }
-}
 
+
+    private void Cancel() => MudDialog.Cancel();
+}

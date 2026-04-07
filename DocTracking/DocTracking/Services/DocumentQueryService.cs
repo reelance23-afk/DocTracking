@@ -96,6 +96,21 @@ namespace DocTracking.Services
                     .OrderByDescending(w => w.DocumentCount)
                     .ToListAsync();
 
+                    var unitWorkloads = await _context.Documents
+                    .Where(d => d.CurrentUnitId != null)
+                    .GroupBy(d => new { d.CurrentUnitId, d.CurrentUnit!.Name, d.CurrentUnit.OfficeId })
+                    .Select(g => new UnitWorkload
+                    {
+                       UnitId = g.Key.CurrentUnitId!.Value,
+                       UnitName = g.Key.Name,
+                       DocumentCount = g.Count(),
+                       OfficeId = g.Key.OfficeId
+                    })
+                    .ToListAsync();
+
+                foreach (var w in officeWorkloads)
+                    w.UnitWorkloads = unitWorkloads.Where(u => u.OfficeId == w.OfficeId).ToList();
+
                 var recentDocuments = await _context.Documents
                     .Include(d => d.Creator)
                     .OrderByDescending(d => d.LastActionDate ?? d.CreatedAt)
@@ -259,7 +274,7 @@ namespace DocTracking.Services
                     .Select(g => new
                     {
                         Total = g.Count(),
-                        InMotion = g.Count(d => d.Status == "In Motion"),
+                        InMotion = g.Count(d => d.Status == "In Motion" || d.Status == "Received"),
                         Completed = g.Count(d => d.Status == "Completed")
                     })
                     .FirstOrDefaultAsync();
@@ -274,7 +289,7 @@ namespace DocTracking.Services
                     .ToListAsync();
 
                 var inProgress = allRecent
-                    .Where(d => d.Status == "In Motion")
+                    .Where(d => d.Status == "In Motion" || d.Status == "Received")
                     .OrderByDescending(d => d.LastActionDate ?? d.CreatedAt)
                     .Take(5)
                     .ToList();
@@ -307,6 +322,35 @@ namespace DocTracking.Services
             {
                 _logger.LogError(ex, "[GetUserHomeDataAsync] Failed for email {Email}", email);
                 return new UserHomeData();
+            }
+        }
+
+        public async Task<List<Document>> GetUserActivityAsync(int userId)
+        {
+            try
+            {
+                var allIds = await _context.DocumentLogs
+                    .Where(l => l.AppUserId == userId)
+                    .Select(l => l.DocumentId)
+                    .Union(_context.Documents
+                        .Where(d => d.CreatorId == userId)
+                        .Select(d => d.Id))
+                    .ToListAsync();
+
+                return await _context.Documents
+                    .Where(d => allIds.Contains(d.Id))
+                    .Include(d => d.Creator)
+                    .Include(d => d.CurrentOffice)
+                    .Include(d => d.CurrentUnit)
+                    .Include(d => d.NextOffice)
+                    .Include(d => d.NextUnit)
+                    .OrderByDescending(d => d.LastActionDate ?? d.CreatedAt)
+                    .ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[GetUserActivityAsync] Failed for userId {UserId}", userId);
+                return new List<Document>();
             }
         }
 
@@ -347,7 +391,7 @@ namespace DocTracking.Services
         }
 
         public async Task<List<Document>> GetDeskDocumentsAsync(
-            int officeId, int? unitId, string? search = null)
+            int officeId, int? unitId,bool isOfficeHead = false, string? search = null)
         {
             try
             {
@@ -357,10 +401,13 @@ namespace DocTracking.Services
                     .Include(d => d.CurrentUnit)
                     .Where(d => d.CurrentOfficeId == officeId && d.Status == "Received");
 
+                if(!isOfficeHead)
+                {
                 if (unitId.HasValue)
                     query = query.Where(d => d.CurrentUnitId == null || d.CurrentUnitId == unitId);
                 else
                     query = query.Where(d => d.CurrentUnitId == null);
+                }
 
                 if (!string.IsNullOrEmpty(search))
                     query = query.Where(d =>
@@ -642,6 +689,16 @@ namespace DocTracking.Services
         public string? OfficeName { get; set; }
         public int DocumentCount { get; set; }
         public int Percentage { get; set; }
+        public List<UnitWorkload> UnitWorkloads { get; set; } = new();
+    }
+
+    public class UnitWorkload
+    {
+        public int UnitId { get; set; }
+        public string? UnitName { get; set; }
+        public int DocumentCount { get; set; }
+        public int Percentage { get; set; }
+        public int OfficeId { get; set; }
     }
 
     public class UserHomeData

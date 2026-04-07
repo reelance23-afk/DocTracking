@@ -79,17 +79,17 @@
         </MudAlert>
     }
 
-    <MudGrid Class="mb-6">
-
+    <MudGrid Class="mb-6" Style="align-items: stretch;">
         <MudItem xs="12" md="7">
-            <MudPaper Elevation="2" Class="pa-4" Style="height: 100%;">
+            <MudPaper Elevation="2" Class="pa-4" Style="height: 100%; display: flex; flex-direction: column;">
                 <div class="d-flex align-center mb-4">
                     <MudIcon Icon="@Icons.Material.Filled.ViewKanban" Class="mr-2" Color="Color.Primary" />
                     <MudText Typo="Typo.h6">Kanban</MudText>
                 </div>
-                <MudGrid>
-                    <MudItem xs="12" md="6">
-                        <MudPaper Elevation="0" Class="pa-3" Style="background: rgba(var(--mud-palette-warning-rgb), 0.08); border-radius: 8px; min-height: 200px;">
+
+                <MudHidden Breakpoint="Breakpoint.SmAndDown">
+                    <div class="d-flex gap-4 flex-grow-1">
+                        <div style="flex: 1; background: rgba(var(--mud-palette-warning-rgb), 0.08); border-radius: 8px; padding: 12px;">
                             <MudText Typo="Typo.subtitle2" Color="Color.Warning" Class="mb-3 font-weight-bold">In Progress</MudText>
                             @foreach (var doc in pendingDocs)
                             {
@@ -120,10 +120,8 @@
                             {
                                 <MudText Typo="Typo.caption" Class="mud-text-secondary">No pending documents</MudText>
                             }
-                        </MudPaper>
-                    </MudItem>
-                    <MudItem xs="12" md="6">
-                        <MudPaper Elevation="0" Class="pa-3" Style="background: rgba(var(--mud-palette-success-rgb), 0.08); border-radius: 8px; min-height: 200px;">
+                        </div>
+                        <div style="flex: 1; background: rgba(var(--mud-palette-success-rgb), 0.08); border-radius: 8px; padding: 12px;">
                             <MudText Typo="Typo.subtitle2" Color="Color.Success" Class="mb-3 font-weight-bold">Completed</MudText>
                             @foreach (var doc in completedDocs)
                             {
@@ -147,61 +145,126 @@
                             {
                                 <MudText Typo="Typo.caption" Class="mud-text-secondary">No completed documents</MudText>
                             }
-                        </MudPaper>
-                    </MudItem>
-                </MudGrid>
+                        </div>
+                    </div>
+                </MudHidden>
+
+                <MudHidden Breakpoint="Breakpoint.MdAndUp">
+                    <MudTabs Elevation="0" Rounded="true" Color="Color.Primary">
+                        <MudTabPanel Text="In Progress">
+                            <div style="background: rgba(var(--mud-palette-warning-rgb), 0.08); border-radius: 8px; padding: 12px; margin-top: 8px;">
+                                @foreach (var doc in pendingDocs)
+                                {
+                                    <MudPaper Elevation="1" Class="pa-3 mb-2">
+                                        <MudText Typo="Typo.body2" Class="font-weight-bold mb-1">@doc.Name</MudText>
+                                        @if (doc.NextOfficeId != null)
+                                        {
+                                            <div class="d-flex align-center mb-1">
+                                                <MudIcon Icon="@Icons.Material.Filled.ArrowForward" Size="Size.Small" Color="Color.Info" Class="mr-1" />
+                                                <MudText Typo="Typo.caption" Color="Color.Info">@(doc.NextOffice?.Name ?? "Forwarded")</MudText>
+                                            </div>
+                                        }
+                                        else if (doc.CurrentOffice != null)
+                                        {
+                                            <div class="d-flex align-center mb-1">
+                                                <MudIcon Icon="@Icons.Material.Filled.LocationOn" Size="Size.Small" Color="Color.Default" Class="mr-1" />
+                                                <MudText Typo="Typo.caption" Class="mud-text-secondary">@doc.CurrentOffice.Name</MudText>
+                                            </div>
+                                        }
+                                        <div class="d-flex justify-space-between align-center">
+                                            <MudChip T="string" Size="Size.Small" Color="@DocHelpers.GetPriorityColor(doc.Priority)" Variant="Variant.Filled">@doc.Priority</MudChip>
+                                            <MudIconButton Icon="@Icons.Material.Filled.OpenInNew" Size="Size.Small" Color="Color.Primary"
+                                                           OnClick="@(async () => await OpenViewDialog(doc))" />
+                                        </div>
+                                    </MudPaper>
+                                }
+                                @if (!pendingDocs.Any())
+                                {
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">No pending documents</MudText>
+                                }
+                            </div>
+                        </MudTabPanel>
+                        <MudTabPanel Text="Completed">
+                            <div style="background: rgba(var(--mud-palette-success-rgb), 0.08); border-radius: 8px; padding: 12px; margin-top: 8px;">
+                                @foreach (var doc in completedDocs)
+                                {
+                                    <MudPaper Elevation="1" Class="pa-3 mb-2">
+                                        <MudText Typo="Typo.body2" Class="font-weight-bold mb-1">@doc.Name</MudText>
+                                        @if (doc.CurrentOffice != null)
+                                        {
+                                            <div class="d-flex align-center mb-1">
+                                                <MudIcon Icon="@Icons.Material.Filled.LocationOn" Size="Size.Small" Color="Color.Default" Class="mr-1" />
+                                                <MudText Typo="Typo.caption" Class="mud-text-secondary">@doc.CurrentOffice.Name</MudText>
+                                            </div>
+                                        }
+                                        <div class="d-flex justify-space-between align-center">
+                                            <MudChip T="string" Size="Size.Small" Color="Color.Success" Variant="Variant.Outlined">Done</MudChip>
+                                            <MudIconButton Icon="@Icons.Material.Filled.OpenInNew" Size="Size.Small" Color="Color.Primary"
+                                                           OnClick="@(async () => await OpenViewDialog(doc))" />
+                                        </div>
+                                    </MudPaper>
+                                }
+                                @if (!completedDocs.Any())
+                                {
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">No completed documents</MudText>
+                                }
+                            </div>
+                        </MudTabPanel>
+                    </MudTabs>
+                </MudHidden>
+
             </MudPaper>
         </MudItem>
 
         <MudItem xs="12" md="5">
-            <MudPaper Elevation="2" Class="pa-4" Style="height: 100%;">
+            <MudPaper Elevation="2" Class="pa-4" Style="height: 100%; display: flex; flex-direction: column;">
                 <div class="d-flex align-center mb-4">
                     <MudIcon Icon="@Icons.Material.Filled.Timeline" Class="mr-2" Color="Color.Primary" />
                     <MudText Typo="Typo.h6">Recent Activity</MudText>
                 </div>
-                @if (!recentDocs.Any())
-                {
-                    <div class="text-center pa-6">
-                        <MudIcon Icon="@Icons.Material.Filled.Inbox" Size="Size.Large" Style="opacity: 0.3;" />
-                        <MudText Typo="Typo.body2" Class="mud-text-secondary mt-2">No recent activity</MudText>
-                    </div>
-                }
-                else
-                {
-                    <MudTimeline TimelinePosition="TimelinePosition.Start">
-                        @foreach (var doc in recentDocs.Take(4))
-                        {
-                            <MudTimelineItem Color="@(doc.Status == "Completed" ? Color.Success : Color.Warning)" Size="Size.Small">
-                                <ItemContent>
-                                    <MudCard Elevation="1" Class="mb-1">
-                                        <MudCardContent Class="pa-3">
-                                            <div class="d-flex justify-space-between align-center">
-                                                <MudText Typo="Typo.body2" Class="font-weight-bold">@doc.Name</MudText>
-                                                <MudChip T="string" Size="Size.Small"
-                                                         Color="@(doc.Status == "Completed" ? Color.Success : Color.Warning)"
-                                                         Variant="Variant.Outlined">
-                                                    @doc.Status
-                                                </MudChip>
-                                            </div>
-                                            <div class="d-flex align-center justify-space-between mt-2">
-                                                <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                <div style="flex-grow: 1; overflow-y: auto;">
+                    @if (!recentDocs.Any())
+                    {
+                        <div class="text-center pa-6">
+                            <MudIcon Icon="@Icons.Material.Filled.Inbox" Size="Size.Large" Style="opacity: 0.3;" />
+                            <MudText Typo="Typo.body2" Class="mud-text-secondary mt-2">No recent activity</MudText>
+                        </div>
+                    }
+                    else
+                    {
+                        <MudTimeline TimelinePosition="TimelinePosition.Start">
+                            @foreach (var doc in recentDocs.Take(4))
+                            {
+                                <MudTimelineItem Color="@(doc.Status == "Completed" ? Color.Success : Color.Warning)"
+                                                 Size="Size.Small" TimelineAlign="TimelineAlign.Default">
+                                    <ItemContent>
+                                        <MudCard Elevation="1" Class="mb-1" Style="min-width:0;">
+                                            <MudCardContent Class="pa-3">
+                                                <MudText Typo="Typo.body2" Class="font-weight-bold text-truncate">@doc.Name</MudText>
+                                                <div class="d-flex align-center justify-space-between mt-1 flex-wrap gap-1">
+                                                    <MudChip T="string" Size="Size.Small"
+                                                             Color="@(doc.Status == "Completed" ? Color.Success : Color.Warning)"
+                                                             Variant="Variant.Outlined">
+                                                        @doc.Status
+                                                    </MudChip>
+                                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                                                        @doc.LastActionDate?.ToLocalTime().ToString("MMM dd, hh:mm tt")
+                                                    </MudText>
+                                                </div>
+                                                <MudText Typo="Typo.caption" Class="mud-text-secondary mt-1">
                                                     <MudIcon Icon="@Icons.Material.Filled.LocationOn" Size="Size.Small" Class="mr-1" />
                                                     @(doc.CurrentOffice?.Name ?? "No location")
                                                 </MudText>
-                                                <MudText Typo="Typo.caption" Class="mud-text-secondary">
-                                                    @doc.LastActionDate?.ToLocalTime().ToString("MMM dd, hh:mm tt")
-                                                </MudText>
-                                            </div>
-                                        </MudCardContent>
-                                    </MudCard>
-                                </ItemContent>
-                            </MudTimelineItem>
-                        }
-                    </MudTimeline>
-                }
+                                            </MudCardContent>
+                                        </MudCard>
+                                    </ItemContent>
+                                </MudTimelineItem>
+                            }
+                        </MudTimeline>
+                    }
+                </div>
             </MudPaper>
         </MudItem>
-
     </MudGrid>
 
 </MudContainer>

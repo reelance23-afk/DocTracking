@@ -134,7 +134,7 @@
                                         <MudSelectItem T="int?" Value="@((int?)off.Id)">
                                             <div class="d-flex align-center">
                                                 <MudIcon Icon="@Icons.Material.Filled.Business" Size="Size.Small" Class="mr-2" Color="Color.Primary" />
-                                                @off.Name, @off.ReceivingSchedule
+                                                @off.Name @off.ReceivingSchedule
                                             </div>
                                         </MudSelectItem>
                                     }
@@ -146,10 +146,8 @@
                                     <MudSelect T="int?" @bind-Value="newDocument.NextUnitId"
                                                Label="Specific Unit"
                                                Variant="Variant.Outlined"
-                                               Required="true"
-                                               RequiredError="Destination Unit required"
                                                ToStringFunc="@(id => GetUnitsForOffice(newDocument.NextOfficeId!.Value).FirstOrDefault(u => u.Id == id)?.Name ?? string.Empty)">
-                                        
+                                        <MudSelectItem T="int?" Value="@((int?)null)">— No specific unit —</MudSelectItem>
                                         @foreach (var unit in GetUnitsForOffice(newDocument.NextOfficeId.Value))
                                         {
                                             <MudSelectItem T="int?" Value="@((int?)unit.Id)">

@@ -141,12 +141,25 @@
                                         <MudText Typo="Typo.caption" Class="mud-text-secondary">@workload.DocumentCount</MudText>
                                     </div>
                                     <MudProgressLinear Color="Color.Primary" Value="@workload.Percentage" Class="rounded-lg" Size="Size.Small" />
+                                    @if (workload.UnitWorkloads.Any())
+                                    {
+                                        <div class="ml-3 mt-1">
+                                            @foreach (var unit in workload.UnitWorkloads)
+                                            {
+                                                <div class="d-flex justify-space-between">
+                                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">@unit.UnitName</MudText>
+                                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">@unit.DocumentCount</MudText>
+                                                </div>
+                                            }
+                                        </div>
+                                    }
                                 </div>
                             }
                             @if (!stats.OfficeWorkloads.Any())
                             {
                                 <MudText Typo="Typo.caption" Class="mud-text-secondary">No workload data</MudText>
                             }
+
                         </div>
                     </div>
                 </MudPaper>

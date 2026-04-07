@@ -116,36 +116,8 @@ namespace DocTracking.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<IEnumerable<Document>>> GetUserActivity(int userId)
         {
-            try
-            {
-                var docIds = await _context.DocumentLogs
-                    .Where(l => l.AppUserId == userId)
-                    .Select(l => l.DocumentId)
-                    .Distinct()
-                    .ToListAsync();
-
-                var created = await _context.Documents
-                    .Where(d => d.CreatorId == userId)
-                    .Select(d => d.Id)
-                    .ToListAsync();
-
-                var allIds = docIds.Union(created).Distinct();
-
-                return await _context.Documents
-                    .Where(d => allIds.Contains(d.Id))
-                    .Include(d => d.Creator)
-                    .Include(d => d.CurrentOffice)
-                    .Include(d => d.CurrentUnit)
-                    .Include(d => d.NextOffice)
-                    .Include(d => d.NextUnit)
-                    .OrderByDescending(d => d.LastActionDate ?? d.CreatedAt)
-                    .ToListAsync();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[GetUserActivity] Failed for userId {UserId}", userId);
-                return StatusCode(500, "Failed to load user activity.");
-            }
+            var result = await _docService.GetUserActivityAsync(userId);
+            return Ok(result);
         }
 
         [HttpGet("export-csv")]
@@ -217,7 +189,7 @@ namespace DocTracking.Controllers
         {
             var email = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email);
             var appUser = await _context.AppUsers.Include(u => u.Unit).FirstOrDefaultAsync(u => u.Email == email);
-            bool isOfficeHead = appUser?.UnitId == null && appUser?.OfficeId == officeId;
+            bool isOfficeHead = appUser?.IsOfficeHead == true;
             var items = await _docService.GetIncomingAsync(officeId, unitId, isOfficeHead, search);
             return Ok(items);
         }
@@ -228,7 +200,10 @@ namespace DocTracking.Controllers
             [FromQuery] int? unitId = null,
             [FromQuery] string? search = null)
         {
-            var items = await _docService.GetDeskDocumentsAsync(officeId, unitId, search);
+            var email = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email);
+            var appUser = await _context.AppUsers.Include(u => u.Unit).FirstOrDefaultAsync(u => u.Email == email);
+            bool isOfficeHead = appUser?.IsOfficeHead == true;
+            var items = await _docService.GetDeskDocumentsAsync(officeId, unitId, isOfficeHead, search);
             return Ok(items);
         }
 
@@ -238,11 +213,7 @@ namespace DocTracking.Controllers
         {
             var email = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email);
             var appUser = await _context.AppUsers.Include(u => u.Unit).FirstOrDefaultAsync(u => u.Email == email);
-            if (appUser == null) return NotFound();
-
             int? myOfficeId = appUser.Unit?.OfficeId ?? appUser.OfficeId;
-            if (myOfficeId == null) return Ok(new List<Document>());
-
             var items = await _docService.GetOutgoingAsync(appUser.UnitId, myOfficeId, search);
             return Ok(items);
         }
@@ -911,7 +882,7 @@ namespace DocTracking.Controllers
                 {
                     var explicitStatus = request.Status;
 
-                    if (explicitStatus == "Received")
+                    if (explicitStatus == "Received")                                                                 
                     {
                         doc.CurrentOfficeId = request.NextOfficeId;
                         doc.CurrentUnitId = request.NextUnitId;

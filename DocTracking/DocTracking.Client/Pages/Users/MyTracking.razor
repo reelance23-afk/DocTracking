@@ -209,6 +209,10 @@
                                 <MudIconButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Secondary"
                                                Icon="@Icons.Material.Filled.QrCode"
                                                OnClick="@(async () => await OpenQRDialog(context))" />
+                                <MudIconButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Warning"
+                                               Icon="@Icons.Material.Filled.Edit"
+                                               OnClick="@(async () => await OpenEditDialog(context))" />
+
                             </div>
                         </MudTd>
                     </RowTemplate>
@@ -276,10 +280,24 @@
                                     <MudIconButton Variant="Variant.Outlined" Color="Color.Secondary"
                                                    Icon="@Icons.Material.Filled.QrCode"
                                                    OnClick="@(async () => await OpenQRDialog(doc))" />
+                                    <MudIconButton Variant="Variant.Outlined" Color="Color.Warning"
+                                                   Icon="@Icons.Material.Filled.Edit"
+                                                   OnClick="@(async () => await OpenEditDialog(doc))" />
+
                                 </div>
                             </MudCardActions>
                         </MudCard>
                     }
+                    @if (_mobileTotalCount > myDocuments.Count)
+                    {
+                        <div class="d-flex justify-center mt-4 mb-2">
+                            <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                                       Disabled="@_isLoadingMore" OnClick="LoadMoreMobile">
+                                @(_isLoadingMore ? "Loading..." : $"Load More ({myDocuments.Count} of {_mobileTotalCount})")
+                            </MudButton>
+                        </div>
+                    }
+
                 }
             </MudHidden>
 
@@ -312,6 +330,11 @@
     private string priorityFilter = "";
 
     private bool _filterOpen = false;
+
+    private int _mobileTotalCount = 0;
+    private bool _isLoadingMore = false;
+    private const int MobilePageSize = 25;
+
 
     private int ActiveFilterCount =>
         (string.IsNullOrEmpty(statusFilter) ? 0 : 1) +
@@ -362,12 +385,32 @@
         try
         {
             _pagedResult = await DocService.GetUserDocumentsAsync(
-                email, page: 1, pageSize: 25,
+                email, page: 1, pageSize: MobilePageSize,
                 search: searchString, status: statusFilter,
                 priority: priorityFilter, type: typeFilter);
+            _mobileTotalCount = _pagedResult.TotalCount;
         }
         catch (Exception ex) { Console.WriteLine($"[MyTracking] LoadMobileData error: {ex.Message}"); }
     }
+
+    private async Task LoadMoreMobile()
+    {
+        _isLoadingMore = true;
+        try
+        {
+            var nextPage = (myDocuments.Count / MobilePageSize) + 1;
+            var result = await DocService.GetUserDocumentsAsync(
+                email, page: nextPage, pageSize: MobilePageSize,
+                search: searchString, status: statusFilter,
+                priority: priorityFilter, type: typeFilter);
+            _pagedResult.Items.AddRange(result.Items);
+            _mobileTotalCount = result.TotalCount;
+        }
+        catch (Exception ex) { Console.WriteLine($"[MyTracking] LoadMoreMobile error: {ex.Message}"); }
+        finally { _isLoadingMore = false; }
+    }
+
+
 
     private async Task<TableData<Document>> LoadServerData(TableState state, CancellationToken ct)
     {
@@ -418,6 +461,29 @@
         var result = await dialog.Result;
         if (result is { Canceled: false }) await LoadDocuments();
     }
+
+    private async Task OpenEditDialog(Document doc)
+    {
+        var editingDoc = new Document
+        {
+            Id = doc.Id,
+            Name = doc.Name,
+            Type = doc.Type,
+            Description = doc.Description,
+            Priority = doc.Priority,
+            FileName = doc.FileName,
+            FilePath = doc.FilePath,
+            Status = doc.Status,
+            CurrentOfficeId = doc.CurrentOfficeId,
+            NextOfficeId = doc.NextOfficeId
+        };
+        var parameters = new DialogParameters<UserEditDocumentDialog> { { x => x.Doc, editingDoc } };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
+        var dialog = await DialogService.ShowAsync<UserEditDocumentDialog>("Edit Document", parameters, options);
+        var result = await dialog.Result;
+        if (result is { Canceled: false }) await LoadDocuments();
+    }
+
 
     private async Task OpenQRDialog(Document doc)
     {

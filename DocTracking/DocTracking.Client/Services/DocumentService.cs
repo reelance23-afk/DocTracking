@@ -402,7 +402,18 @@ namespace DocTracking.Client.Services
         public string? OfficeName { get; set; }
         public int DocumentCount { get; set; }
         public int Percentage { get; set; }
+
+        public List<UnitWorkload> UnitWorkloads { get; set; } = new();
     }
+
+    public class UnitWorkload
+    {
+        public int UnitId { get; set; }
+        public string? UnitName { get; set; }
+        public int DocumentCount { get; set; }
+        public int OfficeId { get; set; }
+    }
+
 
     public class DocumentContext
     {

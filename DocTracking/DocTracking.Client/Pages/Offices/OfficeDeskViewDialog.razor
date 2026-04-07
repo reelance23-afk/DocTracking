@@ -129,6 +129,7 @@
                     {
                         <MudSelect T="int?" @bind-Value="selectedUnitId"
                                    Variant="Variant.Outlined" Label="Select Unit" Class="mb-3" FullWidth="true">
+                            <MudSelectItem T="int?" Value="@((int?)null)">— No specific unit —</MudSelectItem>
                             @foreach (var unit in availableUnits)
                             {
                                 <MudSelectItem T="int?" Value="@((int?)unit.Id)">@unit.Name</MudSelectItem>
