@@ -137,14 +137,14 @@ namespace DocTracking.Services
                 var recentDocuments = await _context.Documents
                     .Include(d => d.Creator)
                     .OrderByDescending(d => d.LastActionDate ?? d.CreatedAt)
-                    .Take(4)
+                    .Take(3)
                     .ToListAsync();
 
                 var inMotionDocs = await _context.Documents
                     .Include(d => d.Creator)
                     .Where(d => d.Status == "In Motion")
                     .OrderByDescending(d => d.LastActionDate ?? d.CreatedAt)
-                    .Take(5)
+                    .Take(4)
                     .ToListAsync();
 
                 int maxDoc = Math.Max(docStats?.Total ?? 1, 1);
