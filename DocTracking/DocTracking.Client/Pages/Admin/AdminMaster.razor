@@ -234,7 +234,7 @@
     {
         try
         {
-            allOffices = await DocumentService.GetOfficesAsync();
+            allOffices = await DocumentService.GetOfficesSimpleAsync();
             await LoadStats();
         }
         finally { isLoading = false; }

@@ -190,7 +190,6 @@
     private bool isOfficeHead = false;
     private string searchString = "";
     private bool dialogOpened = false;
-    private List<Office> allOffices = new();
     private int currentPage = 1;
     private const int PageSize = 25;
     private int? myUnitId;
@@ -222,9 +221,6 @@
                 historyResult = historyTask.Result;
                 _stats = statsTask.Result ?? new();
             }
-
-            if (!string.IsNullOrEmpty(RefParam))
-                allOffices = await DocService.GetOfficesAsync();
         }
         catch (Exception ex)
         {
@@ -243,24 +239,21 @@
                       ?? await DocService.GetDocumentByRefAsync(RefParam);
             if (doc != null)
             {
-                if (allOffices.Count == 0)
-                    allOffices = await DocService.GetOfficesAsync();
-
                 var tab = doc.Status == "Received" || (doc.Status == "In Motion" && doc.CurrentOfficeId != null)
                     ? OfficeDeskViewDialog.DeskTab.OnDesk
                     : OfficeDeskViewDialog.DeskTab.Outgoing;
 
                 var parameters = new DialogParameters<OfficeDeskViewDialog>
-                {
-                    { x => x.Doc, doc },
-                    { x => x.Tab, tab },
-                    { x => x.AllOffices, allOffices }
-                };
+            {
+                { x => x.Doc, doc },
+                { x => x.Tab, tab }
+            };
                 var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
                 await DialogService.ShowAsync<OfficeDeskViewDialog>(doc.Name ?? "Document Details", parameters, options);
             }
         }
     }
+
 
     private async Task OnSearchChanged()
     {

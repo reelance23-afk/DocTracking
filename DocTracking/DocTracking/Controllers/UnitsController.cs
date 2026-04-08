@@ -23,12 +23,13 @@ namespace DocTracking.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Unit>>> GetUnits()
+        public async Task<ActionResult<IEnumerable<Unit>>> GetUnits([FromQuery] int? officeId = null)
         {
-            return await _context.Units
-                .Include(u => u.Office)
-                .OrderBy(u => u.Name)
-                .ToListAsync();
+
+            var query = _context.Units.AsQueryable();
+            if (officeId.HasValue)
+                query = query.Where(d => d.OfficeId == officeId);
+            return await query.OrderBy(d => d.Name).ToListAsync();
         }
 
         [HttpPost]

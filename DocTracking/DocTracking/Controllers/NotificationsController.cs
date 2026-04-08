@@ -150,7 +150,14 @@ namespace DocTracking.Controllers
 
         private async Task PruneNotificationsAsync(List<int> userIds)
         {
-            foreach (var userId in userIds)
+            var overLimit = await _context.AppNotifications
+                .Where(n => userIds.Contains(n.AppUserId))
+                .GroupBy(n => n.AppUserId)
+                .Where(g => g.Count() > MaxNotificationsPerUser)
+                .Select(g => g.Key)
+                .ToListAsync();
+
+            foreach (var userId in overLimit)
             {
                 var keepIds = await _context.AppNotifications
                     .Where(n => n.AppUserId == userId)

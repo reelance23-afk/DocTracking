@@ -23,6 +23,8 @@ namespace DocTracking.Controllers
         private readonly IHubContext<NotificationHub> _hub;
         private readonly ILogger<DocumentsController> _logger;
         private readonly DocumentQueryService _docService;
+        private string? CurrentUserEmail => User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email);
+
 
         public DocumentsController(ApplicationDbContext context, IWebHostEnvironment env,
             IHubContext<NotificationHub> hub, ILogger<DocumentsController> logger,
@@ -34,14 +36,13 @@ namespace DocTracking.Controllers
             _logger = logger;
             _docService = docService;
         }
-        private async Task Notify(string group, string message, string docName)
+        private async Task NotifyGroup(string group, string message, string docName, List<AppNotification> queue)
         {
             try
             {
                 await _hub.Clients.Group(group).SendAsync("ReceiveNotification", message, docName);
 
                 List<AppUser> targets = new();
-
                 if (group.StartsWith("user-") && int.TryParse(group[5..], out var uid))
                     targets = await _context.AppUsers.Where(u => u.Id == uid).ToListAsync();
                 else if (group.StartsWith("unit-") && int.TryParse(group[5..], out var unitId))
@@ -52,36 +53,49 @@ namespace DocTracking.Controllers
                     targets = await _context.AppUsers.Where(u => u.OfficeId == offId && !u.IsOfficeHead && u.UnitId == null).ToListAsync();
 
                 var now = DateTime.UtcNow;
-                _context.AppNotifications.AddRange(targets.Select(u => new AppNotification
+                queue.AddRange(targets.Select(u => new AppNotification
                 {
                     AppUserId = u.Id,
                     Message = message,
                     DocumentName = docName,
                     Time = now
                 }));
-                await _context.SaveChangesAsync();
             }
-            catch (Exception ex) { _logger.LogWarning(ex, "[Notify] Failed for group {Group}", group); }
+            catch (Exception ex) { _logger.LogWarning(ex, "[NotifyGroup] Failed for group {Group}", group); }
         }
 
-        private async Task NotifyOfficeOrUnit(int? unitId, int? officeId, string unitMsg, string officeMsg, string headMsg, string docName)
+        private async Task NotifyOfficeOrUnit(int? unitId, int? officeId,
+            string unitMsg, string officeMsg, string headMsg,
+            string docName, List<AppNotification> queue)
         {
             if (unitId.HasValue)
             {
-                await Notify($"unit-{unitId}", unitMsg, docName);
-                await Notify($"office-head-{officeId}", headMsg, docName);
+                await NotifyGroup($"unit-{unitId}", unitMsg, docName, queue);
+                await NotifyGroup($"office-head-{officeId}", headMsg, docName, queue);
             }
             else if (officeId.HasValue)
             {
-                await Notify($"office-{officeId}", officeMsg, docName);
-                await Notify($"office-head-{officeId}", headMsg, docName);
+                await NotifyGroup($"office-{officeId}", officeMsg, docName, queue);
+                await NotifyGroup($"office-head-{officeId}", headMsg, docName, queue);
             }
         }
+
+        private async Task SaveNotifications(List<AppNotification> queue)
+        {
+            if (!queue.Any()) return;
+            try
+            {
+                _context.AppNotifications.AddRange(queue);
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex) { _logger.LogWarning(ex, "[SaveNotifications] Failed"); }
+        }
+
 
         [HttpGet("my-profile")]
         public async Task<ActionResult<AppUser>> GetMyProfile()
         {
-            var email = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email);
+            var email = CurrentUserEmail;
             var appUser = await _context.AppUsers
                 .Include(d => d.Unit)
                 .Include(d => d.Office)
@@ -187,7 +201,7 @@ namespace DocTracking.Controllers
             [FromQuery] int? unitId = null,
             [FromQuery] string? search = null)
         {
-            var email = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email);
+            var email = CurrentUserEmail;
             var appUser = await _context.AppUsers.Include(u => u.Unit).FirstOrDefaultAsync(u => u.Email == email);
             bool isOfficeHead = appUser?.IsOfficeHead == true;
             var items = await _docService.GetIncomingAsync(officeId, unitId, isOfficeHead, search);
@@ -200,7 +214,7 @@ namespace DocTracking.Controllers
             [FromQuery] int? unitId = null,
             [FromQuery] string? search = null)
         {
-            var email = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email);
+            var email = CurrentUserEmail;
             var appUser = await _context.AppUsers.Include(u => u.Unit).FirstOrDefaultAsync(u => u.Email == email);
             bool isOfficeHead = appUser?.IsOfficeHead == true;
             var items = await _docService.GetDeskDocumentsAsync(officeId, unitId, isOfficeHead, search);
@@ -211,7 +225,7 @@ namespace DocTracking.Controllers
         public async Task<ActionResult<IEnumerable<Document>>> GetOutGoing(
             [FromQuery] string? search = null)
         {
-            var email = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email);
+            var email = CurrentUserEmail;
             var appUser = await _context.AppUsers.Include(u => u.Unit).FirstOrDefaultAsync(u => u.Email == email);
             int? myOfficeId = appUser.Unit?.OfficeId ?? appUser.OfficeId;
             var items = await _docService.GetOutgoingAsync(appUser.UnitId, myOfficeId, search);
@@ -303,7 +317,7 @@ namespace DocTracking.Controllers
                     .FirstOrDefaultAsync(d => d.ReferenceNumber == referenceNumber);
                 if (doc == null) return NotFound();
 
-                var email = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email);
+                var email = CurrentUserEmail;
                 var officeIdClaim = User.FindFirst("OfficeId")?.Value;
                 var unitIdClaim = User.FindFirst("UnitId")?.Value;
                 bool isAdmin = User.IsInRole("Admin");
@@ -436,7 +450,7 @@ namespace DocTracking.Controllers
                 return BadRequest("Invalid path.");
 
             var fileName = Path.GetFileName(fullPath);
-            var email = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email);
+            var email = CurrentUserEmail;
             var isAdmin = User.IsInRole("Admin");
 
             if (!isAdmin)
@@ -469,7 +483,7 @@ namespace DocTracking.Controllers
             if (string.IsNullOrEmpty(doc.FilePath))
                 return BadRequest("A file attachment is required.");
 
-            var email = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email);
+            var email = CurrentUserEmail;
             var appuser = await _context.AppUsers.FirstOrDefaultAsync(u => u.Email == email);
 
             doc.CreatedAt = DateTime.UtcNow;
@@ -506,23 +520,26 @@ namespace DocTracking.Controllers
             }
 
             var creatorName = appuser?.Name ?? "Someone";
+            var queue = new List<AppNotification>();
 
             if (appuser != null)
-                await Notify($"user-{appuser.Id}", "You created a new document.", doc.Name ?? "");
+                await NotifyGroup($"user-{appuser.Id}", "You created a new document.", doc.Name ?? "", queue);
 
             await NotifyOfficeOrUnit(doc.NextUnitId, doc.NextOfficeId,
                 $"A document from {creatorName} is incoming to your unit",
                 $"A document from {creatorName} incoming to your office",
                 $"A document from {creatorName} incoming to your office",
-                doc.Name ?? "");
+                doc.Name ?? "", queue);
 
+            await SaveNotifications(queue);
             return Ok(doc);
+
         }
 
         [HttpPut("{id}/receive")]
         public async Task<IActionResult> ReceiveDocument(int id)
         {
-            var email = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email);
+            var email = CurrentUserEmail;
             var appUser = await _context.AppUsers.Include(u => u.Unit).FirstOrDefaultAsync(u => u.Email == email);
 
             await using var tx = await _context.Database.BeginTransactionAsync();
@@ -570,21 +587,23 @@ namespace DocTracking.Controllers
 
                 var docName = doc.Name ?? "";
                 var receivedBy = appUser?.Name ?? "Someone";
+                var queue = new List<AppNotification>();
 
                 if (doc.CreatorId.HasValue)
                 {
-                    if (receivedUnitId.HasValue)
-                        await Notify($"user-{doc.CreatorId}", $"Your document has been received by {receivedBy} in {receivedUnitName} of {receivedOfficeName}.", docName);
-                    else if (receivedOfficeId.HasValue)
-                        await Notify($"user-{doc.CreatorId}", $"Your document has been received by {receivedBy} in {receivedOfficeName}.", docName);
+                    var msg = receivedUnitId.HasValue
+                        ? $"Your document has been received by {receivedBy} in {receivedUnitName} of {receivedOfficeName}."
+                        : $"Your document has been received by {receivedBy} in {receivedOfficeName}.";
+                    await NotifyGroup($"user-{doc.CreatorId}", msg, docName, queue);
                 }
 
                 await NotifyOfficeOrUnit(receivedUnitId, receivedOfficeId,
                     $"{receivedBy} received a document in your unit.",
                     $"{receivedBy} received a document.",
                     $"{receivedBy} received a document in {receivedUnitName ?? receivedOfficeName} of {receivedOfficeName}.",
-                    docName);
+                    docName, queue);
 
+                await SaveNotifications(queue);
                 return Ok();
             }
             catch (Exception ex)
@@ -611,7 +630,7 @@ namespace DocTracking.Controllers
             if (!await _context.Offices.AnyAsync(o => o.Id == request.NextOfficeId))
                 return BadRequest("Destination office does not exist.");
 
-            var email = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email);
+            var email = CurrentUserEmail;
             var appUser = await _context.AppUsers.Include(u => u.Unit).FirstOrDefaultAsync(u => u.Email == email);
             int? callerOfficeId = appUser?.Unit?.OfficeId ?? appUser?.OfficeId;
             if (callerOfficeId != doc.CurrentOfficeId)
@@ -653,27 +672,29 @@ namespace DocTracking.Controllers
 
                 var docName = doc.Name ?? "";
                 var forwardedBy = appUser?.Name ?? "Someone";
+                var queue = new List<AppNotification>();
 
                 if (doc.CreatorId.HasValue)
                 {
-                    if (request.NextUnitId.HasValue)
-                        await Notify($"user-{doc.CreatorId}", $"Your document was forwarded by {forwardedBy} to {nextUnit?.Name} of {nextOffice?.Name}.", docName);
-                    else
-                        await Notify($"user-{doc.CreatorId}", $"Your document was forwarded by {forwardedBy} to {nextOffice?.Name}.", docName);
+                    var msg = request.NextUnitId.HasValue
+                        ? $"Your document was forwarded by {forwardedBy} to {nextUnit?.Name} of {nextOffice?.Name}."
+                        : $"Your document was forwarded by {forwardedBy} to {nextOffice?.Name}.";
+                    await NotifyGroup($"user-{doc.CreatorId}", msg, docName, queue);
                 }
 
                 await NotifyOfficeOrUnit(fromUnitId, fromOfficeId,
                     $"{forwardedBy} forwarded a document to {destination}.",
                     $"{forwardedBy} forwarded a document to {destination}.",
                     $"{forwardedBy} forwarded a document from {fromUnitName ?? fromOfficeName} of {fromOfficeName} to {destination}.",
-                    docName);
+                    docName, queue);
 
                 await NotifyOfficeOrUnit(request.NextUnitId, request.NextOfficeId,
                     $"{forwardedBy} forwarded a document to your unit.",
                     $"{forwardedBy} forwarded a document to your office.",
                     $"{forwardedBy} forwarded a document to {nextUnit?.Name ?? nextOffice?.Name}.",
-                    docName);
+                    docName, queue);
 
+                await SaveNotifications(queue);
                 return Ok();
             }
             catch (Exception ex)
@@ -694,7 +715,7 @@ namespace DocTracking.Controllers
                 .FirstOrDefaultAsync(d => d.Id == id);
             if (doc == null) return NotFound();
 
-            var email = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email);
+            var email = CurrentUserEmail;
             var appUser = await _context.AppUsers.Include(u => u.Unit).FirstOrDefaultAsync(u => u.Email == email);
             int? callerOfficeId = appUser?.Unit?.OfficeId ?? appUser?.OfficeId;
             if (callerOfficeId != doc.CurrentOfficeId)
@@ -736,16 +757,18 @@ namespace DocTracking.Controllers
 
                 var docName = doc.Name ?? "";
                 var finishedBy = appUser?.Name ?? "Someone";
+                var queue = new List<AppNotification>();
 
                 if (doc.CreatorId.HasValue)
-                    await Notify($"user-{doc.CreatorId}", $"Your document has been completed by {finishedBy}.", docName);
+                    await NotifyGroup($"user-{doc.CreatorId}", $"Your document has been completed by {finishedBy}.", docName, queue);
 
                 await NotifyOfficeOrUnit(finishedAtUnit, finishedAtOffice,
                     $"{finishedBy} completed a document in your unit.",
                     $"{finishedBy} completed a document.",
                     $"{finishedBy} completed a document in {finishedUnitName ?? finishedOfficeName} of {finishedOfficeName}.",
-                    docName);
+                    docName, queue);
 
+                await SaveNotifications(queue);
                 return Ok();
             }
             catch (Exception ex)
@@ -762,7 +785,7 @@ namespace DocTracking.Controllers
             var existing = await _context.Documents.FindAsync(id);
             if (existing == null) return NotFound();
 
-            var email = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email);
+            var email = CurrentUserEmail;
             var appUser = await _context.AppUsers.FirstOrDefaultAsync(u => u.Email == email);
 
             var changes = new List<string>();
@@ -811,12 +834,12 @@ namespace DocTracking.Controllers
             var doc = await _context.Documents.FindAsync(id);
             if (doc == null) return NotFound();
 
-            var logs = await _context.DocumentLogs.Where(d => d.DocumentId == id).ToListAsync();
-
             await using var tx = await _context.Database.BeginTransactionAsync();
             try
             {
-                _context.DocumentLogs.RemoveRange(logs);
+                await _context.DocumentLogs
+                    .Where(d => d.DocumentId == id)
+                    .ExecuteDeleteAsync();
                 _context.Documents.Remove(doc);
                 await _context.SaveChangesAsync();
                 await tx.CommitAsync();
@@ -830,23 +853,25 @@ namespace DocTracking.Controllers
             return Ok();
         }
 
+
         [HttpDelete("bulk")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> BulkDeleteDocuments([FromBody] List<int> ids)
         {
             if (ids == null || !ids.Any()) return BadRequest("No document IDs provided.");
 
-            var docs = await _context.Documents.Where(d => ids.Contains(d.Id)).ToListAsync();
-            if (!docs.Any()) return NotFound();
-
-            var logs = await _context.DocumentLogs.Where(l => ids.Contains(l.DocumentId)).ToListAsync();
+            var count = await _context.Documents.CountAsync(d => ids.Contains(d.Id));
+            if (count == 0) return NotFound();
 
             await using var tx = await _context.Database.BeginTransactionAsync();
             try
             {
-                _context.DocumentLogs.RemoveRange(logs);
-                _context.Documents.RemoveRange(docs);
-                await _context.SaveChangesAsync();
+                await _context.DocumentLogs
+                    .Where(l => ids.Contains(l.DocumentId))
+                    .ExecuteDeleteAsync();
+                await _context.Documents
+                    .Where(d => ids.Contains(d.Id))
+                    .ExecuteDeleteAsync();
                 await tx.CommitAsync();
             }
             catch (Exception ex)
@@ -855,8 +880,9 @@ namespace DocTracking.Controllers
                 _logger.LogError(ex, "[BulkDeleteDocuments] Failed");
                 return StatusCode(500, "Failed to delete documents.");
             }
-            return Ok(new { deleted = docs.Count });
+            return Ok(new { deleted = count });
         }
+
 
         [HttpPut("{id}/admin-override")]
         [Authorize(Roles = "Admin")]
@@ -869,7 +895,7 @@ namespace DocTracking.Controllers
                 .FirstOrDefaultAsync(d => d.Id == id);
             if (doc == null) return NotFound();
 
-            var email = User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email);
+            var email = CurrentUserEmail;
             var appUser = await _context.AppUsers.FirstOrDefaultAsync(u => u.Email == email);
 
             await using var tx = await _context.Database.BeginTransactionAsync();
@@ -938,7 +964,11 @@ namespace DocTracking.Controllers
                 await tx.CommitAsync();
 
                 if (doc.CreatorId.HasValue)
-                    await Notify($"user-{doc.CreatorId}", "Your document status was updated by an admin.", doc.Name ?? "");
+                {
+                    var queue = new List<AppNotification>();
+                    await NotifyGroup($"user-{doc.CreatorId}", "Your document status was updated by an admin.", doc.Name ?? "", queue);
+                    await SaveNotifications(queue);
+                }
 
                 return Ok();
             }

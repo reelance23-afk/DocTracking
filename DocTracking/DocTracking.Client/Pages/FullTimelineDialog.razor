@@ -39,7 +39,6 @@
     [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
     [Parameter] public Document Doc { get; set; } = new();
     [Parameter] public TrackBackMode BackMode { get; set; } = TrackBackMode.None;
-    [Parameter] public List<Office> AllOffices { get; set; } = new();
 
     private List<DocumentLog> logs = new();
     private bool isLoading = true;
@@ -77,8 +76,7 @@
             var parameters = new DialogParameters<OfficeDeskViewDialog>
             {
                 { x => x.Doc, Doc },
-                { x => x.Tab, tab },
-                { x => x.AllOffices, AllOffices }
+                { x => x.Tab, tab }
             };
             var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
             await DialogService.ShowAsync<OfficeDeskViewDialog>(Doc.Name ?? "Document Details", parameters, options);

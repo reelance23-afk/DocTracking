@@ -98,6 +98,19 @@ namespace DocTracking.Controllers
             return office == null ? NotFound() : Ok(office);
         }
 
+        [HttpGet("simple")]
+        public async Task<ActionResult<IEnumerable<object>>> GetOfficesSimple([FromQuery] string? search = null)
+        {
+            var query = _context.Offices.AsQueryable();
+            if (!string.IsNullOrEmpty(search))
+                query = query.Where(o => o.Name != null && o.Name.Contains(search));
+            return Ok(await query
+                .OrderBy(o => o.Name)
+                .Select(o => new { o.Id, o.Name, o.ReceivingSchedule })
+                .ToListAsync());
+        }
+
+
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin,Office")]
         public async Task<IActionResult> UpdateOffice(int id, [FromBody] Office office)
@@ -155,33 +168,26 @@ namespace DocTracking.Controllers
             await using var tx = await _context.Database.BeginTransactionAsync();
             try
             {
-                var officeLogsToUpdate = await _context.DocumentLogs
-                    .Where(dl => dl.OfficeId == id)
-                    .ToListAsync();
+                await _context.DocumentLogs
+                    .Where(dl => dl.OfficeId == id && (dl.OfficeName == null || dl.OfficeName == ""))
+                    .ExecuteUpdateAsync(dl => dl.SetProperty(x => x.OfficeName, existing.Name));
 
-                foreach (var log in officeLogsToUpdate)
-                {
-                    if (string.IsNullOrEmpty(log.OfficeName))
-                        log.OfficeName = existing.Name;
-                    log.OfficeId = null;
-                }
+                await _context.DocumentLogs
+                    .Where(dl => dl.OfficeId == id)
+                    .ExecuteUpdateAsync(dl => dl.SetProperty(x => x.OfficeId, (int?)null));
 
                 if (existing.Units != null && existing.Units.Any())
                 {
                     foreach (var unit in existing.Units)
                     {
-                        var unitLogsToUpdate = await _context.DocumentLogs
-                            .Where(dl => dl.UnitId == unit.Id)
-                            .ToListAsync();
+                        await _context.DocumentLogs
+                            .Where(dl => dl.UnitId == unit.Id && (dl.UnitName == null || dl.UnitName == ""))
+                            .ExecuteUpdateAsync(dl => dl.SetProperty(x => x.UnitName, unit.Name)
+                                                      .SetProperty(x => x.OfficeName, existing.Name));
 
-                        foreach (var log in unitLogsToUpdate)
-                        {
-                            if (string.IsNullOrEmpty(log.UnitName))
-                                log.UnitName = unit.Name;
-                            if (string.IsNullOrEmpty(log.OfficeName))
-                                log.OfficeName = existing.Name;
-                            log.UnitId = null;
-                        }
+                        await _context.DocumentLogs
+                            .Where(dl => dl.UnitId == unit.Id)
+                            .ExecuteUpdateAsync(dl => dl.SetProperty(x => x.UnitId, (int?)null));
                     }
 
                     _context.Units.RemoveRange(existing.Units);
@@ -197,7 +203,6 @@ namespace DocTracking.Controllers
                 _logger.LogError(ex, "[DeleteOffice] Failed");
                 return StatusCode(500, "Failed to delete office.");
             }
-
             return Ok();
         }
     }

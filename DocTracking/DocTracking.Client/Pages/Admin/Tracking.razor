@@ -430,20 +430,13 @@
             CurrentUnitId = doc.CurrentUnitId,
             NextUnitId = doc.NextUnitId
         };
-
-        List<Office> officeList;
-        try { officeList = await DocumentService.GetOfficesAsync(); }
-        catch { officeList = new(); }
-        var parameters = new DialogParameters
-        {
-            { "Doc", editingDoc },
-            { "Offices", officeList }
-        };
+        var parameters = new DialogParameters { { "Doc", editingDoc } };
         var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
         var dialog = await DialogService.ShowAsync<EditDocumentDialog>("Edit Document", parameters, options);
         var result = await dialog.Result;
         if (!result!.Canceled) await OnFilterChanged();
     }
+
 
     private async Task OpenViewDialog(Document doc)
     {

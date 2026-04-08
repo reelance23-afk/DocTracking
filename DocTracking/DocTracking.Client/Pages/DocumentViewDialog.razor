@@ -94,7 +94,6 @@
                         <MudText Typo="Typo.body2">@Doc.FileName</MudText>
                         <MudIconButton Href="@Doc.FilePath" Target="_blank"
                                        Size="Size.Small" Color="Color.Primary" Icon="@Icons.Material.Filled.Download" />
-
                     </div>
                 </MudItem>
             }
@@ -126,19 +125,11 @@
 
     private async Task EditDocument()
     {
-        List<Office> officeList;
-        try { officeList = await DocService.GetOfficesAsync(); }
-        catch { officeList = new(); }
-        var parameters = new DialogParameters
-    {
-        { "Doc", Doc },
-        { "Offices", officeList }
-    };
+        var parameters = new DialogParameters { { "Doc", Doc } };
         var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
         var dialog = await DialogService.ShowAsync<EditDocumentDialog>("Edit Document", parameters, options);
         var result = await dialog.Result;
         if (!result.Canceled)
             MudDialog.Close(DialogResult.Ok(result.Data));
     }
-
 }

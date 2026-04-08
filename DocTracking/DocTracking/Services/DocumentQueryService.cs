@@ -9,6 +9,52 @@ namespace DocTracking.Services
         private readonly ApplicationDbContext _context;
         private readonly ILogger<DocumentQueryService> _logger;
 
+        private IQueryable<Document> ApplyDocumentFilters(
+        IQueryable<Document> query,
+        string? search, string? status, string? office,
+        string? dateFrom, string? dateTo)
+        {
+            if (!string.IsNullOrEmpty(search))
+                query = query.Where(d =>
+                    (d.Name != null && d.Name.Contains(search)) ||
+                    (d.ReferenceNumber != null && d.ReferenceNumber.Contains(search)) ||
+                    (d.Creator != null && d.Creator.Name != null && d.Creator.Name.Contains(search)));
+            if (!string.IsNullOrEmpty(status))
+                query = query.Where(d => d.Status == status);
+            if (!string.IsNullOrEmpty(office))
+                query = query.Where(d =>
+                    (d.CurrentOffice != null && d.CurrentOffice.Name == office) ||
+                    (d.NextOffice != null && d.NextOffice.Name == office));
+            if (DateTime.TryParse(dateFrom, out var from))
+                query = query.Where(d => d.CreatedAt >= from);
+            if (DateTime.TryParse(dateTo, out var to))
+                query = query.Where(d => d.CreatedAt <= to.AddDays(1));
+            return query;
+        }
+
+        private IQueryable<DocumentLog> ApplyAuditFilters(
+        IQueryable<DocumentLog> query,
+        string? search, string? action, string? date)
+        {
+            if (!string.IsNullOrEmpty(search))
+                query = query.Where(m =>
+                    (m.Document != null && m.Document.Name != null && m.Document.Name.Contains(search)) ||
+                    (m.Document != null && m.Document.ReferenceNumber != null && m.Document.ReferenceNumber.Contains(search)) ||
+                    (m.AppUser != null && m.AppUser.Name != null && m.AppUser.Name.Contains(search)) ||
+                    (m.Action != null && m.Action.Contains(search)));
+            if (!string.IsNullOrEmpty(action))
+                query = query.Where(m => m.Action == action);
+            if (DateTime.TryParse(date, out var filterDate))
+                query = query.Where(m => m.TimeStamp.Date == filterDate.Date);
+            return query;
+        }
+
+        private static IOrderedQueryable<Document> OrderByPriority(IQueryable<Document> query) =>
+        query.OrderBy(d => d.Priority == "Emergency" ? 0 :
+                       d.Priority == "Urgent" ? 1 :
+                       d.Priority == "Medium" ? 2 :
+                       d.Priority == "Low" ? 3 : 99);
+
         public DocumentQueryService(ApplicationDbContext context, ILogger<DocumentQueryService> logger)
         {
             _context = context;
@@ -22,33 +68,10 @@ namespace DocTracking.Services
         {
             try
             {
-                var query = _context.Documents
-                    .Include(d => d.Creator)
-                    .Include(d => d.NextOffice)
-                    .Include(d => d.CurrentOffice)
-                    .Include(d => d.NextUnit)
-                    .Include(d => d.CurrentUnit)
-                    .AsQueryable();
-
-                if (!string.IsNullOrEmpty(search))
-                    query = query.Where(d =>
-                        (d.Name != null && d.Name.Contains(search)) ||
-                        (d.ReferenceNumber != null && d.ReferenceNumber.Contains(search)) ||
-                        (d.Creator != null && d.Creator.Name != null && d.Creator.Name.Contains(search)));
-
-                if (!string.IsNullOrEmpty(status))
-                    query = query.Where(d => d.Status == status);
-
-                if (!string.IsNullOrEmpty(office))
-                    query = query.Where(d =>
-                        (d.CurrentOffice != null && d.CurrentOffice.Name == office) ||
-                        (d.NextOffice != null && d.NextOffice.Name == office));
-
-                if (DateTime.TryParse(dateFrom, out var from))
-                    query = query.Where(d => d.CreatedAt >= from);
-
-                if (DateTime.TryParse(dateTo, out var to))
-                    query = query.Where(d => d.CreatedAt <= to.AddDays(1));
+                var query = ApplyDocumentFilters(
+                    _context.Documents.Include(d => d.Creator).Include(d => d.NextOffice)
+                        .Include(d => d.CurrentOffice).Include(d => d.NextUnit).Include(d => d.CurrentUnit),
+                    search, status, office, dateFrom, dateTo);
 
                 var total = await query.CountAsync();
                 var items = await query
@@ -152,33 +175,13 @@ namespace DocTracking.Services
             string? search = null, string? status = null, string? office = null,
             string? dateFrom = null, string? dateTo = null)
         {
-            var query = _context.Documents
+            return ApplyDocumentFilters(
+                _context.Documents
                 .Include(d => d.Creator)
                 .Include(d => d.CurrentOffice)
                 .Include(d => d.CurrentUnit)
-                .Include(d => d.NextOffice)
-                .AsQueryable();
-
-            if (!string.IsNullOrEmpty(search))
-                query = query.Where(d =>
-                    (d.Name != null && d.Name.Contains(search)) ||
-                    (d.ReferenceNumber != null && d.ReferenceNumber.Contains(search)));
-
-            if (!string.IsNullOrEmpty(status))
-                query = query.Where(d => d.Status == status);
-
-            if (!string.IsNullOrEmpty(office))
-                query = query.Where(d =>
-                    (d.CurrentOffice != null && d.CurrentOffice.Name == office) ||
-                    (d.NextOffice != null && d.NextOffice.Name == office));
-
-            if (DateTime.TryParse(dateFrom, out var from))
-                query = query.Where(d => d.CreatedAt >= from);
-
-            if (DateTime.TryParse(dateTo, out var to))
-                query = query.Where(d => d.CreatedAt <= to.AddDays(1));
-
-            return query
+                .Include(d => d.NextOffice),
+                search, status, office, dateFrom, dateTo)
                 .OrderByDescending(d => d.CreatedAt)
                 .AsAsyncEnumerable();
         }
@@ -268,8 +271,9 @@ namespace DocTracking.Services
         {
             try
             {
-                var stats = await _context.Documents
-                    .Where(d => d.Creator != null && d.Creator.Email == email)
+                var baseQuery = _context.Documents.Where(d => d.Creator != null && d.Creator.Email == email);
+
+                var statsTask = baseQuery
                     .GroupBy(_ => 1)
                     .Select(g => new
                     {
@@ -279,43 +283,27 @@ namespace DocTracking.Services
                     })
                     .FirstOrDefaultAsync();
 
-                var allRecent = await _context.Documents
-                    .Include(d => d.Creator)
-                    .Include(d => d.NextOffice)
-                    .Include(d => d.CurrentOffice)
-                    .Where(d => d.Creator != null && d.Creator.Email == email)
+                var docsTask = baseQuery
+                    .Include(d => d.Creator).Include(d => d.NextOffice).Include(d => d.CurrentOffice)
                     .OrderByDescending(d => d.LastActionDate ?? d.CreatedAt)
                     .Take(500)
                     .ToListAsync();
 
-                var inProgress = allRecent
-                    .Where(d => d.Status == "In Motion" || d.Status == "Received")
-                    .OrderByDescending(d => d.LastActionDate ?? d.CreatedAt)
-                    .Take(5)
-                    .ToList();
-
-                var completed = allRecent
-                    .Where(d => d.Status == "Completed")
-                    .OrderByDescending(d => d.LastActionDate ?? d.CreatedAt)
-                    .Take(5)
-                    .ToList();
+                await Task.WhenAll(statsTask, docsTask);
+                var stats = statsTask.Result;
+                var allRecent = docsTask.Result;
 
                 var stuckThreshold = DateTime.UtcNow.AddDays(-1);
-                var stuck = allRecent
-                    .Where(d => d.Status == "In Motion" &&
-                                (d.LastActionDate ?? d.CreatedAt) < stuckThreshold)
-                    .OrderByDescending(d => d.LastActionDate ?? d.CreatedAt)
-                    .ToList();
 
                 return new UserHomeData
                 {
                     TotalDocumentsCount = stats?.Total ?? 0,
                     TotalInProgressCount = stats?.InMotion ?? 0,
                     TotalCompletedCount = stats?.Completed ?? 0,
-                    InProgressDoc = inProgress,
-                    CompletedDoc = completed,
+                    InProgressDoc = allRecent.Where(d => d.Status == "In Motion" || d.Status == "Received").Take(5).ToList(),
+                    CompletedDoc = allRecent.Where(d => d.Status == "Completed").Take(5).ToList(),
                     RecentDocuments = allRecent,
-                    StuckDocuments = stuck
+                    StuckDocuments = allRecent.Where(d => d.Status == "In Motion" && (d.LastActionDate ?? d.CreatedAt) < stuckThreshold).ToList()
                 };
             }
             catch (Exception ex)
@@ -325,25 +313,20 @@ namespace DocTracking.Services
             }
         }
 
+
         public async Task<List<Document>> GetUserActivityAsync(int userId)
         {
             try
             {
-                var allIds = await _context.DocumentLogs
-                    .Where(l => l.AppUserId == userId)
-                    .Select(l => l.DocumentId)
-                    .Union(_context.Documents
-                        .Where(d => d.CreatorId == userId)
-                        .Select(d => d.Id))
-                    .ToListAsync();
-
                 return await _context.Documents
-                    .Where(d => allIds.Contains(d.Id))
                     .Include(d => d.Creator)
                     .Include(d => d.CurrentOffice)
                     .Include(d => d.CurrentUnit)
                     .Include(d => d.NextOffice)
                     .Include(d => d.NextUnit)
+                    .Where(d => d.CreatorId == userId ||
+                        _context.DocumentLogs
+                        .Any(l => l.AppUserId == userId && l.DocumentId == d.Id))
                     .OrderByDescending(d => d.LastActionDate ?? d.CreatedAt)
                     .ToListAsync();
             }
@@ -353,6 +336,7 @@ namespace DocTracking.Services
                 return new List<Document>();
             }
         }
+
 
         public async Task<List<Document>> GetIncomingAsync(
             int officeId, int? unitId, bool isOfficeHead, string? search = null)
@@ -376,12 +360,7 @@ namespace DocTracking.Services
                         (d.Type != null && d.Type.Contains(search)) ||
                         (d.Creator != null && d.Creator.Name != null && d.Creator.Name.Contains(search)));
 
-                return await query
-                    .OrderBy(d => d.Priority == "Emergency" ? 0 :
-                        d.Priority == "Urgent" ? 1 :
-                        d.Priority == "Medium" ? 2 :
-                        d.Priority == "Low" ? 3 : 99)
-                    .ToListAsync();
+                return await OrderByPriority(query).ToListAsync();
             }
             catch (Exception ex)
             {
@@ -414,12 +393,7 @@ namespace DocTracking.Services
                         (d.Name != null && d.Name.Contains(search)) ||
                         (d.Type != null && d.Type.Contains(search)));
 
-                return await query
-                    .OrderBy(d => d.Priority == "Emergency" ? 0 :
-                        d.Priority == "Urgent" ? 1 :
-                        d.Priority == "Medium" ? 2 :
-                        d.Priority == "Low" ? 3 : 99)
-                    .ToListAsync();
+                return await OrderByPriority(query).ToListAsync();
             }
             catch (Exception ex)
             {
@@ -428,26 +402,22 @@ namespace DocTracking.Services
             }
         }
 
-        public async Task<List<Document>> GetOutgoingAsync(
-            int? unitId, int? officeId, string? search = null)
+        public async Task<List<Document>> GetOutgoingAsync(int? unitId, int? officeId, string? search = null)
         {
             try
             {
-                var forwardedDocIds = await _context.DocumentLogs
-                    .Where(log => log.Action == "Forwarded" && log.AppUser != null &&
-                        (unitId.HasValue
-                            ? log.AppUser.UnitId == unitId
-                            : (log.AppUser.Unit != null && log.AppUser.Unit.OfficeId == officeId) ||
-                              (log.AppUser.Unit == null && log.AppUser.OfficeId == officeId)))
-                    .Select(log => log.DocumentId)
-                    .Distinct()
-                    .ToListAsync();
-
                 var query = _context.Documents
                     .Include(d => d.Creator)
                     .Include(d => d.NextOffice)
                     .Include(d => d.NextUnit)
-                    .Where(d => d.Status == "In Motion" && forwardedDocIds.Contains(d.Id));
+                    .Where(d => d.Status == "In Motion" &&
+                        _context.DocumentLogs
+                    .Any(log => log.Action == "Forwarded" &&
+                            log.DocumentId == d.Id && log.AppUser != null &&
+                            (unitId.HasValue
+                                ? log.AppUser.UnitId == unitId
+                                : (log.AppUser.Unit != null && log.AppUser.Unit.OfficeId == officeId) ||
+                                  (log.AppUser.Unit == null && log.AppUser.OfficeId == officeId))));
 
                 if (!string.IsNullOrEmpty(search))
                     query = query.Where(d =>
@@ -455,11 +425,7 @@ namespace DocTracking.Services
                         (d.Type != null && d.Type.Contains(search)) ||
                         (d.NextOffice != null && d.NextOffice.Name != null && d.NextOffice.Name.Contains(search)));
 
-                return await query
-                    .OrderBy(d => d.Priority == "Emergency" ? 0 :
-                        d.Priority == "Urgent" ? 1 :
-                        d.Priority == "Medium" ? 2 :
-                        d.Priority == "Low" ? 3 : 99)
+                return await OrderByPriority(query)
                     .ThenByDescending(d => d.LastActionDate ?? d.CreatedAt)
                     .ToListAsync();
             }
@@ -470,24 +436,20 @@ namespace DocTracking.Services
             }
         }
 
+
         public async Task<(List<Document> Items, int TotalCount)> GetUnitHistoryAsync(
-            int unitId, int page, int pageSize, string? search = null)
+        int unitId, int page, int pageSize, string? search = null)
         {
             try
             {
-                var docIds = await _context.DocumentLogs
-                    .Where(l => l.UnitId == unitId)
-                    .Select(l => l.DocumentId)
-                    .Distinct()
-                    .ToListAsync();
-
                 var query = _context.Documents
                     .Include(d => d.Creator)
                     .Include(d => d.NextOffice)
                     .Include(d => d.CurrentOffice)
                     .Include(d => d.NextUnit)
                     .Include(d => d.CurrentUnit)
-                    .Where(d => docIds.Contains(d.Id));
+                    .Where(d => _context.DocumentLogs
+                    .Any(l => l.UnitId == unitId && l.DocumentId == d.Id));
 
                 if (!string.IsNullOrEmpty(search))
                     query = query.Where(d =>
@@ -497,12 +459,8 @@ namespace DocTracking.Services
                         (d.CurrentOffice != null && d.CurrentOffice.Name != null && d.CurrentOffice.Name.Contains(search)));
 
                 var total = await query.CountAsync();
-                var items = await query
-                    .OrderByDescending(d => d.CreatedAt)
-                    .Skip((page - 1) * pageSize)
-                    .Take(pageSize)
-                    .ToListAsync();
-
+                var items = await query.OrderByDescending(d => d.CreatedAt)
+                    .Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
                 return (items, total);
             }
             catch (Exception ex)
@@ -513,29 +471,20 @@ namespace DocTracking.Services
         }
 
         public async Task<(List<Document> Items, int TotalCount)> GetOfficeHistoryAsync(
-            int officeId, int page, int pageSize, string? search = null)
+        int officeId, int page, int pageSize, string? search = null)
         {
             try
             {
-                var unitIds = await _context.Units
-                    .Where(u => u.OfficeId == officeId)
-                    .Select(u => u.Id)
-                    .ToListAsync();
-
-                var docIds = await _context.DocumentLogs
-                    .Where(l => (l.UnitId != null && unitIds.Contains(l.UnitId.Value)) ||
-                                (l.UnitId == null && l.OfficeId == officeId))
-                    .Select(l => l.DocumentId)
-                    .Distinct()
-                    .ToListAsync();
-
                 var query = _context.Documents
                     .Include(d => d.Creator)
                     .Include(d => d.NextOffice)
                     .Include(d => d.CurrentOffice)
                     .Include(d => d.NextUnit)
                     .Include(d => d.CurrentUnit)
-                    .Where(d => docIds.Contains(d.Id));
+                    .Where(d => _context.DocumentLogs
+                    .Any(l => l.DocumentId == d.Id &&
+                        ((l.UnitId != null && l.Unit != null && l.Unit.OfficeId == officeId) ||
+                         (l.UnitId == null && l.OfficeId == officeId))));
 
                 if (!string.IsNullOrEmpty(search))
                     query = query.Where(d =>
@@ -545,12 +494,8 @@ namespace DocTracking.Services
                         (d.CurrentOffice != null && d.CurrentOffice.Name != null && d.CurrentOffice.Name.Contains(search)));
 
                 var total = await query.CountAsync();
-                var items = await query
-                    .OrderByDescending(d => d.CreatedAt)
-                    .Skip((page - 1) * pageSize)
-                    .Take(pageSize)
-                    .ToListAsync();
-
+                var items = await query.OrderByDescending(d => d.CreatedAt)
+                    .Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
                 return (items, total);
             }
             catch (Exception ex)
@@ -614,18 +559,7 @@ namespace DocTracking.Services
                     .Include(m => m.AppUser)
                     .AsQueryable();
 
-                if (!string.IsNullOrEmpty(search))
-                    query = query.Where(m =>
-                        (m.Document != null && m.Document.Name != null && m.Document.Name.Contains(search)) ||
-                        (m.Document != null && m.Document.ReferenceNumber != null && m.Document.ReferenceNumber.Contains(search)) ||
-                        (m.AppUser != null && m.AppUser.Name != null && m.AppUser.Name.Contains(search)) ||
-                        (m.Action != null && m.Action.Contains(search)));
-
-                if (!string.IsNullOrEmpty(action))
-                    query = query.Where(m => m.Action == action);
-
-                if (DateTime.TryParse(date, out var filterDate))
-                    query = query.Where(m => m.TimeStamp.Date == filterDate.Date);
+                query = ApplyAuditFilters(query, search, action, date);
 
                 var total = await query.CountAsync();
                 var items = await query
@@ -653,17 +587,7 @@ namespace DocTracking.Services
                 .Include(m => m.AppUser)
                 .AsQueryable();
 
-            if (!string.IsNullOrEmpty(search))
-                query = query.Where(m =>
-                    (m.Document != null && m.Document.Name != null && m.Document.Name.Contains(search)) ||
-                    (m.AppUser != null && m.AppUser.Name != null && m.AppUser.Name.Contains(search)) ||
-                    (m.Action != null && m.Action.Contains(search)));
-
-            if (!string.IsNullOrEmpty(action))
-                query = query.Where(m => m.Action == action);
-
-            if (DateTime.TryParse(date, out var filterDate))
-                query = query.Where(m => m.TimeStamp.Date == filterDate.Date);
+            query = ApplyAuditFilters(query, search, action, date);
 
             return query
                 .OrderByDescending(m => m.TimeStamp)

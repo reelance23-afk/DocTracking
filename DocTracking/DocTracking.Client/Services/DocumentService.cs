@@ -53,14 +53,22 @@ namespace DocTracking.Client.Services
             }
         }
 
-        public async Task<List<Office>> GetOfficesAsync()
-        {
-            var result = await GetJsonAsync<PagedResult<Office>>("api/offices?pageSize=1000");
-            return result?.Items ?? new();
-        }
+        public async Task<List<Office>> GetOfficesAsync() =>
+            (await GetJsonAsync<List<Office>>("api/offices/simple")) ?? new();
 
         public async Task<Office?> GetOfficeByIdAsync(int id) =>
             await GetJsonAsync<Office>($"api/offices/{id}");
+
+        public async Task<List<Office>> GetOfficesSimpleAsync(string? search = null)
+        {
+            var url = "api/offices/simple";
+            if (!string.IsNullOrEmpty(search)) url += $"?search={Uri.EscapeDataString(search)}";
+            return await GetJsonAsync<List<Office>>(url) ?? new();
+        }
+
+        public async Task<List<Unit>> GetUnitsByOfficeAsync(int officeId) =>
+            await GetJsonAsync<List<Unit>>($"api/units?officeId={officeId}") ?? new();
+
 
         public async Task<PagedResult<Office>> GetOfficesPagedAsync(
             int page = 1, int pageSize = 25, string? search = null)
@@ -69,6 +77,7 @@ namespace DocTracking.Client.Services
             if (!string.IsNullOrEmpty(search)) url += $"&search={Uri.EscapeDataString(search)}";
             return await GetJsonAsync<PagedResult<Office>>(url) ?? new();
         }
+
         public async Task<(bool Success, string? Error, Office? Created)> AddOfficeAsync(Office office)
         {
             try
@@ -112,13 +121,17 @@ namespace DocTracking.Client.Services
         }
 
         public async Task<PagedResult<AppUser>> GetAppUsersPagedAsync(
-            int page = 1, int pageSize = 25, string? search = null, int? officeId = null)
+            int page = 1, int pageSize = 25, string? search = null,
+            int? officeId = null, int? unitId = null, bool filterByOffice = false)
         {
             var url = $"api/appusers?page={page}&pageSize={pageSize}";
             if (!string.IsNullOrEmpty(search)) url += $"&search={Uri.EscapeDataString(search)}";
             if (officeId.HasValue) url += $"&officeId={officeId.Value}";
+            if (unitId.HasValue) url += $"&unitId={unitId.Value}";
+            if (filterByOffice) url += $"&filterByOffice=true";
             return await GetJsonAsync<PagedResult<AppUser>>(url) ?? new();
         }
+
 
         public async Task<AppUser?> GetProfileAsync()
         {

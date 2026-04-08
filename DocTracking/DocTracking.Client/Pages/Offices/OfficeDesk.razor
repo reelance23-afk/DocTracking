@@ -442,7 +442,6 @@
     private Office? myOffice;
     private int? myUnitId;
     private bool isOfficeHead = false;
-    private List<Office> allOffices = new();
     private List<Document> incomingDocs = new();
     private List<Document> deskDocs = new();
     private List<Document> outgoingDocs = new();
@@ -574,22 +573,19 @@
 
     private async Task OpenDeskDialog(Document doc, OfficeDeskViewDialog.DeskTab tab)
     {
-
-        if (!allOffices.Any())
-        allOffices = await DocService.GetOfficesAsync();
-
         var parameters = new DialogParameters<OfficeDeskViewDialog>
-        {
-            { x => x.Doc, doc },
-            { x => x.Tab, tab },
-            { x => x.AllOffices, allOffices }
-        };
+    {
+        { x => x.Doc, doc },
+        { x => x.Tab, tab }
+    };
         var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
         var dialog = await DialogService.ShowAsync<OfficeDeskViewDialog>("Document Details", parameters, options);
         var result = await dialog.Result;
         if (result is { Canceled: false })
             await RefreshQueues();
     }
+
+
 
     private async Task OpenQRDialog(Document doc)
     {
@@ -606,22 +602,21 @@
     {
         if (myOffice == null) return;
         var parameters = new DialogParameters<ReceivingScheduleDialog>
-        {
-            { x => x.OfficeId, myOffice.Id },
-            { x => x.OfficeName, myOffice.Name },
-            { x => x.CurrentSchedule, myOffice.ReceivingSchedule }
-        };
+    {
+        { x => x.OfficeId, myOffice.Id },
+        { x => x.OfficeName, myOffice.Name },
+        { x => x.CurrentSchedule, myOffice.ReceivingSchedule }
+    };
         var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
         var dialog = await DialogService.ShowAsync<ReceivingScheduleDialog>("Receiving Schedule", parameters, options);
         var result = await dialog.Result;
         if (!result.Canceled)
         {
             myOffice.ReceivingSchedule = result.Data as string;
-            var idx = allOffices.FindIndex(o => o.Id == myOffice.Id);
-            if (idx >= 0) allOffices[idx] = myOffice;
             StateHasChanged();
         }
     }
+
 
     private void OnNotificationReceived() =>
         _debounce.Trigger(async () =>

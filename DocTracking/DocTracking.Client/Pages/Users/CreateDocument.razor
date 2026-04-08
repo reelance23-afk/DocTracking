@@ -198,6 +198,7 @@
 @code {
     private Document newDocument = new();
     private List<Office> offices = new();
+    private List<Unit> _selectedOfficeUnits = new();
     private bool success = true;
     private bool isSaving;
     private bool isLoadingOffices = true;
@@ -214,7 +215,7 @@
 
         try
         {
-            offices = await DocService.GetOfficesAsync();
+            offices = await DocService.GetOfficesSimpleAsync();
 
             if (isOfficeRole)
             {
@@ -247,14 +248,16 @@
         newDocument.FileName = file.Name;
     }
 
-    private void OnOfficeChanged(int? officeId)
+    private async Task OnOfficeChanged(int? officeId)
     {
         newDocument.NextOfficeId = officeId;
         newDocument.NextUnitId = null;
+        _selectedOfficeUnits = officeId.HasValue
+            ? await DocService.GetUnitsByOfficeAsync(officeId.Value)
+            : new();
     }
 
-    private IEnumerable<Unit> GetUnitsForOffice(int officeId) =>
-        offices.FirstOrDefault(d => d.Id == officeId)?.Units ?? new List<Unit>();
+    private IEnumerable<Unit> GetUnitsForOffice(int officeId) => _selectedOfficeUnits;
 
     public async Task SubmitDocument()
     {

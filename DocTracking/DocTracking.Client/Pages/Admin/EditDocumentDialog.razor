@@ -14,95 +14,109 @@
         </div>
     </TitleContent>
     <DialogContent>
-        <MudGrid Spacing="3">
-            <MudItem xs="12">
-                <MudTextField @bind-Value="Doc.Name" Label="Document Title" Variant="Variant.Outlined"
-                              Required="true" RequiredError="Document title is required" />
-            </MudItem>
-            <MudItem xs="12" md="6">
-                <MudSelect T="string" @bind-Value="Doc.Type" Label="Document Type" Variant="Variant.Outlined"
-                           Required="true" RequiredError="Please select a document type">
-                    <MudSelectItem Value="@("Memo")">Memo</MudSelectItem>
-                    <MudSelectItem Value="@("Letter")">Letter</MudSelectItem>
-                    <MudSelectItem Value="@("Voucher")">Voucher</MudSelectItem>
-                    <MudSelectItem Value="@("Report")">Report</MudSelectItem>
-                    <MudSelectItem Value="@("Notice")">Notice</MudSelectItem>
-                    <MudSelectItem Value="@("Other")">Other</MudSelectItem>
-                </MudSelect>
-            </MudItem>
-            <MudItem xs="12" md="6">
-                <MudSelect T="string" @bind-Value="Doc.Priority" Label="Priority Level" Variant="Variant.Outlined"
-                           Required="true" RequiredError="Please select priority">
-                    <MudSelectItem Value="@("Emergency")">Emergency</MudSelectItem>
-                    <MudSelectItem Value="@("Urgent")">Urgent</MudSelectItem>
-                    <MudSelectItem Value="@("Medium")">Medium</MudSelectItem>
-                    <MudSelectItem Value="@("Low")">Low</MudSelectItem>
-                </MudSelect>
-            </MudItem>
-            <MudItem xs="12" md="6">
-                <MudSelect @bind-Value="overrideStatus" Label="Status" Variant="Variant.Outlined" T="string">
-                    <MudSelectItem T="string" Value="@("In Motion")">In Motion</MudSelectItem>
-                    <MudSelectItem T="string" Value="@("Received")">Received</MudSelectItem>
-                    <MudSelectItem T="string" Value="@("Completed")">Completed</MudSelectItem>
-                </MudSelect>
-            </MudItem>
-            <MudItem xs="12" md="6">
-                <MudSelect Value="reassignOfficeId" Label="Office" Variant="Variant.Outlined" T="int?"
-                           ValueChanged="OnOfficeChanged"
-                           HelperText="@($"Current: {Doc.CurrentOffice?.Name ?? Doc.NextOffice?.Name ?? "—"}")">
-                    @foreach (var office in Offices)
-                    {
-                        <MudSelectItem T="int?" Value="@((int?)office.Id)">@office.Name</MudSelectItem>
-                    }
-                </MudSelect>
-            </MudItem>
-            @if (reassignOfficeId != null && reassignOfficeUnits.Any())
-            {
+        @if (_loadingInit)
+        {
+            <div class="d-flex justify-center pa-8">
+                <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+            </div>
+        }
+        else
+        {
+            <MudGrid Spacing="3">
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="Doc.Name" Label="Document Title" Variant="Variant.Outlined"
+                                  Required="true" RequiredError="Document title is required" />
+                </MudItem>
                 <MudItem xs="12" md="6">
-                    <MudSelect @bind-Value="reassignUnitId" Label="Reassign to Unit"
-                               Variant="Variant.Outlined" T="int?">
-                        <MudSelectItem T="int?" Value="@((int?)null)">— No specific unit —</MudSelectItem>
-                        @foreach (var unit in reassignOfficeUnits)
+                    <MudSelect T="string" @bind-Value="Doc.Type" Label="Document Type" Variant="Variant.Outlined"
+                               Required="true" RequiredError="Please select a document type">
+                        <MudSelectItem Value="@("Memo")">Memo</MudSelectItem>
+                        <MudSelectItem Value="@("Letter")">Letter</MudSelectItem>
+                        <MudSelectItem Value="@("Voucher")">Voucher</MudSelectItem>
+                        <MudSelectItem Value="@("Report")">Report</MudSelectItem>
+                        <MudSelectItem Value="@("Notice")">Notice</MudSelectItem>
+                        <MudSelectItem Value="@("Other")">Other</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudSelect T="string" @bind-Value="Doc.Priority" Label="Priority Level" Variant="Variant.Outlined"
+                               Required="true" RequiredError="Please select priority">
+                        <MudSelectItem Value="@("Emergency")">Emergency</MudSelectItem>
+                        <MudSelectItem Value="@("Urgent")">Urgent</MudSelectItem>
+                        <MudSelectItem Value="@("Medium")">Medium</MudSelectItem>
+                        <MudSelectItem Value="@("Low")">Low</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudSelect @bind-Value="overrideStatus" Label="Status" Variant="Variant.Outlined" T="string">
+                        <MudSelectItem T="string" Value="@("In Motion")">In Motion</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("Received")">Received</MudSelectItem>
+                        <MudSelectItem T="string" Value="@("Completed")">Completed</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudSelect Value="reassignOfficeId" Label="Office" Variant="Variant.Outlined" T="int?"
+                               ValueChanged="OnOfficeChanged"
+                               HelperText="@($"Current: {Doc.CurrentOffice?.Name ?? Doc.NextOffice?.Name ?? "—"}")">
+                        @foreach (var office in _offices)
                         {
-                            <MudSelectItem T="int?" Value="@((int?)unit.Id)">@unit.Name</MudSelectItem>
+                            <MudSelectItem T="int?" Value="@((int?)office.Id)">@office.Name</MudSelectItem>
                         }
                     </MudSelect>
                 </MudItem>
-            }
-            <MudItem xs="12">
-                <MudTextField @bind-Value="Doc.Description" Label="Description / Notes" Variant="Variant.Outlined"
-                              Lines="3" />
-            </MudItem>
-            <MudItem xs="12">
-                <MudFileUpload T="IBrowserFile" FilesChanged="OnFileSelected"
-                               Accept=".pdf,.doc,.docx,.jpg,.png" DragAndDrop="true" />
-                @if (!string.IsNullOrEmpty(Doc.FilePath) && selectedFile == null)
+                @if (reassignOfficeId != null && _loadingUnits)
                 {
-                    <MudPaper Elevation="0" Class="pa-3 mt-3" Style="border-left: 4px solid var(--mud-palette-info); background: rgba(33,150,243,0.06);">
-                        <div class="d-flex align-center justify-space-between">
-                            <div class="d-flex align-center">
-                                <MudIcon Icon="@Icons.Material.Filled.AttachFile" Color="Color.Info" Class="mr-2" />
-                                <div>
-                                    <MudText Typo="Typo.body2" Class="font-weight-medium">@Doc.FileName</MudText>
-                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">Current attachment</MudText>
-                                </div>
-                            </div>
-                            <MudIconButton Icon="@Icons.Material.Filled.Download" Color="Color.Primary"
-                                           Size="Size.Small" Href="@Doc.FilePath" Target="_blank" />
-                        </div>
-                    </MudPaper>
+                    <MudItem xs="12" md="6">
+                        <MudProgressLinear Indeterminate="true" />
+                    </MudItem>
                 }
-            </MudItem>
-        </MudGrid>
+                else if (reassignOfficeId != null && reassignOfficeUnits.Any())
+                {
+                    <MudItem xs="12" md="6">
+                        <MudSelect @bind-Value="reassignUnitId" Label="Reassign to Unit"
+                                   Variant="Variant.Outlined" T="int?">
+                            <MudSelectItem T="int?" Value="@((int?)null)">— No specific unit —</MudSelectItem>
+                            @foreach (var unit in reassignOfficeUnits)
+                            {
+                                <MudSelectItem T="int?" Value="@((int?)unit.Id)">@unit.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                }
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="Doc.Description" Label="Description / Notes" Variant="Variant.Outlined"
+                                  Lines="3" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudFileUpload T="IBrowserFile" FilesChanged="OnFileSelected"
+                                   Accept=".pdf,.doc,.docx,.jpg,.png" DragAndDrop="true" />
+                    @if (!string.IsNullOrEmpty(Doc.FilePath) && selectedFile == null)
+                    {
+                        <MudPaper Elevation="0" Class="pa-3 mt-3" Style="border-left: 4px solid var(--mud-palette-info); background: rgba(33,150,243,0.06);">
+                            <div class="d-flex align-center justify-space-between">
+                                <div class="d-flex align-center">
+                                    <MudIcon Icon="@Icons.Material.Filled.AttachFile" Color="Color.Info" Class="mr-2" />
+                                    <div>
+                                        <MudText Typo="Typo.body2" Class="font-weight-medium">@Doc.FileName</MudText>
+                                        <MudText Typo="Typo.caption" Class="mud-text-secondary">Current attachment</MudText>
+                                    </div>
+                                </div>
+                                <MudIconButton Icon="@Icons.Material.Filled.Download" Color="Color.Primary"
+                                               Size="Size.Small" Href="@Doc.FilePath" Target="_blank" />
+                            </div>
+                        </MudPaper>
+                    }
+                </MudItem>
+            </MudGrid>
+        }
     </DialogContent>
-
     <DialogActions>
         <MudButton OnClick="Cancel" Variant="Variant.Text">Cancel</MudButton>
         <MudSpacer />
         <MudButton Color="Color.Error" Variant="Variant.Outlined"
                    StartIcon="@Icons.Material.Filled.Delete" OnClick="DeleteDocument">Delete</MudButton>
         <MudButton Color="Color.Primary" Variant="Variant.Filled"
-                   StartIcon="@Icons.Material.Filled.Save" Disabled="@isSaving" OnClick="Submit">
+                   StartIcon="@Icons.Material.Filled.Save" Disabled="@(isSaving || _loadingInit)" OnClick="Submit">
             @(isSaving ? "Saving..." : "Save Changes")
         </MudButton>
     </DialogActions>
@@ -111,16 +125,32 @@
 @code {
     [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
     [Parameter] public Document Doc { get; set; } = new();
-    [Parameter] public List<Office> Offices { get; set; } = new();
 
     private IBrowserFile? selectedFile;
+    private List<Office> _offices = new();
     private List<Unit> reassignOfficeUnits = new();
     private string overrideStatus = "";
     private int? reassignOfficeId;
     private int? reassignUnitId;
     private bool isSaving;
+    private bool _loadingInit = true;
+    private bool _loadingUnits;
 
     private static readonly string[] AllowedExtensions = { ".pdf", ".doc", ".docx", ".jpg", ".png" };
+
+    protected override async Task OnInitializedAsync()
+    {
+        overrideStatus = Doc.Status ?? "";
+        reassignOfficeId = Doc.CurrentOfficeId ?? Doc.NextOfficeId;
+        reassignUnitId = Doc.CurrentUnitId ?? Doc.NextUnitId;
+
+        _offices = await DocService.GetOfficesSimpleAsync();
+
+        if (reassignOfficeId.HasValue)
+            reassignOfficeUnits = await DocService.GetUnitsByOfficeAsync(reassignOfficeId.Value);
+
+        _loadingInit = false;
+    }
 
     private void OnFileSelected(IBrowserFile file)
     {
@@ -134,19 +164,18 @@
         Doc.FileName = file.Name;
     }
 
-    private void OnOfficeChanged(int? officeId)
+    private async Task OnOfficeChanged(int? officeId)
     {
         reassignOfficeId = officeId;
         reassignUnitId = null;
-        reassignOfficeUnits = Offices.FirstOrDefault(o => o.Id == officeId)?.Units?.ToList() ?? new();
-    }
-
-    protected override void OnParametersSet()
-    {
-        overrideStatus = Doc.Status ?? "";
-        reassignOfficeId = Doc.CurrentOfficeId ?? Doc.NextOfficeId;
-        reassignOfficeUnits = Offices.FirstOrDefault(o => o.Id == reassignOfficeId)?.Units?.ToList() ?? new();
-        reassignUnitId = Doc.CurrentUnitId ?? Doc.NextUnitId;
+        reassignOfficeUnits = new();
+        if (officeId.HasValue)
+        {
+            _loadingUnits = true;
+            StateHasChanged();
+            reassignOfficeUnits = await DocService.GetUnitsByOfficeAsync(officeId.Value);
+            _loadingUnits = false;
+        }
     }
 
     private async Task Submit()
@@ -195,7 +224,6 @@
                     Snackbar.Add(overrideError ?? "Failed to apply admin override.", Severity.Error);
                     return;
                 }
-
             }
 
             MudDialog.Close(DialogResult.Ok(Doc));
@@ -236,4 +264,3 @@
         }
     }
 }
-

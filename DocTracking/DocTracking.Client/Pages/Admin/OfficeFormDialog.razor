@@ -41,15 +41,13 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _offices = await DocService.GetOfficesAsync();
+        _offices = await DocService.GetOfficesSimpleAsync();
     }
 
-    private Task<IEnumerable<string>> SearchOffices(string value, CancellationToken ct)
+    private async Task<IEnumerable<string>> SearchOffices(string value, CancellationToken ct)
     {
-        var results = string.IsNullOrWhiteSpace(value)
-            ? _offices.Select(o => o.Name!)
-            : _offices.Where(o => o.Name!.Contains(value, StringComparison.OrdinalIgnoreCase)).Select(o => o.Name!);
-        return Task.FromResult(results);
+        _offices = await DocService.GetOfficesSimpleAsync(string.IsNullOrWhiteSpace(value) ? null : value);
+        return _offices.Select(o => o.Name!);
     }
 
     private async Task Submit()

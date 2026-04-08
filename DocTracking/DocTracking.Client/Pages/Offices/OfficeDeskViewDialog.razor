@@ -115,22 +115,33 @@
                                   Lines="2" Placeholder="Add a note before forwarding or finishing..."
                                   Class="mb-3" />
                     <MudText Typo="Typo.subtitle2" Class="mb-2 font-weight-bold">Route To</MudText>
-                    <MudSelect T="int?" Value="selectedOfficeId" ValueChanged="OnOfficeSelected"
-                               Variant="Variant.Outlined" Label="Select Office" Class="mb-3" FullWidth="true">
-                        <MudSelectItem T="int?" Value="@((int?)null)">None</MudSelectItem>
-                        @foreach (var off in AllOffices.Where(o => o.Id != Doc.CurrentOfficeId))
-                        {
-                            <MudSelectItem T="int?" Value="@((int?)off.Id)">
-                                @off.Name@(string.IsNullOrEmpty(off.ReceivingSchedule) ? "" : $" ({off.ReceivingSchedule})")
-                            </MudSelectItem>
-                        }
-                    </MudSelect>
-                    @if (selectedOfficeId.HasValue && availableUnits.Any())
+                    @if (_loadingOffices)
+                    {
+                        <MudProgressLinear Indeterminate="true" Class="mb-3" />
+                    }
+                    else
+                    {
+                        <MudSelect T="int?" Value="selectedOfficeId" ValueChanged="OnOfficeSelected"
+                                   Variant="Variant.Outlined" Label="Select Office" Class="mb-3" FullWidth="true">
+                            <MudSelectItem T="int?" Value="@((int?)null)">None</MudSelectItem>
+                            @foreach (var off in _offices.Where(o => o.Id != Doc.CurrentOfficeId))
+                            {
+                                <MudSelectItem T="int?" Value="@((int?)off.Id)">
+                                    @off.Name@(string.IsNullOrEmpty(off.ReceivingSchedule) ? "" : $" ({off.ReceivingSchedule})")
+                                </MudSelectItem>
+                            }
+                        </MudSelect>
+                    }
+                    @if (selectedOfficeId.HasValue && _loadingUnits)
+                    {
+                        <MudProgressLinear Indeterminate="true" Class="mb-3" />
+                    }
+                    else if (selectedOfficeId.HasValue && _availableUnits.Any())
                     {
                         <MudSelect T="int?" @bind-Value="selectedUnitId"
                                    Variant="Variant.Outlined" Label="Select Unit" Class="mb-3" FullWidth="true">
                             <MudSelectItem T="int?" Value="@((int?)null)">— No specific unit —</MudSelectItem>
-                            @foreach (var unit in availableUnits)
+                            @foreach (var unit in _availableUnits)
                             {
                                 <MudSelectItem T="int?" Value="@((int?)unit.Id)">@unit.Name</MudSelectItem>
                             }
@@ -160,21 +171,38 @@
     [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
     [Parameter] public Document Doc { get; set; } = new();
     [Parameter] public DeskTab Tab { get; set; }
-    [Parameter] public List<Office> AllOffices { get; set; } = new();
 
+    private List<Office> _offices = new();
+    private List<Unit> _availableUnits = new();
     private int? selectedOfficeId;
     private int? selectedUnitId;
     private string? comment;
     private bool busy;
+    private bool _loadingOffices;
+    private bool _loadingUnits;
 
-    private IEnumerable<Unit> availableUnits => selectedOfficeId.HasValue
-        ? AllOffices.FirstOrDefault(o => o.Id == selectedOfficeId)?.Units ?? new List<Unit>()
-        : new List<Unit>();
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Tab == DeskTab.OnDesk && !_offices.Any())
+        {
+            _loadingOffices = true;
+            _offices = await DocService.GetOfficesSimpleAsync();
+            _loadingOffices = false;
+        }
+    }
 
-    private void OnOfficeSelected(int? officeId)
+    private async Task OnOfficeSelected(int? officeId)
     {
         selectedOfficeId = officeId;
         selectedUnitId = null;
+        _availableUnits = new();
+        if (officeId.HasValue)
+        {
+            _loadingUnits = true;
+            StateHasChanged();
+            _availableUnits = await DocService.GetUnitsByOfficeAsync(officeId.Value);
+            _loadingUnits = false;
+        }
     }
 
     private async Task ReceiveAsync()
@@ -192,11 +220,7 @@
         try
         {
             var (ok, error) = await DocService.ReceivedDocumentAsync(Doc.Id);
-            if (!ok)
-            {
-                Snackbar.Add(error ?? "Failed to receive document.", Severity.Warning);
-                return;
-            }
+            if (!ok) { Snackbar.Add(error ?? "Failed to receive document.", Severity.Warning); return; }
             Snackbar.Add("Document received!", Severity.Success);
             MudDialog.Close(DialogResult.Ok(true));
         }
@@ -216,7 +240,7 @@
             Snackbar.Add("Cannot forward to the same office and unit.", Severity.Warning);
             return;
         }
-        var dest = AllOffices.FirstOrDefault(o => o.Id == selectedOfficeId)?.Name;
+        var dest = _offices.FirstOrDefault(o => o.Id == selectedOfficeId)?.Name;
         var parameters = new DialogParameters
         {
             { "Message", $"Forward this document to {dest}?" },
@@ -270,4 +294,3 @@
         finally { busy = false; }
     }
 }
-

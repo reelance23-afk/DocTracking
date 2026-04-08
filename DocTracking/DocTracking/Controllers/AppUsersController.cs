@@ -58,34 +58,26 @@ namespace DocTracking.Controllers
             await using var tx = await _context.Database.BeginTransactionAsync();
             try
             {
-                var hasCreatedDocuments = await _context.Documents.AnyAsync(d => d.CreatorId == id);
-                if (hasCreatedDocuments)
-                {
-                    var documentsToUpdate = await _context.Documents
-                        .Where(d => d.CreatorId == id)
-                        .ToListAsync();
-                    foreach (var doc in documentsToUpdate)
-                        doc.CreatorId = null;
-                }
+                // Nullify CreatorId on documents — no load into memory
+                await _context.Documents
+                    .Where(d => d.CreatorId == id)
+                    .ExecuteUpdateAsync(d => d.SetProperty(x => x.CreatorId, (int?)null));
 
-                var userLogsToUpdate = await _context.DocumentLogs
+                // Preserve UserName on logs that don't have one, then nullify AppUserId
+                await _context.DocumentLogs
+                    .Where(dl => dl.AppUserId == id && (dl.UserName == null || dl.UserName == ""))
+                    .ExecuteUpdateAsync(dl => dl.SetProperty(x => x.UserName, user.Name));
+
+                await _context.DocumentLogs
                     .Where(dl => dl.AppUserId == id)
-                    .ToListAsync();
-                foreach (var log in userLogsToUpdate)
-                {
-                    if (string.IsNullOrEmpty(log.UserName))
-                        log.UserName = user.Name;
-                    log.AppUserId = null;
-                }
+                    .ExecuteUpdateAsync(dl => dl.SetProperty(x => x.AppUserId, (int?)null));
 
-                var userNotifications = await _context.AppNotifications
+                // Delete notifications
+                await _context.AppNotifications
                     .Where(n => n.AppUserId == id)
-                    .ToListAsync();
-                if (userNotifications.Any())
-                    _context.AppNotifications.RemoveRange(userNotifications);
+                    .ExecuteDeleteAsync();
 
                 _context.AppUsers.Remove(user);
-
                 await _context.SaveChangesAsync();
                 await tx.CommitAsync();
             }
@@ -169,7 +161,9 @@ namespace DocTracking.Controllers
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 25,
             [FromQuery] string? search = null,
-            [FromQuery] int? officeId = null)
+            [FromQuery] int? officeId = null,
+            [FromQuery] int? unitId = null,
+            [FromQuery] bool filterByOffice = false)
         {
             var query = _context.AppUsers
                 .Include(u => u.Unit)
@@ -182,12 +176,14 @@ namespace DocTracking.Controllers
                     (u.Name != null && u.Name.Contains(search)) ||
                     (u.Role != null && u.Role.Contains(search)));
 
-            if (officeId.HasValue)
+            if (filterByOffice && officeId.HasValue)
                 query = query.Where(u => u.OfficeId == officeId || u.Unit.OfficeId == officeId);
 
             var total = await query.CountAsync();
             var items = await query
-                .OrderBy(u => u.Name)
+                .OrderBy(u => unitId.HasValue && u.UnitId == unitId ? 0 :
+                              officeId.HasValue && (u.OfficeId == officeId || (u.Unit != null && u.Unit.OfficeId == officeId)) ? 1 : 2)
+                .ThenBy(u => u.Name)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();

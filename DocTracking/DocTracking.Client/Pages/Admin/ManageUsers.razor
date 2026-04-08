@@ -287,6 +287,7 @@
     private string searchString = "";
     private int? _selectedOfficeId;
     private Dictionary<int, int?> activeOfficeEdits = new();
+    private List<Unit> _editUnits = new();
 
     private AppUser? editingUser;
     private bool isEditDialogOpen = false;
@@ -302,7 +303,7 @@
     {
         try 
         { 
-            allOffices = await DocService.GetOfficesAsync(); 
+            allOffices = await DocService.GetOfficesSimpleAsync(); 
         }
         catch (Exception ex)
         {
@@ -318,7 +319,8 @@
         {
             var result = await DocService.GetAppUsersPagedAsync(
                 page: state.Page + 1, pageSize: state.PageSize,
-                search: searchString, officeId: _selectedOfficeId);
+                search: searchString, officeId: _selectedOfficeId,
+                filterByOffice: _selectedOfficeId.HasValue);
 
             if (state.Page == 0)
             {
@@ -343,7 +345,8 @@
             var nextPage = (_mobileUsers.Count / MobilePageSize) + 1;
             var result = await DocService.GetAppUsersPagedAsync(
                 page: nextPage, pageSize: MobilePageSize,
-                search: searchString, officeId: _selectedOfficeId);
+                search: searchString, officeId: _selectedOfficeId,
+                filterByOffice: _selectedOfficeId.HasValue);
             _mobileUsers.AddRange(result.Items);
             _mobileTotalCount = result.TotalCount;
         }
@@ -363,22 +366,21 @@
         return user.Unit?.OfficeId ?? user.OfficeId;
     }
 
-    private void OnOfficeChanged(AppUser user, int? newOfficeId)
+    private async Task OnOfficeChanged(AppUser user, int? newOfficeId)
     {
         activeOfficeEdits[user.Id] = newOfficeId;
         user.UnitId = null;
         user.OfficeId = newOfficeId;
         isOfficeHead = false;
+        _editUnits = newOfficeId.HasValue
+            ? await DocService.GetUnitsByOfficeAsync(newOfficeId.Value)
+            : new();
+        StateHasChanged();
     }
 
-    private IEnumerable<Unit> GetUnitsForActiveOffice(AppUser user)
-    {
-        var officeId = GetActiveOfficeId(user);
-        if (officeId == null) return new List<Unit>();
-        return allOffices.FirstOrDefault(o => o.Id == officeId)?.Units ?? new List<Unit>();
-    }
+    private IEnumerable<Unit> GetUnitsForActiveOffice(AppUser user) => _editUnits;
 
-    private void OpenEditDialog(AppUser user)
+    private async Task OpenEditDialog(AppUser user)
     {
         editingUser = new AppUser
         {
@@ -394,6 +396,10 @@
         };
         activeOfficeEdits.Remove(editingUser.Id);
         isOfficeHead = user.IsOfficeHead;
+        var officeId = user.Unit?.OfficeId ?? user.OfficeId;
+        _editUnits = officeId.HasValue
+            ? await DocService.GetUnitsByOfficeAsync(officeId.Value)
+            : new();
         isEditDialogOpen = true;
     }
 
@@ -468,18 +474,13 @@
 
     private async Task OpenAssignDialog()
     {
-        var allUsers = await DocService.GetAppUserAsync();
-        var parameters = new DialogParameters<AssignUsersDialog>
-        {
-            { x => x.AllOffices, allOffices },
-            { x => x.AllUsers, allUsers }
-        };
         var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
-        var dialog = await DialogService.ShowAsync<AssignUsersDialog>("Assign Users", parameters, options);
+        var dialog = await DialogService.ShowAsync<AssignUsersDialog>("Assign Users", new DialogParameters(), options);
         var result = await dialog.Result;
         if (result is { Canceled: false })
             if (_table != null) await _table.ReloadServerData();
     }
+
 
     private Color GetRoleColor(string? role) => role switch
     {
