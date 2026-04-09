@@ -12,6 +12,74 @@
 @implements IDisposable
 @rendermode InteractiveAuto
 
+@if (isLoading)
+{
+    <MudGrid Class="mb-6">
+        @for (int i = 0; i < 3; i++)
+        {
+            <MudItem xs="12" sm="6" md="4">
+                <MudPaper Elevation="2" Class="pa-4">
+                    <div class="d-flex justify-space-between align-center">
+                        <div style="flex: 1;">
+                            <MudSkeleton SkeletonType="SkeletonType.Text" Width="60px" Height="48px" Class="mb-1" />
+                            <MudSkeleton SkeletonType="SkeletonType.Text" Width="120px" />
+                        </div>
+                        <MudSkeleton SkeletonType="SkeletonType.Circle" Width="40px" Height="40px" />
+                    </div>
+                </MudPaper>
+            </MudItem>
+        }
+    </MudGrid>
+
+    <MudPaper Elevation="2" Class="pa-4 mb-6">
+        <MudSkeleton SkeletonType="SkeletonType.Text" Width="200px" Class="mb-3" />
+        <MudGrid Spacing="2">
+            <MudItem xs="12" sm="6">
+                <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="80px" />
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="56px" />
+            </MudItem>
+            <MudItem xs="12" sm="2">
+                <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="56px" />
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    <MudGrid Class="mb-6">
+        <MudItem xs="12" md="7">
+            <MudPaper Elevation="2" Class="pa-4" Style="height: 500px;">
+                <MudSkeleton SkeletonType="SkeletonType.Text" Width="160px" Class="mb-4" />
+                <div class="d-flex gap-4" style="height: 420px;">
+                    <div style="flex: 1;">
+                        <MudSkeleton SkeletonType="SkeletonType.Text" Width="80px" Class="mb-3" />
+                        @for (int i = 0; i < 4; i++)
+                        {
+                            <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="64px" Class="mb-2" />
+                        }
+                    </div>
+                    <div style="flex: 1;">
+                        <MudSkeleton SkeletonType="SkeletonType.Text" Width="100px" Class="mb-3" />
+                        @for (int i = 0; i < 4; i++)
+                        {
+                            <MudSkeleton SkeletonType="SkeletonType.Text" Class="mb-2" />
+                            <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="8px" Class="mb-3 rounded-lg" />
+                        }
+                    </div>
+                </div>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" md="5">
+            <MudPaper Elevation="2" Class="pa-4" Style="height: 500px;">
+                <MudSkeleton SkeletonType="SkeletonType.Text" Width="140px" Class="mb-4" />
+                @for (int i = 0; i < 5; i++)
+                {
+                    <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="72px" Class="mb-3" />
+                }
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+}
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
 
     <div class="d-flex align-center mb-6">
@@ -220,6 +288,7 @@
     }
 
 </MudContainer>
+}
 
 @code {
     private AdminDashboardStats stats = new();
