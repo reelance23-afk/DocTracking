@@ -1,102 +1,5 @@
-/* Mobile-specific styles for DocTracking */
 
-/* Touch-friendly button sizing */
-@media (max-width: 768px) {
-    .mud-button {
-        min-height: 44px;
-        min-width: 44px;
-    }
 
-    .mud-icon-button {
-        min-height: 44px;
-        min-width: 44px;
-    }
-
-    .mobile-spacing {
-        padding: 8px !important;
-    }
-
-    .mud-typography-h4 {
-        font-size: 1.5rem !important;
-    }
-
-    .mud-typography-h5 {
-        font-size: 1.25rem !important;
-    }
-
-    .mud-card {
-        margin-bottom: 12px;
-    }
-
-    .mud-table-container {
-        overflow-x: auto;
-    }
-
-    .mud-input-control {
-        margin-bottom: 16px;
-    }
-
-    .mud-drawer-temporary {
-        z-index: 1300;
-    }
-
-    .mud-dialog {
-        margin: 16px;
-        max-height: calc(100vh - 32px);
-    }
-
-    .mud-tabs .mud-tab {
-        min-width: auto;
-        padding: 8px 12px;
-    }
-
-    .mud-container {
-        padding-left: 16px !important;
-        padding-right: 16px !important;
-    }
-
-    .page-header-row {
-        flex-direction: column !important;
-        align-items: flex-start !important;
-        gap: 8px !important;
-    }
-
-        .page-header-row .mud-button {
-            align-self: flex-start;
-        }
-
-    .toolbar-row {
-        flex-direction: column !important;
-        align-items: flex-start !important;
-        gap: 8px !important;
-    }
-
-        .toolbar-row .mud-input-control,
-        .toolbar-row .mud-text-field {
-            width: 100% !important;
-        }
-
-    .filter-row {
-        flex-wrap: wrap !important;
-        gap: 4px !important;
-    }
-
-    .unit-input-row {
-        flex-direction: column !important;
-        align-items: stretch !important;
-        gap: 8px !important;
-    }
-
-        .unit-input-row .mud-button {
-            width: 100% !important;
-        }
-
-        .unit-input-row input {
-            width: 100% !important;
-        }
-}
-
-/* Extra small devices */
 @media (max-width: 480px) {
     .mud-typography-h4 {
         font-size: 1.25rem !important;
@@ -120,8 +23,6 @@
         line-height: 1.1 !important;
     }
 }
-
-/* Very small phones (425px and below) */
 @media (max-width: 425px) {
     .mud-typography-h4 {
         font-size: 1.1rem !important;
@@ -275,7 +176,6 @@
     }
 }
 
-/* Landscape mobile */
 @media (max-width: 768px) and (orientation: landscape) {
     .mud-appbar {
         height: 48px;

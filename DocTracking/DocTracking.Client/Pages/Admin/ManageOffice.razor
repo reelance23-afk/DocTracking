@@ -8,29 +8,8 @@
 @inject IDialogService DialogService
 @rendermode InteractiveAuto
 
-<style>
-    @@media (max-width: 599px) {
-        .desktop-table {
-            display: none !important;
-        }
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-6 mb-8">
 
-        .mobile-units {
-            display: block !important;
-        }
-    }
-
-    @@media (min-width: 600px) {
-        .desktop-table {
-            display: block !important;
-        }
-
-        .mobile-units {
-            display: none !important;
-        }
-    }
-</style>
-
-<MudContainer MaxWidth="MaxWidth.Large" Class="mt-6 mb-8">
     <div class="d-flex justify-space-between align-center mb-4">
         <div>
             <MudText Typo="Typo.h4" Class="font-weight-bold">Office Management</MudText>
@@ -54,9 +33,30 @@
 
     @if (loading)
     {
-        <div class="d-flex justify-center mt-8">
-            <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
-        </div>
+        <MudPaper Elevation="2">
+            @for (int i = 0; i < 10; i++)
+            {
+                <div class="d-flex align-center justify-space-between pa-4">
+                    <div class="d-flex align-center gap-3" style="flex: 1;">
+                        <MudSkeleton SkeletonType="SkeletonType.Circle" Width="32px" Height="32px" />
+                        <div style="flex: 1;">
+                            <MudSkeleton SkeletonType="SkeletonType.Text" Width="160px" Class="mb-1" />
+                            <MudSkeleton SkeletonType="SkeletonType.Text" Width="100px" />
+                        </div>
+                    </div>
+                    <div class="d-flex gap-1 d-none d-md-flex">
+                        <MudSkeleton SkeletonType="SkeletonType.Circle" Width="32px" Height="32px" />
+                        <MudSkeleton SkeletonType="SkeletonType.Circle" Width="32px" Height="32px" />
+                        <MudSkeleton SkeletonType="SkeletonType.Circle" Width="32px" Height="32px" />
+                    </div>
+                    <MudSkeleton SkeletonType="SkeletonType.Circle" Width="32px" Height="32px" Class="d-md-none" />
+                </div>
+                @if (i < 5)
+                {
+                    <MudDivider />
+                }
+            }
+        </MudPaper>
     }
     else if (officeResult.Items.Any())
     {
@@ -98,11 +98,11 @@
                                 <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small"
                                          AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight"
                                          Class="d-md-none">
-                                    <MudMenuItem Icon="@Icons.Material.Filled.EditCalendar" IconColor="Color.Primary"
+                                    <MudMenuItem Icon="@Icons.Material.Filled.EditCalendar" IconColor="Color.Primary" Variant="Variant.Outlined"
                                                  OnClick="@(() => OpenScheduleDialog(office))">Schedule</MudMenuItem>
-                                    <MudMenuItem Icon="@Icons.Material.Filled.Edit" IconColor="Color.Warning"
+                                    <MudMenuItem Icon="@Icons.Material.Filled.Edit" IconColor="Color.Warning" Variant="Variant.Outlined"
                                                  OnClick="@(() => OpenEditOfficeDialog(office))">Edit</MudMenuItem>
-                                    <MudMenuItem Icon="@Icons.Material.Filled.Delete" IconColor="Color.Error"
+                                    <MudMenuItem Icon="@Icons.Material.Filled.Delete" IconColor="Color.Error" Variant="Variant.Outlined"
                                                  OnClick="@(() => DeleteOffice(office))">Delete</MudMenuItem>
                                 </MudMenu>
                             </div>
@@ -114,47 +114,27 @@
                             @if (office.Units != null && office.Units.Any())
                             {
                                 <MudTable Items="office.Units" Hover="true" Dense="true" Elevation="0"
-                                          Class="rounded-lg overflow-hidden desktop-table" T="Unit">
+                                          Class="rounded-lg overflow-hidden" T="Unit"
+                                          Breakpoint="Breakpoint.Sm">
                                     <HeaderContent>
                                         <MudTh>Unit</MudTh>
                                         <MudTh Style="text-align:right">Actions</MudTh>
                                     </HeaderContent>
                                     <RowTemplate Context="unit">
-                                        <MudTd>
+                                        <MudTd DataLabel="Unit">
                                             <div class="d-flex align-center gap-2">
                                                 <MudIcon Icon="@Icons.Material.Filled.AccountTree" Size="Size.Small" Class="mud-text-secondary" />
                                                 <MudText Typo="Typo.body2" Class="font-weight-bold">@unit.Name</MudText>
                                             </div>
                                         </MudTd>
-                                        <MudTd Style="text-align:right">
-                                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                                        <MudTd DataLabel="Actions" Style="text-align:right">
+                                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Variant="Variant.Outlined"
                                                            Color="Color.Warning" OnClick="@(() => OpenEditUnitDialog(unit))" />
-                                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
+                                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Variant="Variant.Outlined"
                                                            Color="Color.Error" OnClick="@(() => DeleteUnit(unit))" />
                                         </MudTd>
                                     </RowTemplate>
                                 </MudTable>
-
-                                <div class="mobile-units">
-                                    @foreach (var unit in office.Units)
-                                    {
-                                        <MudPaper Elevation="1" Class="pa-3 mb-3 rounded-lg">
-                                            <div class="d-flex justify-space-between align-center">
-                                                <div class="d-flex align-center gap-2">
-                                                    <MudIcon Icon="@Icons.Material.Filled.AccountTree" Size="Size.Small" Color="Color.Primary" />
-                                                    <MudText Typo="Typo.body1" Class="font-weight-bold">@unit.Name</MudText>
-                                                </div>
-                                                <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small"
-                                                         AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight">
-                                                    <MudMenuItem Icon="@Icons.Material.Filled.Edit" IconColor="Color.Warning"
-                                                                 OnClick="@(() => OpenEditUnitDialog(unit))">Edit</MudMenuItem>
-                                                    <MudMenuItem Icon="@Icons.Material.Filled.Delete" IconColor="Color.Error"
-                                                                 OnClick="@(() => DeleteUnit(unit))">Delete</MudMenuItem>
-                                                </MudMenu>
-                                            </div>
-                                        </MudPaper>
-                                    }
-                                </div>
                             }
                             else
                             {
@@ -165,7 +145,6 @@
                 </MudExpansionPanel>
             }
         </MudExpansionPanels>
-
 
         @if (officeResult.TotalCount > officeResult.Items.Count)
         {
@@ -185,6 +164,7 @@
             <MudText Typo="Typo.body1" Class="mud-text-secondary">No offices found.</MudText>
         </div>
     }
+
 </MudContainer>
 
 <MudFab Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
@@ -394,4 +374,3 @@
         }
     }
 }
-

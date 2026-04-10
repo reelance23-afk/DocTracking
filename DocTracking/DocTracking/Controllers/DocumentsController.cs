@@ -952,7 +952,7 @@ namespace DocTracking.Controllers
                 _context.DocumentLogs.Add(new DocumentLog
                 {
                     DocumentId = doc.Id,
-                    Action = "Admin Override",
+                    Action = "Admin",
                     OfficeId = request.NextOfficeId ?? doc.CurrentOfficeId,
                     UnitId = request.NextUnitId ?? doc.CurrentUnitId,
                     AppUserId = appUser?.Id,

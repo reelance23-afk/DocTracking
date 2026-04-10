@@ -8,7 +8,7 @@
 @inject IDialogService DialogService
 @rendermode InteractiveAuto
 
-<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
     <div class="d-flex justify-space-between align-center mb-4">
         <div>
             <MudText Typo="Typo.h4" Class="font-weight-bold">Manage Users</MudText>
@@ -45,122 +45,89 @@
 
     @if (isLoading)
     {
-        <div class="d-flex justify-center mt-8">
-            <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
-        </div>
+        <MudPaper Elevation="2">
+            @for (int i = 0; i < 8; i++)
+            {
+                <div class="d-flex align-center justify-space-between pa-3">
+                    <div class="d-flex align-center gap-2" style="flex: 1;">
+                        <MudSkeleton SkeletonType="SkeletonType.Circle" Width="32px" Height="32px" />
+                        <div style="flex: 1;">
+                            <MudSkeleton SkeletonType="SkeletonType.Text" Width="140px" Class="mb-1" />
+                            <MudSkeleton SkeletonType="SkeletonType.Text" Width="180px" />
+                        </div>
+                    </div>
+                    <div class="d-flex gap-1">
+                        <MudSkeleton SkeletonType="SkeletonType.Circle" Width="32px" Height="32px" />
+                        <MudSkeleton SkeletonType="SkeletonType.Circle" Width="32px" Height="32px" />
+                        <MudSkeleton SkeletonType="SkeletonType.Circle" Width="32px" Height="32px" />
+                    </div>
+                </div>
+                @if (i < 7)
+                {
+                    <MudDivider />
+                }
+            }
+        </MudPaper>
     }
     else
     {
-        <MudHidden Breakpoint="Breakpoint.SmAndDown">
-            <MudPaper Elevation="2">
-                <MudTable @ref="_table" ServerData="LoadServerData" Dense="true" Hover="true" Elevation="0">
-                    <HeaderContent>
-                        <MudTh>User</MudTh>
-                        <MudTh>Office</MudTh>
-                        <MudTh>Unit</MudTh>
-                        <MudTh>Role</MudTh>
-                        <MudTh Style="text-align:right;">Actions</MudTh>
-                    </HeaderContent>
-                    <RowTemplate>
-                        <MudTd DataLabel="User">
-                            <div class="d-flex align-center gap-2">
-                                <MudAvatar Color="Color.Secondary" Variant="Variant.Filled" Size="Size.Small" Style="font-size:0.75rem;">
-                                    @(context.Name?.FirstOrDefault().ToString().ToUpper() ?? "?")
-                                </MudAvatar>
-                                <div>
-                                    <MudText Typo="Typo.body2" Class="font-weight-bold">@context.Name</MudText>
-                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">@context.Email</MudText>
-                                </div>
-                                @if (context.IsOfficeHead)
-                                {
-                                    <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Text">Head</MudChip>
-                                }
-                            </div>
-                        </MudTd>
-                        <MudTd DataLabel="Office">
-                            <MudText Typo="Typo.body2">
-                                @(context.Office?.Name ?? allOffices.FirstOrDefault(o => o.Id == context.Unit?.OfficeId)?.Name ?? "—")
-                            </MudText>
-                        </MudTd>
-                        <MudTd DataLabel="Unit">
-                            <MudText Typo="Typo.body2">@(context.Unit?.Name ?? "—")</MudText>
-                        </MudTd>
-                        <MudTd DataLabel="Role">
-                            <MudChip T="string" Color="@GetRoleColor(context.Role)" Size="Size.Small" Variant="Variant.Text">@context.Role</MudChip>
-                        </MudTd>
-                        <MudTd DataLabel="Actions" Style="text-align:right;">
-                            <div class="d-flex justify-end gap-1">
-                                <MudIconButton Icon="@Icons.Material.Filled.History" Size="Size.Small" Color="Color.Info"
-                                               OnClick="@(async () => await OpenActivityDialog(context))" />
-                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Warning"
-                                               OnClick="@(() => OpenEditDialog(context))" />
-                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
-                                               OnClick="@(async () => await DeleteUser(context))" />
-                            </div>
-                        </MudTd>
-                    </RowTemplate>
-                    <NoRecordsContent>
-                        <div class="pa-8 text-center">
-                            <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Large" Style="opacity:0.3; font-size:4rem;" Class="mb-4" />
-                            <MudText Typo="Typo.h6" Class="mud-text-secondary">No users found</MudText>
-                        </div>
-                    </NoRecordsContent>
-                    <PagerContent><MudTablePager /></PagerContent>
-                </MudTable>
-            </MudPaper>
-        </MudHidden>
-
-        <MudHidden Breakpoint="Breakpoint.MdAndUp">
-            @foreach (var user in _mobileUsers)
-            {
-                <MudPaper Elevation="1" Class="pa-3 mb-2">
-                    <div class="d-flex align-center justify-space-between">
-                        <div class="d-flex align-center gap-2" style="min-width:0;">
-                            <MudAvatar Color="Color.Secondary" Variant="Variant.Filled" Size="Size.Small"
-                                       Style="font-size:0.75rem; flex-shrink:0;">
-                                @(user.Name?.FirstOrDefault().ToString().ToUpper() ?? "?")
+        <MudPaper Elevation="2">
+            <MudTable @ref="_table" ServerData="LoadServerData" Dense="true" Hover="true" Elevation="0"
+                      Breakpoint="Breakpoint.Sm">
+                <HeaderContent>
+                    <MudTh>User</MudTh>
+                    <MudTh>Office</MudTh>
+                    <MudTh>Unit</MudTh>
+                    <MudTh>Role</MudTh>
+                    <MudTh Style="text-align:right;">Actions</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="User">
+                        <div class="d-flex align-center gap-2">
+                            <MudAvatar Color="Color.Secondary" Variant="Variant.Filled" Size="Size.Small" Style="font-size:0.75rem;">
+                                @(context.Name?.FirstOrDefault().ToString().ToUpper() ?? "?")
                             </MudAvatar>
-                            <div style="min-width:0;">
-                                <div class="d-flex align-center gap-1 flex-wrap">
-                                    <MudText Typo="Typo.body2" Class="font-weight-bold">@user.Name</MudText>
-                                    @if (user.IsOfficeHead)
-                                    {
-                                        <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Text">Head</MudChip>
-                                    }
-                                    <MudChip T="string" Color="@GetRoleColor(user.Role)" Size="Size.Small" Variant="Variant.Text">@user.Role</MudChip>
-                                </div>
-                                <MudText Typo="Typo.caption" Class="mud-text-secondary">@user.Email</MudText>
-                                <MudText Typo="Typo.caption" Class="mud-text-secondary">
-                                    @(user.Office?.Name ?? allOffices.FirstOrDefault(o => o.Id == user.Unit?.OfficeId)?.Name ?? "Unassigned")
-                                    @if (user.Unit != null)
-                                    {
-                                        <span> — @user.Unit.Name</span>
-                                    }
-                                </MudText>
+                            <div>
+                                <MudText Typo="Typo.body2" Class="font-weight-bold">@context.Name</MudText>
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">@context.Email</MudText>
                             </div>
+                            @if (context.IsOfficeHead)
+                            {
+                                <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Text">Head</MudChip>
+                            }
                         </div>
-                        <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small"
-                                 AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight">
-                            <MudMenuItem Icon="@Icons.Material.Filled.History" IconColor="Color.Info"
-                                         OnClick="@(async () => await OpenActivityDialog(user))">Activity</MudMenuItem>
-                            <MudMenuItem Icon="@Icons.Material.Filled.Edit" IconColor="Color.Warning"
-                                         OnClick="@(() => OpenEditDialog(user))">Edit</MudMenuItem>
-                            <MudMenuItem Icon="@Icons.Material.Filled.Delete" IconColor="Color.Error"
-                                         OnClick="@(async () => await DeleteUser(user))">Delete</MudMenuItem>
-                        </MudMenu>
+                    </MudTd>
+                    <MudTd DataLabel="Office">
+                        <MudText Typo="Typo.body2">
+                            @(context.Office?.Name ?? allOffices.FirstOrDefault(o => o.Id == context.Unit?.OfficeId)?.Name ?? "—")
+                        </MudText>
+                    </MudTd>
+                    <MudTd DataLabel="Unit">
+                        <MudText Typo="Typo.body2">@(context.Unit?.Name ?? "—")</MudText>
+                    </MudTd>
+                    <MudTd DataLabel="Role">
+                        <MudChip T="string" Color="@GetRoleColor(context.Role)" Size="Size.Small" Variant="Variant.Text">@context.Role</MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="Actions" Style="text-align:right;">
+                        <div class="d-flex justify-end gap-1">
+                            <MudIconButton Icon="@Icons.Material.Filled.History" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined"
+                                           OnClick="@(async () => await OpenActivityDialog(context))" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined"
+                                           OnClick="@(() => OpenEditDialog(context))" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" Variant="Variant.Outlined"
+                                           OnClick="@(async () => await DeleteUser(context))" />
+                        </div>
+                    </MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <div class="pa-8 text-center">
+                        <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Large" Style="opacity:0.3; font-size:4rem;" Class="mb-4" />
+                        <MudText Typo="Typo.h6" Class="mud-text-secondary">No users found</MudText>
                     </div>
-                </MudPaper>
-            }
-            @if (_mobileTotalCount > _mobileUsers.Count)
-            {
-                <div class="d-flex justify-center mt-4 mb-2">
-                    <MudButton Variant="Variant.Outlined" Color="Color.Primary"
-                               Disabled="@_isLoadingMore" OnClick="LoadMoreMobile">
-                        @(_isLoadingMore ? "Loading..." : $"Load More ({_mobileUsers.Count} of {_mobileTotalCount})")
-                    </MudButton>
-                </div>
-            }
-        </MudHidden>
+                </NoRecordsContent>
+                <PagerContent><MudTablePager /></PagerContent>
+            </MudTable>
+        </MudPaper>
     }
 </MudContainer>
 
@@ -247,7 +214,8 @@
         }
         else
         {
-            <MudTable Items="@activityDocs" Dense="true" Hover="true" Elevation="0">
+            <MudTable Items="@activityDocs" Dense="true" Hover="true" Elevation="0"
+                      Breakpoint="Breakpoint.Sm">
                 <HeaderContent>
                     <MudTh>Name</MudTh>
                     <MudTh>Status</MudTh>
@@ -275,11 +243,6 @@
 
 @code {
     private MudTable<AppUser>? _table;
-    private List<AppUser> _mobileUsers = new();
-    private int _mobileTotalCount = 0;
-    private bool _isLoadingMore = false;
-    private const int MobilePageSize = 25;
-
     private List<Office> allOffices = new();
     private bool isLoading = true;
     private bool isSaving = false;
@@ -301,9 +264,9 @@
 
     protected override async Task OnInitializedAsync()
     {
-        try 
-        { 
-            allOffices = await DocService.GetOfficesSimpleAsync(); 
+        try
+        {
+            allOffices = await DocService.GetOfficesSimpleAsync();
         }
         catch (Exception ex)
         {
@@ -321,13 +284,6 @@
                 page: state.Page + 1, pageSize: state.PageSize,
                 search: searchString, officeId: _selectedOfficeId,
                 filterByOffice: _selectedOfficeId.HasValue);
-
-            if (state.Page == 0)
-            {
-                _mobileUsers = result.Items;
-                _mobileTotalCount = result.TotalCount;
-            }
-
             return new TableData<AppUser> { Items = result.Items, TotalItems = result.TotalCount };
         }
         catch (Exception ex)
@@ -336,24 +292,6 @@
             return new TableData<AppUser>();
         }
     }
-
-    private async Task LoadMoreMobile()
-    {
-        _isLoadingMore = true;
-        try
-        {
-            var nextPage = (_mobileUsers.Count / MobilePageSize) + 1;
-            var result = await DocService.GetAppUsersPagedAsync(
-                page: nextPage, pageSize: MobilePageSize,
-                search: searchString, officeId: _selectedOfficeId,
-                filterByOffice: _selectedOfficeId.HasValue);
-            _mobileUsers.AddRange(result.Items);
-            _mobileTotalCount = result.TotalCount;
-        }
-        catch (Exception ex) { Console.WriteLine($"[ManageUsers] LoadMoreMobile error: {ex.Message}"); }
-        finally { _isLoadingMore = false; }
-    }
-
 
     private async Task OnFilterChanged()
     {
@@ -481,7 +419,6 @@
             if (_table != null) await _table.ReloadServerData();
     }
 
-
     private Color GetRoleColor(string? role) => role switch
     {
         "Admin" => Color.Error,
@@ -489,4 +426,3 @@
         _ => Color.Default
     };
 }
-
