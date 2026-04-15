@@ -172,6 +172,8 @@
         Style="position: fixed; bottom: 24px; right: 24px; z-index: 1000;" />
 
 @code {
+    [SupplyParameterFromQuery(Name = "search")] public string? SearchParam { get; set; }
+
     private PagedResult<Office> officeResult = new();
     private bool loading = true;
     private bool isLoadingMore = false;
@@ -182,6 +184,8 @@
 
     protected override async Task OnInitializedAsync()
     {
+        if (!string.IsNullOrEmpty(SearchParam))
+            searchString = SearchParam;
         await LoadOffices();
     }
 

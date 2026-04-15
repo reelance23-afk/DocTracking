@@ -313,6 +313,7 @@
 
 @code {
     [SupplyParameterFromQuery(Name = "ref")] public string? RefParam { get; set; }
+    [SupplyParameterFromQuery(Name = "search")] public string? SearchParam { get; set; }
 
     private PagedResult<Document> _pagedResult = new();
     private List<Document> myDocuments => _pagedResult.Items;
@@ -350,6 +351,10 @@
                 errorMessage = "Could not load your profile.";
                 return;
             }
+
+            if (!string.IsNullOrEmpty(SearchParam))
+                searchString = SearchParam;
+
             email = profile.Email;
             _stats = await DocService.GetUserDocumentStatsAsync(email) ?? new();
             await LoadMobileData();
@@ -361,7 +366,15 @@
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
+        {
             NotifService.OnChange += OnNotificationReceived;
+
+            if (!string.IsNullOrEmpty(SearchParam) && _table != null)
+            {
+                searchString = SearchParam;
+                await _table.ReloadServerData();
+            }
+        }
 
         if (!dialogOpened && !isLoading && !string.IsNullOrEmpty(RefParam))
         {
@@ -371,6 +384,7 @@
             if (doc != null) await OpenViewDialog(doc);
         }
     }
+
 
     private void OnNotificationReceived() =>
         _debounce.Trigger(async () =>

@@ -112,9 +112,10 @@ namespace DocTracking.Controllers
             [FromQuery] string? status = null,
             [FromQuery] string? office = null,
             [FromQuery] string? dateFrom = null,
-            [FromQuery] string? dateTo = null)
+            [FromQuery] string? dateTo = null,
+            [FromQuery] string? sender = null)
         {
-            var (items, total) = await _docService.GetAllDocumentsAsync(page, pageSize, search, status, office, dateFrom, dateTo);
+            var (items, total) = await _docService.GetAllDocumentsAsync(page, pageSize, search, status, office, dateFrom, dateTo, sender);
             return Ok(new PagedResult<Document> { Items = items, TotalCount = total });
         }
 
@@ -137,11 +138,12 @@ namespace DocTracking.Controllers
         [HttpGet("export-csv")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> ExportDocumentsCsv(
-            [FromQuery] string? search = null,
-            [FromQuery] string? status = null,
-            [FromQuery] string? office = null,
-            [FromQuery] string? dateFrom = null,
-            [FromQuery] string? dateTo = null)
+        [FromQuery] string? search = null,
+        [FromQuery] string? status = null,
+        [FromQuery] string? office = null,
+        [FromQuery] string? dateFrom = null,
+        [FromQuery] string? dateTo = null,
+        [FromQuery] string? sender = null)
         {
             try
             {
@@ -151,7 +153,7 @@ namespace DocTracking.Controllers
                 var sb = new StringBuilder();
                 sb.AppendLine("Name,Type,Sender,Status,Priority,Current Office,Current Unit,Next Office,Created At");
 
-                await foreach (var doc in _docService.StreamAllDocumentsAsync(search, status, office, dateFrom, dateTo))
+                await foreach (var doc in _docService.StreamAllDocumentsAsync(search, status, office, dateFrom, dateTo, sender))
                 {
                     sb.AppendLine($"\"{doc.Name}\",\"{doc.Type}\",\"{doc.Creator?.Name}\",\"{doc.Status}\"," +
                                   $"\"{doc.Priority}\",\"{doc.CurrentOffice?.Name}\",\"{doc.CurrentUnit?.Name}\"," +
@@ -166,6 +168,7 @@ namespace DocTracking.Controllers
                 return StatusCode(500, "Failed to export documents.");
             }
         }
+
 
         [HttpGet("user/{email}")]
         public async Task<ActionResult<PagedResult<Document>>> GetUserDocument(
@@ -908,7 +911,7 @@ namespace DocTracking.Controllers
                 {
                     var explicitStatus = request.Status;
 
-                    if (explicitStatus == "Received")                                                                 
+                    if (explicitStatus == "Received")
                     {
                         doc.CurrentOfficeId = request.NextOfficeId;
                         doc.CurrentUnitId = request.NextUnitId;
@@ -979,6 +982,307 @@ namespace DocTracking.Controllers
                 return StatusCode(500, "Failed to apply admin override.");
             }
         }
+
+        [HttpGet("search")]
+        public async Task<ActionResult> SearchDocuments([FromQuery] string q, [FromQuery] int take = 5, [FromQuery] int skip = 0)
+        {
+            if (string.IsNullOrWhiteSpace(q)) return Ok(new { items = new List<DocumentSearchResult>(), total = 0 });
+
+            var email = CurrentUserEmail;
+            var isAdmin = User.IsInRole("Admin");
+            var isOffice = User.IsInRole("Office");
+
+            try
+            {
+                IQueryable<Document> query = _context.Documents
+                    .Include(d => d.Creator)
+                    .Include(d => d.CurrentOffice)
+                    .Include(d => d.NextOffice);
+
+                if (isAdmin)
+                {
+                    query = query.Where(d =>
+                        (d.Name != null && d.Name.Contains(q)) ||
+                        (d.ReferenceNumber != null && d.ReferenceNumber.Contains(q)) ||
+                        (d.Creator != null && d.Creator.Name != null && d.Creator.Name.Contains(q)));
+                }
+                else if (isOffice)
+                {
+                    var appUser = await _context.AppUsers.Include(u => u.Unit).FirstOrDefaultAsync(u => u.Email == email);
+                    int? myOfficeId = appUser?.Unit?.OfficeId ?? appUser?.OfficeId;
+
+                    query = query.Where(d =>
+                        ((d.Name != null && d.Name.Contains(q)) ||
+                         (d.ReferenceNumber != null && d.ReferenceNumber.Contains(q))) &&
+                        (d.Creator!.Email == email ||
+                         d.CurrentOfficeId == myOfficeId ||
+                         d.NextOfficeId == myOfficeId ||
+                         _context.DocumentLogs.Any(l => l.DocumentId == d.Id &&
+                             ((l.UnitId != null && l.Unit != null && l.Unit.OfficeId == myOfficeId) ||
+                              (l.UnitId == null && l.OfficeId == myOfficeId)))));
+                }
+                else
+                {
+                    query = query.Where(d =>
+                        d.Creator != null && d.Creator.Email == email &&
+                        ((d.Name != null && d.Name.Contains(q)) ||
+                         (d.ReferenceNumber != null && d.ReferenceNumber.Contains(q))));
+                }
+
+                var total = await query.CountAsync();
+                var items = await query
+                    .OrderByDescending(d => d.LastActionDate ?? d.CreatedAt)
+                    .Skip(skip)
+                    .Take(take)
+                    .Select(d => new DocumentSearchResult
+                    {
+                        Id = d.Id,
+                        Name = d.Name,
+                        ReferenceNumber = d.ReferenceNumber,
+                        Status = d.Status,
+                        CreatorName = d.Creator != null ? d.Creator.Name : null
+                    })
+                    .ToListAsync();
+
+                return Ok(new { items, total });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[SearchDocuments] Failed");
+                return StatusCode(500, "Search failed.");
+            }
+        }
+
+        [HttpGet("search/grouped")]
+        public async Task<ActionResult> SearchGrouped([FromQuery] string q, [FromQuery] int take = 5)
+        {
+            if (string.IsNullOrWhiteSpace(q)) return Ok(new GroupedSearchResult());
+
+            var email = CurrentUserEmail;
+            var isAdmin = User.IsInRole("Admin");
+            var isOffice = User.IsInRole("Office");
+
+            try
+            {
+                var result = new GroupedSearchResult();
+
+                if (isAdmin)
+                {
+                    var docQuery = _context.Documents
+                        .Include(d => d.Creator)
+                        .Where(d =>
+                            (d.Name != null && d.Name.Contains(q)) ||
+                            (d.ReferenceNumber != null && d.ReferenceNumber.Contains(q)) ||
+                            (d.Creator != null && d.Creator.Name != null && d.Creator.Name.Contains(q)));
+
+                    result.DocumentTrackingTotal = await docQuery.CountAsync();
+                    result.DocumentTracking = await docQuery
+                        .OrderByDescending(d => d.LastActionDate ?? d.CreatedAt)
+                        .Take(take)
+                        .Select(d => new DocumentSearchResult
+                        {
+                            Id = d.Id,
+                            Name = d.Name,
+                            ReferenceNumber = d.ReferenceNumber,
+                            Status = d.Status,
+                            CreatorName = d.Creator != null ? d.Creator.Name : null
+                        }).ToListAsync();
+
+                    var auditQuery = _context.DocumentLogs
+                        .Include(l => l.Document)
+                        .Include(l => l.AppUser)
+                        .Where(l =>
+                            (l.Document != null && l.Document.Name != null && l.Document.Name.Contains(q)) ||
+                            (l.Document != null && l.Document.ReferenceNumber != null && l.Document.ReferenceNumber.Contains(q)) ||
+                            (l.AppUser != null && l.AppUser.Name != null && l.AppUser.Name.Contains(q)) ||
+                            (l.Action != null && l.Action.Contains(q)));
+
+                    result.AuditLogTotal = await auditQuery.CountAsync();
+                    result.AuditLog = await auditQuery
+                        .OrderByDescending(l => l.TimeStamp)
+                        .Take(take)
+                        .Select(l => new AuditSearchResult
+                        {
+                            Id = l.Id,
+                            DocumentName = l.Document != null ? l.Document.Name : null,
+                            ReferenceNumber = l.Document != null ? l.Document.ReferenceNumber : null,
+                            Action = l.Action,
+                            ByName = l.AppUser != null ? l.AppUser.Name : l.UserName
+                        }).ToListAsync();
+
+                    var officeQuery = _context.Offices
+                        .Where(o => o.Name != null && o.Name.Contains(q));
+
+                    result.OfficesTotal = await officeQuery.CountAsync();
+                    result.Offices = await officeQuery
+                        .OrderBy(o => o.Name)
+                        .Take(take)
+                        .Select(o => new NamedSearchResult { Id = o.Id, Name = o.Name })
+                        .ToListAsync();
+
+                    var userQuery = _context.AppUsers
+                        .Where(u => u.Name != null && u.Name.Contains(q));
+
+                    result.UsersTotal = await userQuery.CountAsync();
+                    result.Users = await userQuery
+                        .OrderBy(u => u.Name)
+                        .Take(take)
+                        .Select(u => new NamedSearchResult { Id = u.Id, Name = u.Name })
+                        .ToListAsync();
+
+                    var myDocQuery = _context.Documents
+                        .Include(d => d.Creator)
+                        .Where(d => d.Creator != null && d.Creator.Email == email &&
+                            ((d.Name != null && d.Name.Contains(q)) ||
+                             (d.ReferenceNumber != null && d.ReferenceNumber.Contains(q))));
+
+                    result.MyTrackingTotal = await myDocQuery.CountAsync();
+                    result.MyTracking = await myDocQuery
+                        .OrderByDescending(d => d.LastActionDate ?? d.CreatedAt)
+                        .Take(take)
+                        .Select(d => new DocumentSearchResult
+                        {
+                            Id = d.Id,
+                            Name = d.Name,
+                            ReferenceNumber = d.ReferenceNumber,
+                            Status = d.Status,
+                            CreatorName = d.Creator != null ? d.Creator.Name : null
+                        }).ToListAsync();
+                }
+                else if (isOffice)
+                {
+                    var appUser = await _context.AppUsers.Include(u => u.Unit).FirstOrDefaultAsync(u => u.Email == email);
+                    int? myOfficeId = appUser?.Unit?.OfficeId ?? appUser?.OfficeId;
+                    int? myUnitId = appUser?.UnitId;
+                    bool isOfficeHead = appUser?.IsOfficeHead == true;
+
+                    var incomingQuery = _context.Documents
+                        .Include(d => d.Creator)
+                        .Where(d => d.NextOfficeId == myOfficeId && d.Status == "In Motion" &&
+                            (myUnitId.HasValue ? (d.NextUnitId == myUnitId || d.NextUnitId == null) : isOfficeHead || d.NextUnitId == null) &&
+                            ((d.Name != null && d.Name.Contains(q)) ||
+                             (d.ReferenceNumber != null && d.ReferenceNumber.Contains(q))));
+
+                    result.IncomingTotal = await incomingQuery.CountAsync();
+                    result.Incoming = await incomingQuery
+                        .OrderByDescending(d => d.LastActionDate ?? d.CreatedAt)
+                        .Take(take)
+                        .Select(d => new DocumentSearchResult
+                        {
+                            Id = d.Id,
+                            Name = d.Name,
+                            ReferenceNumber = d.ReferenceNumber,
+                            Status = d.Status,
+                            CreatorName = d.Creator != null ? d.Creator.Name : null
+                        }).ToListAsync();
+
+                    var deskQuery = _context.Documents
+                        .Include(d => d.Creator)
+                        .Where(d => d.CurrentOfficeId == myOfficeId && d.Status == "Received" &&
+                            (isOfficeHead || (myUnitId.HasValue ? (d.CurrentUnitId == null || d.CurrentUnitId == myUnitId) : d.CurrentUnitId == null)) &&
+                            ((d.Name != null && d.Name.Contains(q)) ||
+                             (d.ReferenceNumber != null && d.ReferenceNumber.Contains(q))));
+
+                    result.OnDeskTotal = await deskQuery.CountAsync();
+                    result.OnDesk = await deskQuery
+                        .OrderByDescending(d => d.LastActionDate ?? d.CreatedAt)
+                        .Take(take)
+                        .Select(d => new DocumentSearchResult
+                        {
+                            Id = d.Id,
+                            Name = d.Name,
+                            ReferenceNumber = d.ReferenceNumber,
+                            Status = d.Status,
+                            CreatorName = d.Creator != null ? d.Creator.Name : null
+                        }).ToListAsync();
+
+                    var outgoingQuery = _context.Documents
+                        .Include(d => d.Creator)
+                        .Include(d => d.NextOffice)
+                        .Where(d => d.Status == "In Motion" &&
+                            _context.DocumentLogs.Any(log => log.Action == "Forwarded" &&
+                                log.DocumentId == d.Id && log.AppUser != null &&
+                                (myUnitId.HasValue
+                                    ? log.AppUser.UnitId == myUnitId
+                                    : (log.AppUser.Unit != null && log.AppUser.Unit.OfficeId == myOfficeId) ||
+                                      (log.AppUser.Unit == null && log.AppUser.OfficeId == myOfficeId))) &&
+                            ((d.Name != null && d.Name.Contains(q)) ||
+                             (d.ReferenceNumber != null && d.ReferenceNumber.Contains(q))));
+
+                    result.OutgoingTotal = await outgoingQuery.CountAsync();
+                    result.Outgoing = await outgoingQuery
+                        .OrderByDescending(d => d.LastActionDate ?? d.CreatedAt)
+                        .Take(take)
+                        .Select(d => new DocumentSearchResult
+                        {
+                            Id = d.Id,
+                            Name = d.Name,
+                            ReferenceNumber = d.ReferenceNumber,
+                            Status = d.Status,
+                            CreatorName = d.Creator != null ? d.Creator.Name : null
+                        }).ToListAsync();
+
+                    var myDocQuery = _context.Documents
+                        .Include(d => d.Creator)
+                        .Where(d => d.Creator != null && d.Creator.Email == email &&
+                            ((d.Name != null && d.Name.Contains(q)) ||
+                             (d.ReferenceNumber != null && d.ReferenceNumber.Contains(q))));
+
+                    result.MyTrackingTotal = await myDocQuery.CountAsync();
+                    result.MyTracking = await myDocQuery
+                        .OrderByDescending(d => d.LastActionDate ?? d.CreatedAt)
+                        .Take(take)
+                        .Select(d => new DocumentSearchResult
+                        {
+                            Id = d.Id,
+                            Name = d.Name,
+                            ReferenceNumber = d.ReferenceNumber,
+                            Status = d.Status,
+                            CreatorName = d.Creator != null ? d.Creator.Name : null
+                        }).ToListAsync();
+                }
+                else
+                {
+                    var myDocQuery = _context.Documents
+                        .Include(d => d.Creator)
+                        .Where(d => d.Creator != null && d.Creator.Email == email &&
+                            ((d.Name != null && d.Name.Contains(q)) ||
+                             (d.ReferenceNumber != null && d.ReferenceNumber.Contains(q))));
+
+                    result.MyTrackingTotal = await myDocQuery.CountAsync();
+                    result.MyTracking = await myDocQuery
+                        .OrderByDescending(d => d.LastActionDate ?? d.CreatedAt)
+                        .Take(take)
+                        .Select(d => new DocumentSearchResult
+                        {
+                            Id = d.Id,
+                            Name = d.Name,
+                            ReferenceNumber = d.ReferenceNumber,
+                            Status = d.Status,
+                            CreatorName = d.Creator != null ? d.Creator.Name : null
+                        }).ToListAsync();
+                }
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[SearchGrouped] Failed");
+                return StatusCode(500, "Search failed.");
+            }
+        }
+
+
+        [HttpGet("senders")]
+        [Authorize(Roles = "Admin,Office")]
+        public async Task<ActionResult<List<string>>> GetSenders([FromQuery] string? search = null)
+        {
+            var query = _context.AppUsers.Where(u => u.Name != null);
+            if (!string.IsNullOrEmpty(search))
+                query = query.Where(u => u.Name!.Contains(search));
+            var senders = await query.Select(u => u.Name!).Distinct().OrderBy(n => n).Take(20).ToListAsync();
+            return Ok(senders);
+        }
     }
     public class ForwardRequest
     {
@@ -999,5 +1303,48 @@ namespace DocTracking.Controllers
         public int? NextOfficeId { get; set; }
         public int? NextUnitId { get; set; }
         public string? ReassignComment { get; set; }
+    }
+
+    public class DocumentSearchResult
+    {
+        public int Id { get; set; }
+        public string? Name { get; set; }
+        public string? ReferenceNumber { get; set; }
+        public string? Status { get; set; }
+        public string? CreatorName { get; set; }
+    }
+
+    public class GroupedSearchResult
+    {
+        public List<DocumentSearchResult> DocumentTracking { get; set; } = new();
+        public int DocumentTrackingTotal { get; set; }
+        public List<AuditSearchResult> AuditLog { get; set; } = new();
+        public int AuditLogTotal { get; set; }
+        public List<DocumentSearchResult> MyTracking { get; set; } = new();
+        public int MyTrackingTotal { get; set; }
+        public List<DocumentSearchResult> Incoming { get; set; } = new();
+        public int IncomingTotal { get; set; }
+        public List<DocumentSearchResult> OnDesk { get; set; } = new();
+        public int OnDeskTotal { get; set; }
+        public List<DocumentSearchResult> Outgoing { get; set; } = new();
+        public int OutgoingTotal { get; set; }
+        public List<NamedSearchResult> Offices { get; set; } = new();
+        public int OfficesTotal { get; set; }
+        public List<NamedSearchResult> Users { get; set; } = new();
+        public int UsersTotal { get; set; }
+    }
+
+    public class AuditSearchResult
+    {
+        public int Id { get; set; }
+        public string? DocumentName { get; set; }
+        public string? ReferenceNumber { get; set; }
+        public string? Action { get; set; }
+        public string? ByName { get; set; }
+    }
+    public class NamedSearchResult
+    {
+        public int Id { get; set; }
+        public string? Name { get; set; }
     }
 }

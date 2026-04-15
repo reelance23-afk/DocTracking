@@ -181,6 +181,7 @@
 
 @code {
     [SupplyParameterFromQuery(Name = "ref")] public string? RefParam { get; set; }
+    [SupplyParameterFromQuery(Name = "search")] public string? SearchParam { get; set; }
 
     private PagedResult<Document> historyResult = new();
     private LocationDocStats _stats = new();
@@ -199,6 +200,9 @@
     {
         try
         {
+            if (!string.IsNullOrEmpty(SearchParam))
+                searchString = SearchParam;
+
             var profile = await DocService.GetProfileAsync();
             if (profile?.UnitId != null)
             {

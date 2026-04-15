@@ -168,7 +168,8 @@ namespace DocTracking.Client.Services
         public async Task<PagedResult<Document>> GetAllDocumentsAsync(
             int page = 1, int pageSize = 25,
             string? search = null, string? status = null,
-            string? office = null, string? dateFrom = null, string? dateTo = null)
+            string? office = null, string? dateFrom = null, string? dateTo = null,
+            string? sender = null)
         {
             var url = $"api/documents?page={page}&pageSize={pageSize}";
             if (!string.IsNullOrEmpty(search)) url += $"&search={Uri.EscapeDataString(search)}";
@@ -176,8 +177,27 @@ namespace DocTracking.Client.Services
             if (!string.IsNullOrEmpty(office)) url += $"&office={Uri.EscapeDataString(office)}";
             if (!string.IsNullOrEmpty(dateFrom)) url += $"&dateFrom={Uri.EscapeDataString(dateFrom)}";
             if (!string.IsNullOrEmpty(dateTo)) url += $"&dateTo={Uri.EscapeDataString(dateTo)}";
+            if (!string.IsNullOrEmpty(sender)) url += $"&sender={Uri.EscapeDataString(sender)}";
             return await GetJsonAsync<PagedResult<Document>>(url) ?? new();
         }
+
+        public string GetDocumentsCsvUrl(
+            string? search = null, string? status = null,
+            string? office = null, string? dateFrom = null, string? dateTo = null,
+            string? sender = null)
+        {
+            var url = $"{_http.BaseAddress}api/documents/export-csv";
+            var query = new List<string>();
+            if (!string.IsNullOrEmpty(search)) query.Add($"search={Uri.EscapeDataString(search)}");
+            if (!string.IsNullOrEmpty(status)) query.Add($"status={Uri.EscapeDataString(status)}");
+            if (!string.IsNullOrEmpty(office)) query.Add($"office={Uri.EscapeDataString(office)}");
+            if (!string.IsNullOrEmpty(dateFrom)) query.Add($"dateFrom={Uri.EscapeDataString(dateFrom)}");
+            if (!string.IsNullOrEmpty(dateTo)) query.Add($"dateTo={Uri.EscapeDataString(dateTo)}");
+            if (!string.IsNullOrEmpty(sender)) query.Add($"sender={Uri.EscapeDataString(sender)}");
+            if (query.Any()) url += "?" + string.Join("&", query);
+            return url;
+        }
+
 
         public async Task<DocumentContext?> GetDocumentContextAsync(string referenceNumber) =>
             await GetJsonAsync<DocumentContext>($"api/documents/by-ref/{referenceNumber}/context");
@@ -212,7 +232,7 @@ namespace DocTracking.Client.Services
             var url = unitId.HasValue
                 ? $"api/documents/stats/unit/{unitId}"
                 : $"api/documents/stats/office/{officeId}";
-                return await GetJsonAsync<LocationDocStats>(url);
+            return await GetJsonAsync<LocationDocStats>(url);
         }
 
         public async Task<List<Document>> GetIncomingAsync(int officeId, int? unitId = null, string? search = null)
@@ -341,12 +361,15 @@ namespace DocTracking.Client.Services
 
         public async Task<PagedResult<DocumentLog>> GetAuditLogsAsync(
             int page = 1, int pageSize = 25,
-            string? search = null, string? action = null, string? date = null)
+            string? search = null, string? action = null, string? date = null,
+            string? sender = null, string? office = null)
         {
             var url = $"api/documentlogs/audit?page={page}&pageSize={pageSize}";
             if (!string.IsNullOrEmpty(search)) url += $"&search={Uri.EscapeDataString(search)}";
             if (!string.IsNullOrEmpty(action)) url += $"&action={Uri.EscapeDataString(action)}";
             if (!string.IsNullOrEmpty(date)) url += $"&date={Uri.EscapeDataString(date)}";
+            if (!string.IsNullOrEmpty(sender)) url += $"&sender={Uri.EscapeDataString(sender)}";
+            if (!string.IsNullOrEmpty(office)) url += $"&office={Uri.EscapeDataString(office)}";
             return await GetJsonAsync<PagedResult<DocumentLog>>(url) ?? new();
         }
 
@@ -354,31 +377,32 @@ namespace DocTracking.Client.Services
         public Task<(bool Success, string? Error)> BroadcastNotificationAsync(string message, int? officeId = null) =>
             ToResult(_http.PostAsJsonAsync("api/notifications/broadcast", new { Message = message, OfficeId = officeId }));
 
-        public string GetDocumentsCsvUrl(
-            string? search = null, string? status = null,
-            string? office = null, string? dateFrom = null, string? dateTo = null)
-        {
-            var url = $"{_http.BaseAddress}api/documents/export-csv";
-            var query = new List<string>();
-            if (!string.IsNullOrEmpty(search)) query.Add($"search={Uri.EscapeDataString(search)}");
-            if (!string.IsNullOrEmpty(status)) query.Add($"status={Uri.EscapeDataString(status)}");
-            if (!string.IsNullOrEmpty(office)) query.Add($"office={Uri.EscapeDataString(office)}");
-            if (!string.IsNullOrEmpty(dateFrom)) query.Add($"dateFrom={Uri.EscapeDataString(dateFrom)}");
-            if (!string.IsNullOrEmpty(dateTo)) query.Add($"dateTo={Uri.EscapeDataString(dateTo)}");
-            if (query.Any()) url += "?" + string.Join("&", query);
-            return url;
-        }
-
         public string GetAuditLogCsvUrl(
-            string? search = null, string? action = null, string? date = null)
+            string? search = null, string? action = null, string? date = null,
+            string? sender = null, string? office = null)
         {
             var url = $"{_http.BaseAddress}api/documentlogs/export-csv";
             var query = new List<string>();
             if (!string.IsNullOrEmpty(search)) query.Add($"search={Uri.EscapeDataString(search)}");
             if (!string.IsNullOrEmpty(action)) query.Add($"action={Uri.EscapeDataString(action)}");
             if (!string.IsNullOrEmpty(date)) query.Add($"date={Uri.EscapeDataString(date)}");
+            if (!string.IsNullOrEmpty(sender)) query.Add($"sender={Uri.EscapeDataString(sender)}");
+            if (!string.IsNullOrEmpty(office)) query.Add($"office={Uri.EscapeDataString(office)}");
             if (query.Any()) url += "?" + string.Join("&", query);
             return url;
+        }
+
+        public async Task<GroupedSearchResult> SearchDocumentsGroupedAsync(string q, int take = 5)
+        {
+            return await GetJsonAsync<GroupedSearchResult>(
+                $"api/documents/search/grouped?q={Uri.EscapeDataString(q)}&take={take}") ?? new();
+        }
+
+        public async Task<List<string>> GetSendersAsync(string? search = null)
+        {
+            var url = "api/documents/senders";
+            if (!string.IsNullOrEmpty(search)) url += $"?search={Uri.EscapeDataString(search)}";
+            return await GetJsonAsync<List<string>>(url) ?? new();
         }
     }
 
@@ -427,7 +451,6 @@ namespace DocTracking.Client.Services
         public int OfficeId { get; set; }
     }
 
-
     public class DocumentContext
     {
         public string RedirectTo { get; set; } = "public";
@@ -458,5 +481,54 @@ namespace DocTracking.Client.Services
         public int InMotion { get; set; }
         public int Received { get; set; }
         public int Completed { get; set; }
+    }
+
+    public class DocumentSearchResult
+    {
+        public int Id { get; set; }
+        public string? Name { get; set; }
+        public string? ReferenceNumber { get; set; }
+        public string? Status { get; set; }
+        public string? CreatorName { get; set; }
+    }
+
+    public class SearchDocumentsResponse
+    {
+        public List<DocumentSearchResult> Items { get; set; } = new();
+        public int Total { get; set; }
+    }
+
+    public class GroupedSearchResult
+    {
+        public List<DocumentSearchResult> DocumentTracking { get; set; } = new();
+        public int DocumentTrackingTotal { get; set; }
+        public List<AuditSearchResult> AuditLog { get; set; } = new();
+        public int AuditLogTotal { get; set; }
+        public List<DocumentSearchResult> MyTracking { get; set; } = new();
+        public int MyTrackingTotal { get; set; }
+        public List<DocumentSearchResult> Incoming { get; set; } = new();
+        public int IncomingTotal { get; set; }
+        public List<DocumentSearchResult> OnDesk { get; set; } = new();
+        public int OnDeskTotal { get; set; }
+        public List<DocumentSearchResult> Outgoing { get; set; } = new();
+        public int OutgoingTotal { get; set; }
+        public List<NamedSearchResult> Offices { get; set; } = new();
+        public int OfficesTotal { get; set; }
+        public List<NamedSearchResult> Users { get; set; } = new();
+        public int UsersTotal { get; set; }
+    }
+
+    public class AuditSearchResult
+    {
+        public int Id { get; set; }
+        public string? DocumentName { get; set; }
+        public string? ReferenceNumber { get; set; }
+        public string? Action { get; set; }
+        public string? ByName { get; set; }
+    }
+    public class NamedSearchResult
+    {
+        public int Id { get; set; }
+        public string? Name { get; set; }
     }
 }

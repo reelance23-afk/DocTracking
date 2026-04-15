@@ -41,8 +41,7 @@
         from {
             transform: translateY(20px);
             opacity: 0;
-        }
-
+		}
         to {
             transform: translateY(0);
             opacity: 1;
@@ -79,16 +78,289 @@
 
         <AuthorizeView>
             <Authorized>
-                <div style="flex:1; max-width:600px; padding: 0 8px;">
-                    <MudTextField @bind-Value="_refSearch" Placeholder="Track by ref no..."
+                <div style="flex:1; max-width:600px; padding: 0 8px; position: relative;"
+                     @onfocusout="OnSearchFocusOut">
+                    <MudTextField @bind-Value="_refSearch"
+                                  @bind-Value:after="@(() => OnSearchChanged(_refSearch))"
+                                  DebounceInterval="400"
+                                  Placeholder="Search documents..."
                                   Adornment="Adornment.End"
-                                  AdornmentIcon="@Icons.Material.Filled.Search"
-                                  AdornmentAriaLabel="Track"
-                                  OnAdornmentClick="GoToRef"
+                                  AdornmentIcon="@(_searchLoading? Icons.Material.Filled.HourglassEmpty : Icons.Material.Filled.Search)"
+                                  AdornmentAriaLabel="Search"
+                                  OnAdornmentClick="@(async () => await OnSearch())"
                                   Variant="Variant.Outlined"
                                   Margin="Margin.Dense"
                                   OnKeyDown="OnSearchKeyDown"
                                   Style="width:100%;" />
+
+                    @if (_searchOpen)
+                    {
+                        <MudPaper Elevation="8"
+                                  Style="position:absolute; top:100%; left:0; right:0; z-index:2000; max-height:450px; overflow-y:auto;"
+                                  @onmousedown:stopPropagation="true">
+                            @if (_searchLoading)
+                            {
+                                <div class="pa-4 d-flex justify-center">
+                                    <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Small" />
+                                </div>
+                            }
+                            else if (!HasAnyResults)
+                            {
+                                <div class="pa-4 text-center">
+                                    <MudText Typo="Typo.body2" Class="mud-text-secondary">No results found</MudText>
+                                </div>
+                            }
+                            else
+                            {
+                                @if (_groupedResults.DocumentTracking.Any())
+                                {
+                                    <div class="px-3 pt-3 pb-1">
+                                        <MudText Typo="Typo.caption" Class="font-weight-bold mud-text-secondary">
+                                            <MudIcon Icon="@Icons.Material.Filled.Description" Size="Size.Small" Class="mr-1" />
+                                            DOCUMENT TRACKING
+                                        </MudText>
+                                    </div>
+                                    @foreach (var item in _groupedResults.DocumentTracking)
+                                    {
+                                        <MudListItem T="string" OnClick="@(() => OnResultClick($"/document-tracking?search={Uri.EscapeDataString(item.Name ?? "")}"))" Style="cursor:pointer;">
+                                            <div class="d-flex flex-column py-1">
+                                                <MudText Typo="Typo.body2" Class="font-weight-bold">@item.Name</MudText>
+                                                <div class="d-flex align-center gap-2">
+                                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">@item.ReferenceNumber</MudText>
+                                                    <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(item.Status)" Variant="Variant.Text" Style="height:18px; font-size:0.7rem;">@item.Status</MudChip>
+                                                </div>
+                                            </div>
+                                        </MudListItem>
+                                        <MudDivider />
+                                    }
+                                    @if (_groupedResults.DocumentTrackingTotal > _groupedResults.DocumentTracking.Count)
+                                    {
+                                        <div class="d-flex justify-center pb-1">
+                                            <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small"
+                                                       OnClick="@(() => OnResultClick($"/document-tracking?search={Uri.EscapeDataString(_refSearch)}"))">
+                                                See all @_groupedResults.DocumentTrackingTotal results
+                                            </MudButton>
+                                        </div>
+                                    }
+                                }
+
+                                @if (_groupedResults.AuditLog.Any())
+                                {
+                                    <div class="px-3 pt-3 pb-1">
+                                        <MudText Typo="Typo.caption" Class="font-weight-bold mud-text-secondary">
+                                            <MudIcon Icon="@Icons.Material.Filled.ManageSearch" Size="Size.Small" Class="mr-1" />
+                                            AUDIT LOG
+                                        </MudText>
+                                    </div>
+                                    @foreach (var item in _groupedResults.AuditLog)
+                                    {
+                                        <MudListItem T="string" OnClick="@(() => OnResultClick($"/admin-audit-log?search={Uri.EscapeDataString(item.DocumentName ?? "")}"))" Style="cursor:pointer;">
+                                            <div class="d-flex flex-column py-1">
+                                                <MudText Typo="Typo.body2" Class="font-weight-bold">@item.DocumentName</MudText>
+                                                <div class="d-flex align-center gap-2">
+                                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">@item.ReferenceNumber</MudText>
+                                                    <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Text" Style="height:18px; font-size:0.7rem;">@item.Action</MudChip>
+                                                    @if (!string.IsNullOrEmpty(item.ByName))
+                                                    {
+                                                        <MudText Typo="Typo.caption" Class="mud-text-secondary">by @item.ByName</MudText>
+                                                    }
+                                                </div>
+                                            </div>
+                                        </MudListItem>
+                                        <MudDivider />
+                                    }
+                                    @if (_groupedResults.AuditLogTotal > _groupedResults.AuditLog.Count)
+                                    {
+                                        <div class="d-flex justify-center pb-1">
+                                            <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small"
+                                                       OnClick="@(() => OnResultClick($"/admin-audit-log?search={Uri.EscapeDataString(_refSearch)}"))">
+                                                See all @_groupedResults.AuditLogTotal results
+                                            </MudButton>
+                                        </div>
+                                    }
+                                }
+
+                                @if (_groupedResults.Incoming.Any())
+                                {
+                                    <div class="px-3 pt-3 pb-1">
+                                        <MudText Typo="Typo.caption" Class="font-weight-bold mud-text-secondary">
+                                            <MudIcon Icon="@Icons.Material.Filled.Inbox" Size="Size.Small" Class="mr-1" />
+                                            INCOMING
+                                        </MudText>
+                                    </div>
+                                    @foreach (var item in _groupedResults.Incoming)
+                                    {
+                                        <MudListItem T="string" OnClick="@(() => OnResultClick($"/office-desk?search={Uri.EscapeDataString(item.Name ?? "")}&tab=Incoming"))" Style="cursor:pointer;">
+                                            <div class="d-flex flex-column py-1">
+                                                <MudText Typo="Typo.body2" Class="font-weight-bold">@item.Name</MudText>
+                                                <MudText Typo="Typo.caption" Class="mud-text-secondary">@item.ReferenceNumber</MudText>
+                                            </div>
+                                        </MudListItem>
+                                        <MudDivider />
+                                    }
+                                    @if (_groupedResults.IncomingTotal > _groupedResults.Incoming.Count)
+                                    {
+                                        <div class="d-flex justify-center pb-1">
+                                            <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small"
+                                                       OnClick="@(() => OnResultClick($"/office-desk?search={Uri.EscapeDataString(_refSearch)}&tab=Incoming"))">
+                                                See all @_groupedResults.IncomingTotal results
+                                            </MudButton>
+                                        </div>
+                                    }
+                                }
+
+                                @if (_groupedResults.OnDesk.Any())
+                                {
+                                    <div class="px-3 pt-3 pb-1">
+                                        <MudText Typo="Typo.caption" Class="font-weight-bold mud-text-secondary">
+                                            <MudIcon Icon="@Icons.Material.Filled.Assignment" Size="Size.Small" Class="mr-1" />
+                                            ON DESK
+                                        </MudText>
+                                    </div>
+                                    @foreach (var item in _groupedResults.OnDesk)
+                                    {
+                                        <MudListItem T="string" OnClick="@(() => OnResultClick($"/office-desk?search={Uri.EscapeDataString(item.Name ?? "")}&tab=OnDesk"))" Style="cursor:pointer;">
+                                            <div class="d-flex flex-column py-1">
+                                                <MudText Typo="Typo.body2" Class="font-weight-bold">@item.Name</MudText>
+                                                <MudText Typo="Typo.caption" Class="mud-text-secondary">@item.ReferenceNumber</MudText>
+                                            </div>
+                                        </MudListItem>
+                                        <MudDivider />
+                                    }
+                                    @if (_groupedResults.OnDeskTotal > _groupedResults.OnDesk.Count)
+                                    {
+                                        <div class="d-flex justify-center pb-1">
+                                            <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small"
+                                                       OnClick="@(() => OnResultClick($"/office-desk?search={Uri.EscapeDataString(_refSearch)}&tab=OnDesk"))">
+                                                See all @_groupedResults.OnDeskTotal results
+                                            </MudButton>
+                                        </div>
+                                    }
+                                }
+
+                                @if (_groupedResults.Outgoing.Any())
+                                {
+                                    <div class="px-3 pt-3 pb-1">
+                                        <MudText Typo="Typo.caption" Class="font-weight-bold mud-text-secondary">
+                                            <MudIcon Icon="@Icons.Material.Filled.Send" Size="Size.Small" Class="mr-1" />
+                                            OUTGOING
+                                        </MudText>
+                                    </div>
+                                    @foreach (var item in _groupedResults.Outgoing)
+                                    {
+                                        <MudListItem T="string" OnClick="@(() => OnResultClick($"/office-desk?search={Uri.EscapeDataString(item.Name ?? "")}&tab=Outgoing"))" Style="cursor:pointer;">
+                                            <div class="d-flex flex-column py-1">
+                                                <MudText Typo="Typo.body2" Class="font-weight-bold">@item.Name</MudText>
+                                                <MudText Typo="Typo.caption" Class="mud-text-secondary">@item.ReferenceNumber</MudText>
+                                            </div>
+                                        </MudListItem>
+                                        <MudDivider />
+                                    }
+                                    @if (_groupedResults.OutgoingTotal > _groupedResults.Outgoing.Count)
+                                    {
+                                        <div class="d-flex justify-center pb-1">
+                                            <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small"
+                                                       OnClick="@(() => OnResultClick($"/office-desk?search={Uri.EscapeDataString(_refSearch)}&tab=Outgoing"))">
+                                                See all @_groupedResults.OutgoingTotal results
+                                            </MudButton>
+                                        </div>
+                                    }
+                                }
+
+                                @if (_groupedResults.Offices.Any())
+                                {
+                                    <div class="px-3 pt-3 pb-1">
+                                        <MudText Typo="Typo.caption" Class="font-weight-bold mud-text-secondary">
+                                            <MudIcon Icon="@Icons.Material.Filled.Business" Size="Size.Small" Class="mr-1" />
+                                            MANAGE OFFICES
+                                        </MudText>
+                                    </div>
+                                    @foreach (var item in _groupedResults.Offices)
+                                    {
+                                        <MudListItem T="string" OnClick="@(() => OnResultClick($"/manage-offices?search={Uri.EscapeDataString(item.Name ?? "")}"))" Style="cursor:pointer;">
+                                            <div class="d-flex align-center py-1 gap-2">
+                                                <MudIcon Icon="@Icons.Material.Filled.Business" Size="Size.Small" Class="mud-text-secondary" />
+                                                <MudText Typo="Typo.body2" Class="font-weight-bold">@item.Name</MudText>
+                                            </div>
+                                        </MudListItem>
+                                        <MudDivider />
+                                    }
+                                    @if (_groupedResults.OfficesTotal > _groupedResults.Offices.Count)
+                                    {
+                                        <div class="d-flex justify-center pb-1">
+                                            <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small"
+                                                       OnClick="@(() => OnResultClick($"/manage-offices?search={Uri.EscapeDataString(_refSearch)}"))">
+                                                See all @_groupedResults.OfficesTotal results
+                                            </MudButton>
+                                        </div>
+                                    }
+                                }
+
+                                @if (_groupedResults.Users.Any())
+                                {
+                                    <div class="px-3 pt-3 pb-1">
+                                        <MudText Typo="Typo.caption" Class="font-weight-bold mud-text-secondary">
+                                            <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Small" Class="mr-1" />
+                                            USER MANAGEMENT
+                                        </MudText>
+                                    </div>
+                                    @foreach (var item in _groupedResults.Users)
+                                    {
+                                        <MudListItem T="string" OnClick="@(() => OnResultClick($"/manage-users?search={Uri.EscapeDataString(item.Name ?? "")}"))" Style="cursor:pointer;">
+                                            <div class="d-flex align-center py-1 gap-2">
+                                                <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Class="mud-text-secondary" />
+                                                <MudText Typo="Typo.body2" Class="font-weight-bold">@item.Name</MudText>
+                                            </div>
+                                        </MudListItem>
+                                        <MudDivider />
+                                    }
+                                    @if (_groupedResults.UsersTotal > _groupedResults.Users.Count)
+                                    {
+                                        <div class="d-flex justify-center pb-1">
+                                            <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small"
+                                                       OnClick="@(() => OnResultClick($"/manage-users?search={Uri.EscapeDataString(_refSearch)}"))">
+                                                See all @_groupedResults.UsersTotal results
+                                            </MudButton>
+                                        </div>
+                                    }
+                                }
+
+
+                                @if (_groupedResults.MyTracking.Any())
+                                {
+                                    <div class="px-3 pt-3 pb-1">
+                                        <MudText Typo="Typo.caption" Class="font-weight-bold mud-text-secondary">
+                                            <MudIcon Icon="@Icons.Material.Filled.TrackChanges" Size="Size.Small" Class="mr-1" />
+                                            MY TRACKING
+                                        </MudText>
+                                    </div>
+                                    @foreach (var item in _groupedResults.MyTracking)
+                                    {
+                                        <MudListItem T="string" OnClick="@(() => OnResultClick($"/my-tracking?search={Uri.EscapeDataString(item.Name ?? "")}"))" Style="cursor:pointer;">
+                                            <div class="d-flex flex-column py-1">
+                                                <MudText Typo="Typo.body2" Class="font-weight-bold">@item.Name</MudText>
+                                                <div class="d-flex align-center gap-2">
+                                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">@item.ReferenceNumber</MudText>
+                                                    <MudChip T="string" Size="Size.Small" Color="@GetStatusColor(item.Status)" Variant="Variant.Text" Style="height:18px; font-size:0.7rem;">@item.Status</MudChip>
+                                                </div>
+                                            </div>
+                                        </MudListItem>
+                                        <MudDivider />
+                                    }
+                                    @if (_groupedResults.MyTrackingTotal > _groupedResults.MyTracking.Count)
+                                    {
+                                        <div class="d-flex justify-center pb-1">
+                                            <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small"
+                                                       OnClick="@(() => OnResultClick($"/my-tracking?search={Uri.EscapeDataString(_refSearch)}"))">
+                                                See all @_groupedResults.MyTrackingTotal results
+                                            </MudButton>
+                                        </div>
+                                    }
+                                }
+                            }
+                        </MudPaper>
+
+                    }
                 </div>
                 <MudIconButton Icon="@Icons.Material.Filled.QrCodeScanner"
                                Color="Color.Default"
@@ -146,6 +418,22 @@
     private MudTheme CurrentTheme = new();
     private string? displayName;
     private string? displayRole;
+    private string? _userRole;
+
+    private GroupedSearchResult _groupedResults = new();
+    private bool _searchOpen = false;
+    private bool _searchLoading = false;
+    private CancellationTokenSource _searchCts = new();
+
+    private bool HasAnyResults =>
+        _groupedResults.DocumentTracking.Any() ||
+        _groupedResults.AuditLog.Any() ||
+        _groupedResults.MyTracking.Any() ||
+        _groupedResults.Incoming.Any() ||
+        _groupedResults.OnDesk.Any() ||
+        _groupedResults.Outgoing.Any() ||
+        _groupedResults.Offices.Any() ||
+        _groupedResults.Users.Any();
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -162,7 +450,8 @@
             {
                 var profile = await DocService.GetProfileAsync();
                 displayName = profile?.Name;
-                displayRole = profile?.Role switch
+                _userRole = profile?.Role;
+                displayRole = _userRole switch
                 {
                     "Admin" => "System Administrator",
                     "Office" => "Office Worker",
@@ -175,20 +464,81 @@
         }
     }
 
-    private void GoToRef()
+    private async void OnSearchChanged(string value)
     {
-        var trimmed = _refSearch.Trim();
-        if (!string.IsNullOrEmpty(trimmed))
+        _refSearch = value;
+        _searchCts.Cancel();
+        _searchCts = new CancellationTokenSource();
+
+        if (string.IsNullOrWhiteSpace(value))
         {
-            _refSearch = "";
-            Navigation.NavigateTo($"/track/{Uri.EscapeDataString(trimmed)}", forceLoad: true);
+            _searchOpen = false;
+            _groupedResults = new();
+            await InvokeAsync(StateHasChanged);
+            return;
         }
+
+        try
+        {
+            _searchLoading = true;
+            _searchOpen = true;
+            await InvokeAsync(StateHasChanged);
+            _groupedResults = await DocService.SearchDocumentsGroupedAsync(value, take: 5);
+        }
+        catch (Exception ex) { Console.WriteLine($"[Search] Error: {ex.Message}"); }
+        finally
+        {
+            _searchLoading = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+
+    private async Task OnSearch()
+    {
+        if (string.IsNullOrWhiteSpace(_refSearch)) return;
+        _searchLoading = true;
+        _searchOpen = true;
+        await InvokeAsync(StateHasChanged);
+        _groupedResults = await DocService.SearchDocumentsGroupedAsync(_refSearch, take: 5);
+        _searchLoading = false;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void OnResultClick(string url)
+    {
+        _searchOpen = false;
+        _refSearch = "";
+        _groupedResults = new();
+        Navigation.NavigateTo(url, forceLoad: true);
+    }
+
+    private void CloseSearch()
+    {
+        _searchOpen = false;
+        StateHasChanged();
+    }
+
+    private async Task OnSearchFocusOut()
+    {
+        await Task.Delay(200);
+        _searchOpen = false;
+        await InvokeAsync(StateHasChanged);
     }
 
     private void OnSearchKeyDown(KeyboardEventArgs e)
     {
-        if (e.Key == "Enter") GoToRef();
+        if (e.Key == "Enter") _ = OnSearch();
+        if (e.Key == "Escape") CloseSearch();
     }
+
+    private Color GetStatusColor(string? status) => status switch
+    {
+        "Completed" => Color.Success,
+        "Received" => Color.Info,
+        "In Motion" => Color.Warning,
+        _ => Color.Default
+    };
 
     private MudTheme BuildTheme() => ThemeService.SelectedTheme switch
     {
@@ -206,3 +556,4 @@
         await DialogService.ShowAsync<QRScanDialog>("Scan QR Code", options);
     }
 }
+

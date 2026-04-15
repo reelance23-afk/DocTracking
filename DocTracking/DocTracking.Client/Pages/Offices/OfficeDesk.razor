@@ -291,6 +291,9 @@
 @code {
     [SupplyParameterFromQuery(Name = "ref")] public string? RefParam { get; set; }
     [SupplyParameterFromQuery(Name = "tab")] public string? TabParam { get; set; }
+    [SupplyParameterFromQuery(Name = "search")] public string? SearchParam { get; set; }
+
+
 
     private bool dialogOpened = false;
     private Office? myOffice;
@@ -331,8 +334,18 @@
                 }
             }
 
+
+
             if (myOffice != null)
+            {
+                if (!string.IsNullOrEmpty(SearchParam))
+                {
+                    incomingSearch = SearchParam;
+                    deskSearch = SearchParam;
+                    outgoingSearch = SearchParam;
+                }
                 await RefreshQueues();
+            }
         }
         catch (Exception ex)
         {

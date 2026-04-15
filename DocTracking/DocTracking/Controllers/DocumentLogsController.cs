@@ -52,13 +52,15 @@ namespace DocTracking.Controllers
         [HttpGet("audit")]
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<PagedResult<DocumentLog>>> GetAuditLogs(
-            [FromQuery] int page = 1,
-            [FromQuery] int pageSize = 25,
-            [FromQuery] string? search = null,
-            [FromQuery] string? action = null,
-            [FromQuery] string? date = null)
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 25,
+        [FromQuery] string? search = null,
+        [FromQuery] string? action = null,
+        [FromQuery] string? date = null,
+        [FromQuery] string? sender = null,
+        [FromQuery] string? office = null)
         {
-            var (items, total) = await _docService.GetAuditLogsAsync(page, pageSize, search, action, date);
+            var (items, total) = await _docService.GetAuditLogsAsync(page, pageSize, search, action, date, sender, office);
             return Ok(new PagedResult<DocumentLog> { Items = items, TotalCount = total });
         }
 
@@ -67,7 +69,9 @@ namespace DocTracking.Controllers
         public async Task<IActionResult> ExportAuditLogCsv(
             [FromQuery] string? search = null,
             [FromQuery] string? action = null,
-            [FromQuery] string? date = null)
+            [FromQuery] string? date = null,
+            [FromQuery] string? sender = null,
+            [FromQuery] string? office = null)
         {
             try
             {
@@ -77,7 +81,7 @@ namespace DocTracking.Controllers
                 var sb = new StringBuilder();
                 sb.AppendLine("Timestamp,Document,Reference,Action,By,Office,Unit,Comment");
 
-                await foreach (var log in _docService.StreamAllAuditLogsAsync(search, action, date))
+                await foreach (var log in _docService.StreamAllAuditLogsAsync(search, action, date, sender, office))
                 {
                     sb.AppendLine($"\"{log.TimeStamp.ToLocalTime():yyyy-MM-dd hh:mm tt}\"," +
                                   $"\"{log.Document?.Name}\"," +
@@ -97,5 +101,6 @@ namespace DocTracking.Controllers
                 return StatusCode(500, "Failed to export audit log.");
             }
         }
+
     }
 }

@@ -242,6 +242,8 @@
 </MudDialog>
 
 @code {
+    [SupplyParameterFromQuery(Name = "search")] public string? SearchParam { get; set; }
+
     private MudTable<AppUser>? _table;
     private List<Office> allOffices = new();
     private bool isLoading = true;
@@ -267,6 +269,8 @@
         try
         {
             allOffices = await DocService.GetOfficesSimpleAsync();
+            if (!string.IsNullOrEmpty(SearchParam))
+                searchString = SearchParam;
         }
         catch (Exception ex)
         {
@@ -275,6 +279,17 @@
         }
         finally { isLoading = false; }
     }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        if (!string.IsNullOrEmpty(SearchParam) && _table != null)
+        {
+            searchString = SearchParam;
+            await _table.ReloadServerData();
+        }
+    }
+
 
     private async Task<TableData<AppUser>> LoadServerData(TableState state, CancellationToken ct)
     {

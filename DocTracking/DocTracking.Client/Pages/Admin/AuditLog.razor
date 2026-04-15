@@ -7,7 +7,7 @@
 @inject IJSRuntime JS
 @attribute [Authorize(Roles = "Admin")]
 
-<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
 
     <div class="d-flex justify-space-between align-center mb-4">
         <div>
@@ -55,6 +55,14 @@
                         <MudDatePicker Date="filterDate" Label="Date" Variant="Variant.Outlined"
                                        Margin="Margin.Dense" Style="width:100%;" Class="mb-3"
                                        DateChanged="@(async (DateTime? v) => { filterDate = v; await OnFilterChanged(); })" />
+                        <MudAutocomplete T="string" Value="filterSender" Label="Sender" Variant="Variant.Outlined"
+                                         Margin="Margin.Dense" FullWidth="true" Class="mb-3"
+                                         SearchFunc="SearchSenders" Clearable="true" DebounceInterval="400"
+                                         ValueChanged="@(async (string v) => { filterSender = v; await OnFilterChanged(); })" />
+                        <MudAutocomplete T="string" Value="filterOffice" Label="Office" Variant="Variant.Outlined"
+                                         Margin="Margin.Dense" FullWidth="true" Class="mb-3"
+                                         SearchFunc="SearchOffices" Clearable="true" DebounceInterval="400"
+                                         ValueChanged="@(async (string v) => { filterOffice = v; await OnFilterChanged(); })" />
                         @if (ActiveFilterCount > 0)
                         {
                             <MudButton Variant="Variant.Text" Color="Color.Error" FullWidth="true"
@@ -63,6 +71,7 @@
                             </MudButton>
                         }
                     </MudPopover>
+
                 </div>
                 <MudButton Variant="Variant.Outlined" Color="Color.Success" Size="Size.Small"
                            StartIcon="@Icons.Material.Filled.Download" OnClick="ExportCsv">
@@ -186,21 +195,44 @@
 
 
 @code {
+    [SupplyParameterFromQuery(Name = "search")] public string? SearchParam { get; set; }
+
     private MudTable<DocumentLog>? _table;
     private string searchText = "";
     private string? filterAction;
     private DateTime? filterDate;
+    private string? filterSender;
+    private string? filterOffice;
 
     private static readonly string[] actions = { "Created", "Received", "Forwarded", "Completed", "Admin" };
     private List<DocumentLog> _mobileItems = new();
     private int _mobilePage = 1;
     private int _mobileTotalCount = 0;
     private bool _isLoadingMore = false;
+    private bool _filterOpen = false;
     private const int MobilePageSize = 10;
+
+    private int ActiveFilterCount =>
+        (string.IsNullOrEmpty(filterAction) ? 0 : 1) +
+        (filterDate == null ? 0 : 1) +
+        (string.IsNullOrEmpty(filterSender) ? 0 : 1) +
+        (string.IsNullOrEmpty(filterOffice) ? 0 : 1);
 
     protected override async Task OnInitializedAsync()
     {
+        if (!string.IsNullOrEmpty(SearchParam))
+            searchText = SearchParam;
         await LoadMobileData();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        if (!string.IsNullOrEmpty(SearchParam) && _table != null)
+        {
+            searchText = SearchParam;
+            await _table.ReloadServerData();
+        }
     }
 
     private async Task LoadMobileData()
@@ -211,7 +243,8 @@
             var result = await DocService.GetAuditLogsAsync(
                 page: 1, pageSize: MobilePageSize,
                 search: searchText, action: filterAction,
-                date: filterDate?.ToString("yyyy-MM-dd"));
+                date: filterDate?.ToString("yyyy-MM-dd"),
+                sender: filterSender, office: filterOffice);
             _mobileItems = result.Items;
             _mobileTotalCount = result.TotalCount;
         }
@@ -225,7 +258,8 @@
             var result = await DocService.GetAuditLogsAsync(
                 page: state.Page + 1, pageSize: state.PageSize,
                 search: searchText, action: filterAction,
-                date: filterDate?.ToString("yyyy-MM-dd"));
+                date: filterDate?.ToString("yyyy-MM-dd"),
+                sender: filterSender, office: filterOffice);
             return new TableData<DocumentLog> { Items = result.Items, TotalItems = result.TotalCount };
         }
         catch (Exception ex)
@@ -233,23 +267,6 @@
             Console.WriteLine($"[AuditLog] Load error: {ex.Message}");
             Snackbar.Add("Failed to load audit logs.", Severity.Error);
             return new TableData<DocumentLog>();
-        }
-    }
-
-    private async Task ExportCsv()
-    {
-        try
-        {
-            var url = DocService.GetAuditLogCsvUrl(
-                search: searchText,
-                action: filterAction,
-                date: filterDate?.ToString("yyyy-MM-dd"));
-            await JS.InvokeVoidAsync("open", url, "_blank");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[AuditLog] ExportCsv error: {ex.Message}");
-            Snackbar.Add("Failed to export audit log.", Severity.Error);
         }
     }
 
@@ -262,7 +279,8 @@
             var result = await DocService.GetAuditLogsAsync(
                 page: _mobilePage, pageSize: MobilePageSize,
                 search: searchText, action: filterAction,
-                date: filterDate?.ToString("yyyy-MM-dd"));
+                date: filterDate?.ToString("yyyy-MM-dd"),
+                sender: filterSender, office: filterOffice);
             _mobileItems.AddRange(result.Items);
             _mobileTotalCount = result.TotalCount;
         }
@@ -270,19 +288,48 @@
         finally { _isLoadingMore = false; }
     }
 
-
     private async Task OnFilterChanged()
     {
         await LoadMobileData();
         if (_table != null) await _table.ReloadServerData();
     }
 
+    private async Task OnSearchChanged() => await OnFilterChanged();
+
     private async Task ClearFilters()
     {
         searchText = "";
         filterAction = null;
         filterDate = null;
+        filterSender = null;
+        filterOffice = null;
         await OnFilterChanged();
+    }
+
+    private async Task ExportCsv()
+    {
+        try
+        {
+            var url = DocService.GetAuditLogCsvUrl(
+                search: searchText, action: filterAction,
+                date: filterDate?.ToString("yyyy-MM-dd"),
+                sender: filterSender, office: filterOffice);
+            await JS.InvokeVoidAsync("open", url, "_blank");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[AuditLog] ExportCsv error: {ex.Message}");
+            Snackbar.Add("Failed to export audit log.", Severity.Error);
+        }
+    }
+
+    private async Task<IEnumerable<string>> SearchSenders(string value, CancellationToken ct)
+        => await DocService.GetSendersAsync(string.IsNullOrWhiteSpace(value) ? null : value);
+
+    private async Task<IEnumerable<string>> SearchOffices(string value, CancellationToken ct)
+    {
+        var offices = await DocService.GetOfficesSimpleAsync(string.IsNullOrWhiteSpace(value) ? null : value);
+        return offices.Select(o => o.Name ?? "");
     }
 
     private Color GetActionColor(string? action) => action switch
@@ -295,16 +342,5 @@
         "Admin Override" => Color.Error,
         _ => Color.Default
     };
-
-    private async Task OnSearchChanged()
-    {
-        await OnFilterChanged();
-    }
-
-    private bool _filterOpen = false;
-
-    private int ActiveFilterCount =>
-        (string.IsNullOrEmpty(filterAction) ? 0 : 1) +
-        (filterDate == null ? 0 : 1);
-
 }
+

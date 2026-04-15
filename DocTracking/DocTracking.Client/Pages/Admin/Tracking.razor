@@ -54,15 +54,17 @@
                         <MudSelectItem T="string" Value="@("Received")">Received</MudSelectItem>
                         <MudSelectItem T="string" Value="@("Completed")">Completed</MudSelectItem>
                     </MudSelect>
-                    <MudSelect Value="officeFilter" Label="Office" Variant="Variant.Outlined"
-                               Margin="Margin.Dense" T="string" FullWidth="true" Class="mb-3"
-                               ValueChanged="@(async (string v) => { officeFilter = v; await OnFilterChanged(); })">
-                        <MudSelectItem T="string" Value="@("")">All Offices</MudSelectItem>
-                        @foreach (var office in allOffices)
-                        {
-                            <MudSelectItem T="string" Value="@office.Name">@office.Name</MudSelectItem>
-                        }
-                    </MudSelect>
+                    <MudAutocomplete T="string" Value="officeFilter" Label="Office" Variant="Variant.Outlined"
+                                     Margin="Margin.Dense" FullWidth="true" Class="mb-3"
+                                     SearchFunc="SearchOffices" Clearable="true"
+                                     DebounceInterval="400"
+                                     ValueChanged="@(async (string v) => { officeFilter = v; await OnFilterChanged(); })" />
+
+                    <MudAutocomplete T="string" Value="senderFilter" Label="Sender" Variant="Variant.Outlined"
+                                     Margin="Margin.Dense" FullWidth="true" Class="mb-3"
+                                     SearchFunc="SearchSenders" Clearable="true"
+                                     ValueChanged="@(async (string v) => { senderFilter = v; await OnFilterChanged(); })" />
+
                     <MudDatePicker Date="dateFrom" Label="From" Variant="Variant.Outlined"
                                    Margin="Margin.Dense" Style="width:100%;" Class="mb-3"
                                    DateChanged="@(async (DateTime? v) => { dateFrom = v; await OnFilterChanged(); })" />
@@ -120,11 +122,20 @@
             <MudTd DataLabel="Location">
                 @if (context.CurrentOffice != null)
                 {
-                    <MudText Typo="Typo.body2"><strong>@context.CurrentOffice.Name</strong><br /><span style="color: gray; font-size: 0.85em;">↳ @(context.CurrentUnit?.Name ?? "General")</span></MudText>
+                    <MudText Typo="Typo.body2"><strong>@context.CurrentOffice.Name</strong><br />
+                        @if (context.CurrentUnit?.Name != null) {
+                        <span style="color: gray; font-size: 0.85em;">↳ @(context.CurrentUnit?.Name)</span>
+                        }
+                    </MudText>
                 }
                 else if (context.NextOffice != null)
                 {
-                    <MudText Typo="Typo.body2"><span style="color: #ff9800; font-size: 0.85em; font-style: italic;">Routing to:</span><br /><strong>@context.NextOffice.Name</strong><br /><span style="color: gray; font-size: 0.85em;">↳ @(context.NextUnit?.Name ?? "General")</span></MudText>
+                    <MudText Typo="Typo.body2"><span style="color: #ff9800; font-size: 0.85em; font-style: italic;">Routing to:</span><br /><strong>@context.NextOffice.Name</strong><br />
+                        @if(context.NextUnit?.Name != null) 
+                        {
+                            <span style="color: gray; font-size: 0.85em;">↳ @(context.NextUnit?.Name)</span>
+                        }
+                    </MudText>
                 }
                 else
                 {
@@ -146,9 +157,11 @@
                     <MudIconButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Warning"
                                    Icon="@Icons.Material.Filled.Edit"
                                    OnClick="@(async () => await OpenEditDialog(context))" />
+                    @if (_multiSelectMode == false)  {
                     <MudIconButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Error"
                                    Icon="@Icons.Material.Filled.Delete"
                                    OnClick="@(async () => await DeleteDocument(context))" />
+                    }
                 </div>
             </MudTd>
         </RowTemplate>
@@ -165,6 +178,8 @@
 
 @code {
     [SupplyParameterFromQuery(Name = "ref")] public string? RefParam { get; set; }
+    [SupplyParameterFromQuery(Name = "search")] public string? SearchParam { get; set; }
+
 
     private MudTable<Document>? _table;
     private List<Office> allOffices = new();
@@ -178,10 +193,13 @@
     private bool _isBulkDeleting;
     private bool _multiSelectMode;
     private bool _filterOpen = false;
+    private string senderFilter = "";
+    private List<string> _senderSuggestions = new();
 
     private int ActiveFilterCount =>
         (string.IsNullOrEmpty(statusFilter) ? 0 : 1) +
         (string.IsNullOrEmpty(officeFilter) ? 0 : 1) +
+        (string.IsNullOrEmpty(senderFilter) ? 0 : 1) +
         (dateFrom == null ? 0 : 1) +
         (dateTo == null ? 0 : 1);
 
@@ -193,7 +211,8 @@
 
     protected override async Task OnInitializedAsync()
     {
-        allOffices = await DocumentService.GetOfficesSimpleAsync();
+        if (!string.IsNullOrEmpty(SearchParam))
+            searchString = SearchParam;
     }
 
     private async Task<TableData<Document>> LoadServerData(TableState state, CancellationToken ct)
@@ -201,9 +220,10 @@
         try
         {
             var result = await DocumentService.GetAllDocumentsAsync(
-                page: state.Page + 1, pageSize: state.PageSize,
-                search: searchString, status: statusFilter, office: officeFilter,
-                dateFrom: dateFrom?.ToString("yyyy-MM-dd"), dateTo: dateTo?.ToString("yyyy-MM-dd"));
+            page: state.Page + 1, pageSize: state.PageSize,
+            search: searchString, status: statusFilter, office: officeFilter,
+            dateFrom: dateFrom?.ToString("yyyy-MM-dd"), dateTo: dateTo?.ToString("yyyy-MM-dd"),
+            sender: senderFilter);
             return new TableData<Document> { Items = result.Items, TotalItems = result.TotalCount };
         }
         catch (Exception ex) { Console.WriteLine(ex.Message); return new TableData<Document>(); }
@@ -211,6 +231,7 @@
 
     private async Task OnFilterChanged()
     {
+        _selectedDocs.Clear();
         if (_table != null) await _table.ReloadServerData();
     }
 
@@ -218,6 +239,14 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (!firstRender) return;
+
+        if (!string.IsNullOrEmpty(SearchParam) && _table != null)
+        {
+            searchString = SearchParam;
+            await _table.ReloadServerData();
+        }
+
         if (!dialogOpened && !string.IsNullOrEmpty(RefParam))
         {
             dialogOpened = true;
@@ -231,6 +260,7 @@
         searchString = "";
         statusFilter = "";
         officeFilter = "";
+        senderFilter = "";
         dateFrom = null;
         dateTo = null;
         await OnFilterChanged();
@@ -242,7 +272,8 @@
         {
             var url = DocumentService.GetDocumentsCsvUrl(
                 search: searchString, status: statusFilter, office: officeFilter,
-                dateFrom: dateFrom?.ToString("yyyy-MM-dd"), dateTo: dateTo?.ToString("yyyy-MM-dd"));
+                dateFrom: dateFrom?.ToString("yyyy-MM-dd"), dateTo: dateTo?.ToString("yyyy-MM-dd"),
+                sender: senderFilter);
             await JS.InvokeVoidAsync("open", url, "_blank");
         }
         catch (Exception ex) { Console.WriteLine($"[ExportCsv] Error: {ex.Message}"); }
@@ -335,5 +366,16 @@
             await OnFilterChanged();
         }
         finally { _isBulkDeleting = false; }
+    }
+
+    private async Task<IEnumerable<string>> SearchSenders(string value, CancellationToken ct)
+    {
+        return await DocumentService.GetSendersAsync(value);
+    }
+
+    private async Task<IEnumerable<string>> SearchOffices(string value, CancellationToken ct)
+    {
+        var offices = await DocumentService.GetOfficesSimpleAsync(string.IsNullOrWhiteSpace(value) ? null : value);
+        return offices.Select(o => o.Name ?? "");
     }
 }

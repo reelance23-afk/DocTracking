@@ -12,13 +12,14 @@ namespace DocTracking.Services
         private IQueryable<Document> ApplyDocumentFilters(
         IQueryable<Document> query,
         string? search, string? status, string? office,
-        string? dateFrom, string? dateTo)
+        string? dateFrom, string? dateTo, string? sender = null)
         {
             if (!string.IsNullOrEmpty(search))
                 query = query.Where(d =>
                     (d.Name != null && d.Name.Contains(search)) ||
-                    (d.ReferenceNumber != null && d.ReferenceNumber.Contains(search)) ||
-                    (d.Creator != null && d.Creator.Name != null && d.Creator.Name.Contains(search)));
+                    (d.ReferenceNumber != null && d.ReferenceNumber.Contains(search)));
+            if (!string.IsNullOrEmpty(sender))
+                query = query.Where(d => d.Creator != null && d.Creator.Name != null && d.Creator.Name.Contains(sender));
             if (!string.IsNullOrEmpty(status))
                 query = query.Where(d => d.Status == status);
             if (!string.IsNullOrEmpty(office))
@@ -33,19 +34,23 @@ namespace DocTracking.Services
         }
 
         private IQueryable<DocumentLog> ApplyAuditFilters(
-        IQueryable<DocumentLog> query,
-        string? search, string? action, string? date)
+            IQueryable<DocumentLog> query,
+            string? search, string? action, string? date,
+            string? sender = null, string? office = null)
         {
             if (!string.IsNullOrEmpty(search))
                 query = query.Where(m =>
-                    (m.Document != null && m.Document.Name != null && m.Document.Name.Contains(search)) ||
-                    (m.Document != null && m.Document.ReferenceNumber != null && m.Document.ReferenceNumber.Contains(search)) ||
-                    (m.AppUser != null && m.AppUser.Name != null && m.AppUser.Name.Contains(search)) ||
-                    (m.Action != null && m.Action.Contains(search)));
+                    m.Document != null && m.Document.Name != null && m.Document.Name.Contains(search));
             if (!string.IsNullOrEmpty(action))
                 query = query.Where(m => m.Action == action);
             if (DateTime.TryParse(date, out var filterDate))
                 query = query.Where(m => m.TimeStamp.Date == filterDate.Date);
+            if (!string.IsNullOrEmpty(sender))
+                query = query.Where(m => m.AppUser != null && m.AppUser.Name != null && m.AppUser.Name.Contains(sender));
+            if (!string.IsNullOrEmpty(office))
+                query = query.Where(m =>
+                    (m.Office != null && m.Office.Name != null && m.Office.Name.Contains(office)) ||
+                    (m.OfficeName != null && m.OfficeName.Contains(office)));
             return query;
         }
 
@@ -64,14 +69,15 @@ namespace DocTracking.Services
         public async Task<(List<Document> Items, int TotalCount)> GetAllDocumentsAsync(
             int page, int pageSize,
             string? search = null, string? status = null,
-            string? office = null, string? dateFrom = null, string? dateTo = null)
+            string? office = null, string? dateFrom = null, string? dateTo = null,
+            string? sender = null)
         {
             try
             {
                 var query = ApplyDocumentFilters(
                     _context.Documents.Include(d => d.Creator).Include(d => d.NextOffice)
                         .Include(d => d.CurrentOffice).Include(d => d.NextUnit).Include(d => d.CurrentUnit),
-                    search, status, office, dateFrom, dateTo);
+                    search, status, office, dateFrom, dateTo, sender);
 
                 var total = await query.CountAsync();
                 var items = await query
@@ -88,6 +94,7 @@ namespace DocTracking.Services
                 return (new List<Document>(), 0);
             }
         }
+
 
         public async Task<AdminDashboardStats> GetDashboardStatsAsync()
         {
@@ -173,7 +180,7 @@ namespace DocTracking.Services
 
         public IAsyncEnumerable<Document> StreamAllDocumentsAsync(
             string? search = null, string? status = null, string? office = null,
-            string? dateFrom = null, string? dateTo = null)
+            string? dateFrom = null, string? dateTo = null, string? sender = null)
         {
             return ApplyDocumentFilters(
                 _context.Documents
@@ -181,7 +188,7 @@ namespace DocTracking.Services
                 .Include(d => d.CurrentOffice)
                 .Include(d => d.CurrentUnit)
                 .Include(d => d.NextOffice),
-                search, status, office, dateFrom, dateTo)
+                search, status, office, dateFrom, dateTo, sender)
                 .OrderByDescending(d => d.CreatedAt)
                 .AsAsyncEnumerable();
         }
@@ -548,7 +555,8 @@ namespace DocTracking.Services
         }
         public async Task<(List<DocumentLog> Items, int TotalCount)> GetAuditLogsAsync(
             int page, int pageSize,
-            string? search = null, string? action = null, string? date = null)
+            string? search = null, string? action = null, string? date = null,
+            string? sender = null, string? office = null)
         {
             try
             {
@@ -559,7 +567,7 @@ namespace DocTracking.Services
                     .Include(m => m.AppUser)
                     .AsQueryable();
 
-                query = ApplyAuditFilters(query, search, action, date);
+                query = ApplyAuditFilters(query, search, action, date, sender, office);
 
                 var total = await query.CountAsync();
                 var items = await query
@@ -576,9 +584,9 @@ namespace DocTracking.Services
                 return (new List<DocumentLog>(), 0);
             }
         }
-
         public IAsyncEnumerable<DocumentLog> StreamAllAuditLogsAsync(
-            string? search = null, string? action = null, string? date = null)
+            string? search = null, string? action = null, string? date = null,
+            string? sender = null, string? office = null)
         {
             var query = _context.DocumentLogs
                 .Include(m => m.Document)
@@ -587,7 +595,7 @@ namespace DocTracking.Services
                 .Include(m => m.AppUser)
                 .AsQueryable();
 
-            query = ApplyAuditFilters(query, search, action, date);
+            query = ApplyAuditFilters(query, search, action, date, sender, office);
 
             return query
                 .OrderByDescending(m => m.TimeStamp)
