@@ -443,6 +443,8 @@
             ThemeService.OnChange += () => { CurrentTheme = BuildTheme(); StateHasChanged(); };
             CurrentTheme = BuildTheme();
 
+            await Task.Delay(100);
+
             try { await JSRuntime.InvokeVoidAsync("eval", "document.getElementById('app-loading')?.remove()"); }
             catch { }
 

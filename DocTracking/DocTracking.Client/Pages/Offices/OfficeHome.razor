@@ -12,7 +12,7 @@
 @implements IDisposable
 @rendermode InteractiveAuto
 
-<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
 
     @if (isLoadingInitial)
     {
@@ -74,8 +74,8 @@
         </MudGrid>
 
         <MudGrid Class="mb-6" Style="align-items: stretch;">
-            <MudItem xs="12" md="7">
-                <MudPaper Elevation="2" Class="pa-4" Style="height: 500px; display: flex; flex-direction: column;">
+            <MudItem xs="12" md="7" Style="display: flex; flex-direction: column;">
+                <MudPaper Elevation="2" Class="pa-4 flex-grow-1">
                     <div class="d-flex align-center justify-space-between mb-4">
                         <div class="d-flex align-center">
                             <MudIcon Icon="@Icons.Material.Filled.ViewKanban" Class="mr-2" Color="Color.Primary" />
@@ -127,8 +127,8 @@
                 </MudPaper>
             </MudItem>
 
-            <MudItem xs="12" md="5">
-                <MudPaper Elevation="2" Class="pa-4" Style="height: 500px; display: flex; flex-direction: column;">
+            <MudItem xs="12" md="5" Style="display: flex; flex-direction: column;">
+                <MudPaper Elevation="2" Class="pa-4 flex-grow-1">
                     <div style="flex-grow: 1; overflow-y: auto; max-height: 400px;">
                         <MudIcon Icon="@Icons.Material.Filled.Timeline" Class="mr-2" Color="Color.Primary" />
                         <MudText Typo="Typo.h6">Recent Activity</MudText>
@@ -146,7 +146,7 @@
                             <MudTimeline TimelinePosition="TimelinePosition.Start">
                                 @foreach (var doc in recentDocs.Take(4))
                                 {
-                                    <MudTimelineItem Color="@DocHelpers.GetPriorityColor(doc.Priority)"
+                                    <MudTimelineItem Color="@DocHelpers.GetStatusColor(doc.Status)"
                                                      Size="Size.Small" TimelineAlign="TimelineAlign.Default">
                                         <ItemContent>
                                             <MudCard Elevation="1" Class="mb-1" Style="min-width:0;">

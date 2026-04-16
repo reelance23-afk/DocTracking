@@ -11,7 +11,7 @@
 @inject IJSRuntime JSRuntime
 @rendermode @(new InteractiveAutoRenderMode(prerender: false))
 
-<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4 mb-8">
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4 mb-8">
     <div class="mb-6">
         <div class="d-flex align-center mb-4">
             <MudIcon Icon="@Icons.Material.Filled.History" Size="Size.Large" Class="mr-3" Color="Color.Primary" />
@@ -70,11 +70,23 @@
                         <MudTd DataLabel="Current Location">
                             @if (context.CurrentOffice != null)
                             {
-                                <MudText Typo="Typo.body2"><strong>@context.CurrentOffice.Name</strong><br /><span style="color: gray; font-size: 0.85em;">↳ @(context.CurrentUnit?.Name)</span></MudText>
+                                <MudText Typo="Typo.body2"><strong>@context.CurrentOffice.Name</strong><br />
+                                    @if (context.CurrentUnit?.Name != null)
+                                    {
+                                        <span style="color: gray; font-size: 0.85em;">↳ @(context.CurrentUnit?.Name)</span>                                        
+                                    }
+                                </MudText>
                             }
                             else if (context.NextOffice != null)
                             {
-                                <MudText Typo="Typo.body2"><span style="color: #ff9800; font-size: 0.85em; font-style: italic;">Routing to:</span><br /><strong>@context.NextOffice.Name</strong></MudText>
+                                <MudText Typo="Typo.body2"><span style="color: #ff9800; font-size: 0.85em; font-style: italic;">Routing to:</span><br/><strong>@context.NextOffice.Name</strong>
+                                
+                                    @if (context.NextUnit?.Name != null)
+                                    {
+                                        <br />
+                                        <span style="color: gray; font-size: 0.85em;">↳ @(context.NextUnit?.Name)</span>
+                                    }
+                                </MudText>
                             }
                             else
                             {

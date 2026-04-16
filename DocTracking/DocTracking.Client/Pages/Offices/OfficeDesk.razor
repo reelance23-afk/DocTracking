@@ -15,7 +15,7 @@
 @implements IDisposable
 @rendermode InteractiveAuto
 
-<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
 
     @if (isLoadingInitial)
     {
@@ -62,42 +62,6 @@
                                Title="@(string.IsNullOrEmpty(myOffice?.ReceivingSchedule) ? "Set Schedule" : "Edit Schedule")" />
             </MudHidden>
         </div>
-
-        <MudGrid Class="mb-6">
-            <MudItem xs="12" sm="4">
-                <MudPaper Elevation="2" Class="pa-4 rounded-lg" Style="border-top: 4px solid var(--mud-palette-error);">
-                    <div class="d-flex align-center justify-space-between">
-                        <div>
-                            <MudText Typo="Typo.h3" Class="font-weight-bold" Color="Color.Error">@incomingDocs.Count</MudText>
-                            <MudText Typo="Typo.body2" Style="color: var(--mud-palette-text-secondary);">Incoming</MudText>
-                        </div>
-                        <MudIcon Icon="@Icons.Material.Filled.Inbox" Size="Size.Large" Color="Color.Error" Style="opacity:0.4;" />
-                    </div>
-                </MudPaper>
-            </MudItem>
-            <MudItem xs="12" sm="4">
-                <MudPaper Elevation="2" Class="pa-4 rounded-lg" Style="border-top: 4px solid var(--mud-palette-warning);">
-                    <div class="d-flex align-center justify-space-between">
-                        <div>
-                            <MudText Typo="Typo.h3" Class="font-weight-bold" Color="Color.Warning">@deskDocs.Count</MudText>
-                            <MudText Typo="Typo.body2" Style="color: var(--mud-palette-text-secondary);">On Desk</MudText>
-                        </div>
-                        <MudIcon Icon="@Icons.Material.Filled.Assignment" Size="Size.Large" Color="Color.Warning" Style="opacity:0.4;" />
-                    </div>
-                </MudPaper>
-            </MudItem>
-            <MudItem xs="12" sm="4">
-                <MudPaper Elevation="2" Class="pa-4 rounded-lg" Style="border-top: 4px solid var(--mud-palette-info);">
-                    <div class="d-flex align-center justify-space-between">
-                        <div>
-                            <MudText Typo="Typo.h3" Class="font-weight-bold" Color="Color.Info">@outgoingDocs.Count</MudText>
-                            <MudText Typo="Typo.body2" Style="color: var(--mud-palette-text-secondary);">Outgoing</MudText>
-                        </div>
-                        <MudIcon Icon="@Icons.Material.Filled.Send" Size="Size.Large" Color="Color.Info" Style="opacity:0.4;" />
-                    </div>
-                </MudPaper>
-            </MudItem>
-        </MudGrid>
 
         @if (IdleDeskDocs.Any())
         {
@@ -193,7 +157,8 @@
                                 <MudTh>Document</MudTh>
                                 <MudTh>Type</MudTh>
                                 <MudTh>Priority</MudTh>
-                                <MudTh></MudTh>
+                                <MudTh>Received</MudTh>
+                                <MudTh>Actions</MudTh>
                             </HeaderContent>
                             <RowTemplate>
                                 <MudTd DataLabel="Document"><strong>@context.Name</strong></MudTd>
@@ -203,6 +168,7 @@
                                 <MudTd DataLabel="Priority">
                                     <MudChip T="string" Color="@DocHelpers.GetPriorityColor(context.Priority)" Size="Size.Small" Variant="Variant.Filled">@context.Priority</MudChip>
                                 </MudTd>
+                                <MudTd DataLabel="Received">@((context.LastActionDate ?? context.CreatedAt).ToLocalTime().ToString("MMM dd, hh:mm tt"))</MudTd>
                                 <MudTd DataLabel="Actions">
                                     <div class="d-flex gap-2">
                                         <MudButton Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small"

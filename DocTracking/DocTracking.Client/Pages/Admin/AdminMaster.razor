@@ -263,7 +263,7 @@
                         <MudTimeline TimelinePosition="TimelinePosition.Start">
                             @foreach (var doc in stats.RecentDocuments)
                             {
-                                <MudTimelineItem Color="@(doc.Status == "Completed" ? Color.Success : Color.Warning)"
+                                <MudTimelineItem Color="@DocHelpers.GetStatusColor(doc.Status)"
                                                  Size="Size.Small" TimelineAlign="TimelineAlign.Default">
                                     <ItemContent>
                                         <MudCard Elevation="1" Class="mb-1" Style="min-width:0;">
@@ -271,7 +271,7 @@
                                                 <MudText Typo="Typo.body2" Class="font-weight-bold text-truncate">@doc.Name</MudText>
                                                 <div class="d-flex align-center justify-space-between mt-1 flex-wrap gap-1">
                                                     <MudChip T="string" Size="Size.Small"
-                                                             Color="@(doc.Status == "Completed" ? Color.Success : Color.Warning)"
+                                                             Color="@DocHelpers.GetStatusColor(doc.Status)"
                                                              Variant="Variant.Outlined">
                                                         @doc.Status
                                                     </MudChip>
