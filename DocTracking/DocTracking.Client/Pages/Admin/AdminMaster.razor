@@ -9,13 +9,13 @@
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 @inject NotificationService NotifService
+@inject NavigationManager Navigation
 @implements IDisposable
 @rendermode InteractiveAuto
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
     @if (isLoading)
     {
-
         <div class="d-flex align-center mb-6">
             <MudSkeleton SkeletonType="SkeletonType.Circle" Width="40px" Height="40px" Class="mr-3" />
             <div>
@@ -96,21 +96,48 @@
             </MudItem>
         </MudGrid>
     }
-
     else
     {
+        <style>
+            .stat-card {
+                cursor: pointer;
+                transition: transform 0.2s ease, box-shadow 0.2s ease;
+            }
 
+                .stat-card:hover {
+                    transform: translateY(-4px);
+                    box-shadow: 0 8px 24px rgba(0,0,0,0.12) !important;
+                }
 
-        <div class="d-flex align-center mb-6">
+            .fade-slide-up {
+                animation: fadeSlideUp 0.5s ease-out both;
+            }
+
+            @@keyframes fadeSlideUp {
+                from {
+                    opacity: 0;
+                    transform: translateY(20px);
+                }
+
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+        </style>
+
+        <div class="d-flex align-center mb-6 fade-slide-up">
             <MudIcon Icon="@Icons.Material.Filled.AdminPanelSettings" Size="Size.Large" Color="Color.Primary" Class="mr-3" />
             <div>
                 <MudText Typo="Typo.h4" Class="font-weight-bold">Admin Dashboard</MudText>
                 <MudText Typo="Typo.body2" Class="mud-text-secondary">Overview of system activity and document tracking.</MudText>
             </div>
         </div>
+
         <MudGrid Class="mb-6">
-            <MudItem xs="12" sm="4">
-                <MudPaper Elevation="2" Class="pa-4" Style="border-top: 4px solid var(--mud-palette-info);">
+            <MudItem xs="12" sm="4" Style="animation: fadeSlideUp 0.5s ease-out 0.1s both;">
+                <MudPaper Elevation="2" Class="pa-4 stat-card" Style="border-top: 4px solid var(--mud-palette-info);"
+                          @onclick="@(() => Navigation.NavigateTo("/document-tracking"))">
                     <div class="d-flex justify-space-between align-center">
                         <div>
                             <MudText Typo="Typo.h3" Class="font-weight-bold" Color="Color.Info">@stats.TotalDocuments</MudText>
@@ -120,8 +147,9 @@
                     </div>
                 </MudPaper>
             </MudItem>
-            <MudItem xs="12" sm="4">
-                <MudPaper Elevation="2" Class="pa-4" Style="border-top: 4px solid var(--mud-palette-warning);">
+            <MudItem xs="12" sm="4" Style="animation: fadeSlideUp 0.5s ease-out 0.2s both;">
+                <MudPaper Elevation="2" Class="pa-4 stat-card" Style="border-top: 4px solid var(--mud-palette-warning);"
+                          @onclick="@(() => Navigation.NavigateTo("/manage-offices"))">
                     <div class="d-flex justify-space-between align-center">
                         <div>
                             <MudText Typo="Typo.h3" Class="font-weight-bold" Color="Color.Warning">@stats.TotalOffices</MudText>
@@ -131,8 +159,9 @@
                     </div>
                 </MudPaper>
             </MudItem>
-            <MudItem xs="12" sm="4">
-                <MudPaper Elevation="2" Class="pa-4" Style="border-top: 4px solid var(--mud-palette-success);">
+            <MudItem xs="12" sm="4" Style="animation: fadeSlideUp 0.5s ease-out 0.3s both;">
+                <MudPaper Elevation="2" Class="pa-4 stat-card" Style="border-top: 4px solid var(--mud-palette-success);"
+                          @onclick="@(() => Navigation.NavigateTo("/manage-users"))">
                     <div class="d-flex justify-space-between align-center">
                         <div>
                             <MudText Typo="Typo.h3" Class="font-weight-bold" Color="Color.Success">@stats.TotalUsers</MudText>
@@ -144,10 +173,15 @@
             </MudItem>
         </MudGrid>
 
-        <MudPaper Elevation="2" Class="pa-4 mb-6" Style="border-top: 4px solid var(--mud-palette-secondary);">
+        <MudPaper Elevation="2" Class="pa-4 mb-6 fade-slide-up" Style="border-top: 4px solid var(--mud-palette-secondary); animation-delay: 0.4s;">
             <div class="d-flex align-center mb-3">
-                <MudIcon Icon="@Icons.Material.Filled.Campaign" Class="mr-2" Color="Color.Secondary" />
-                <MudText Typo="Typo.h6">Broadcast Notification</MudText>
+                <MudAvatar Color="Color.Secondary" Variant="Variant.Filled" Class="mr-3">
+                    <MudIcon Icon="@Icons.Material.Filled.Campaign" />
+                </MudAvatar>
+                <div>
+                    <MudText Typo="Typo.h6" Class="font-weight-bold">Broadcast Notification</MudText>
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary">Send an announcement directly to all users or target a specific office from here</MudText>
+                </div>
             </div>
             <MudGrid Spacing="2">
                 <MudItem xs="12" sm="7">
@@ -178,13 +212,18 @@
             </MudGrid>
         </MudPaper>
 
-        <MudGrid Class="mb-6" Style="align-items: stretch;">
+        <MudGrid Class="mb-6" Style="align-items: stretch; animation: fadeSlideUp 0.5s ease-out 0.5s both;">
             <MudItem xs="12" md="7" Style="display: flex; flex-direction: column;">
                 <MudPaper Elevation="2" Class="pa-4 flex-grow-1">
                     <div class="d-flex align-center justify-space-between mb-4">
                         <div class="d-flex align-center">
-                            <MudIcon Icon="@Icons.Material.Filled.ViewKanban" Class="mr-2" Color="Color.Primary" />
-                            <MudText Typo="Typo.h6">Document Status</MudText>
+                            <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Class="mr-3">
+                                <MudIcon Icon="@Icons.Material.Filled.ViewKanban" />
+                            </MudAvatar>
+                            <div>
+                                <MudText Typo="Typo.h6" Class="font-weight-bold">Document Status</MudText>
+                                <MudText Typo="Typo.body2" Class="mud-text-secondary">Get a live view of all documents currently in motion and see which offices are handling the most workload</MudText>
+                            </div>
                         </div>
                         <MudButton Href="/document-tracking" Variant="Variant.Text" Color="Color.Primary" EndIcon="@Icons.Material.Filled.ArrowForward">
                             View All
@@ -192,52 +231,63 @@
                     </div>
                     <MudGrid Spacing="2">
                         <MudItem xs="12" sm="6">
-                            <MudPaper Elevation="0" Class="pa-3 rounded-lg" Style="background: rgba(var(--mud-palette-warning-rgb), 0.08); max-height: 410px; overflow-y: auto;">
-                                <MudText Typo="Typo.subtitle2" Color="Color.Warning" Class="mb-3 font-weight-bold">In Motion</MudText>
-                                @foreach (var doc in stats.InMotionDocs)
-                                {
-                                    <MudPaper Elevation="1" Class="pa-3 mb-2">
-                                        <MudText Typo="Typo.body2" Class="font-weight-bold mb-1">@doc.Name</MudText>
-                                        <div class="d-flex justify-space-between align-center">
-                                            <MudChip T="string" Size="Size.Small" Color="@DocHelpers.GetPriorityColor(doc.Priority)" Variant="Variant.Filled">@doc.Priority</MudChip>
-                                            <MudIconButton Icon="@Icons.Material.Filled.OpenInNew" Size="Size.Small" Color="Color.Primary" OnClick="@(async () => await OpenViewDialog(doc))" />
-                                        </div>
-                                    </MudPaper>
-                                }
+                            <MudPaper Elevation="0" Class="pa-3 rounded-lg" Style="background: rgba(var(--mud-palette-warning-rgb), 0.08); max-height: 400px; overflow-y: auto;">
+                                <MudText Typo="Typo.subtitle2" Color="Color.Warning" Class="font-weight-bold">In Motion</MudText>
                                 @if (!stats.InMotionDocs.Any())
                                 {
-                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">No documents in motion</MudText>
+                                    <div class="d-flex flex-column align-center pa-4">
+                                        <MudIcon Icon="@Icons.Material.Filled.CheckCircleOutline" Size="Size.Large" Color="Color.Success" Style="opacity:0.5;" />
+                                        <MudText Typo="Typo.caption" Class="mud-text-secondary mt-2">All clear! No documents in motion</MudText>
+                                    </div>
+                                }
+                                else
+                                {
+                                    @foreach (var doc in stats.InMotionDocs)
+                                    {
+                                        <MudPaper Elevation="1" Class="pa-3 mb-2" Style="@($"border-left: 3px solid {GetPriorityHex(doc.Priority)};")">
+                                            <MudText Typo="Typo.body2" Class="font-weight-bold mb-1">@doc.Name</MudText>
+                                            <div class="d-flex justify-space-between align-center">
+                                                <MudChip T="string" Size="Size.Small" Color="@DocHelpers.GetPriorityColor(doc.Priority)" Variant="Variant.Filled">@doc.Priority</MudChip>
+                                                <MudIconButton Icon="@Icons.Material.Filled.OpenInNew" Size="Size.Small" Color="Color.Primary" OnClick="@(async () => await OpenViewDialog(doc))" />
+                                            </div>
+                                        </MudPaper>
+                                    }
                                 }
                             </MudPaper>
                         </MudItem>
                         <MudItem xs="12" sm="6">
-                            <MudPaper Elevation="0" Class="pa-3 rounded-lg" Style="background: rgba(var(--mud-palette-info-rgb), 0.08); max-height: 410px; overflow-y: auto;">
-                                <MudText Typo="Typo.subtitle2" Color="Color.Info" Class="mb-3 font-weight-bold">Office Workload</MudText>
-                                @foreach (var workload in stats.OfficeWorkloads)
-                                {
-                                    <div class="mb-3">
-                                        <div class="d-flex justify-space-between mb-1">
-                                            <MudText Typo="Typo.caption" Class="font-weight-bold text-truncate" Style="max-width: 70%;">@workload.OfficeName</MudText>
-                                            <MudText Typo="Typo.caption" Class="mud-text-secondary">@workload.DocumentCount</MudText>
-                                        </div>
-                                        <MudProgressLinear Color="Color.Primary" Value="@workload.Percentage" Class="rounded-lg" Size="Size.Small" />
-                                        @if (workload.UnitWorkloads.Any())
-                                        {
-                                            <div class="ml-3 mt-1">
-                                                @foreach (var unit in workload.UnitWorkloads)
-                                                {
-                                                    <div class="d-flex justify-space-between">
-                                                        <MudText Typo="Typo.caption" Class="mud-text-secondary">@unit.UnitName</MudText>
-                                                        <MudText Typo="Typo.caption" Class="mud-text-secondary">@unit.DocumentCount</MudText>
-                                                    </div>
-                                                }
-                                            </div>
-                                        }
-                                    </div>
-                                }
+                            <MudPaper Elevation="0" Class="pa-3 rounded-lg" Style="background: rgba(var(--mud-palette-info-rgb), 0.08); max-height: 400px; overflow-y: auto;">
+                                <MudText Typo="Typo.subtitle2" Color="Color.Info" Class="font-weight-bold">Office Workload</MudText>
                                 @if (!stats.OfficeWorkloads.Any())
                                 {
-                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">No workload data</MudText>
+                                    <div class="d-flex flex-column align-center pa-4">
+                                        <MudIcon Icon="@Icons.Material.Filled.Business" Size="Size.Large" Color="Color.Default" Style="opacity:0.3;" />
+                                        <MudText Typo="Typo.caption" Class="mud-text-secondary mt-2">No workload data available</MudText>
+                                    </div>
+                                }
+                                else
+                                {
+                                    @foreach (var workload in stats.OfficeWorkloads)
+                                    {
+                                        <div class="mb-3">
+                                            <div class="d-flex justify-space-between mb-1">
+                                                <MudText Typo="Typo.caption" Class="font-weight-bold text-truncate" Style="max-width: 70%;">@workload.OfficeName</MudText>
+                                            </div>
+                                            <MudProgressLinear Color="@GetWorkloadColor(workload.Percentage)" Value="@workload.Percentage" Class="rounded-lg" Size="Size.Small" />
+                                            @if (workload.UnitWorkloads.Any())
+                                            {
+                                                <div class="ml-3 mt-1">
+                                                    @foreach (var unit in workload.UnitWorkloads)
+                                                    {
+                                                        <div class="d-flex justify-space-between">
+                                                            <MudText Typo="Typo.caption" Class="mud-text-secondary">@unit.UnitName</MudText>
+                                                            <MudText Typo="Typo.caption" Class="mud-text-secondary">@unit.DocumentCount</MudText>
+                                                        </div>
+                                                    }
+                                                </div>
+                                            }
+                                        </div>
+                                    }
                                 }
                             </MudPaper>
                         </MudItem>
@@ -248,14 +298,20 @@
             <MudItem xs="12" md="5" Style="display: flex; flex-direction: column;">
                 <MudPaper Elevation="2" Class="pa-4 flex-grow-1">
                     <div class="d-flex align-center mb-4">
-                        <MudIcon Icon="@Icons.Material.Filled.Timeline" Class="mr-2" Color="Color.Primary" />
-                        <MudText Typo="Typo.h6">Recent Activity</MudText>
+                        <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Class="mr-3">
+                            <MudIcon Icon="@Icons.Material.Filled.Timeline" />
+                        </MudAvatar>
+                        <div>
+                            <MudText Typo="Typo.h6" Class="font-weight-bold">Recent Activity</MudText>
+                            <MudText Typo="Typo.body2" Class="mud-text-secondary">A live feed of the most recently updated documents across the entire system</MudText>
+                        </div>
                     </div>
                     @if (!stats.RecentDocuments.Any())
                     {
-                        <div class="text-center pa-6">
-                            <MudIcon Icon="@Icons.Material.Filled.Inbox" Size="Size.Large" Style="opacity: 0.3;" />
+                        <div class="d-flex flex-column align-center pa-6">
+                            <MudIcon Icon="@Icons.Material.Filled.Inbox" Size="Size.Large" Style="opacity: 0.3; font-size: 4rem;" />
                             <MudText Typo="Typo.body2" Class="mud-text-secondary mt-2">No recent activity</MudText>
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary">Documents will appear here once created</MudText>
                         </div>
                     }
                     else
@@ -263,7 +319,7 @@
                         <MudTimeline TimelinePosition="TimelinePosition.Start">
                             @foreach (var doc in stats.RecentDocuments)
                             {
-                                <MudTimelineItem Color="@DocHelpers.GetStatusColor(doc.Status)"
+                                <MudTimelineItem Color="@(doc.Status == "Completed" ? Color.Success : Color.Warning)"
                                                  Size="Size.Small" TimelineAlign="TimelineAlign.Default">
                                     <ItemContent>
                                         <MudCard Elevation="1" Class="mb-1" Style="min-width:0;">
@@ -271,7 +327,7 @@
                                                 <MudText Typo="Typo.body2" Class="font-weight-bold text-truncate">@doc.Name</MudText>
                                                 <div class="d-flex align-center justify-space-between mt-1 flex-wrap gap-1">
                                                     <MudChip T="string" Size="Size.Small"
-                                                             Color="@DocHelpers.GetStatusColor(doc.Status)"
+                                                             Color="@(doc.Status == "Completed" ? Color.Success : Color.Warning)"
                                                              Variant="Variant.Outlined">
                                                         @doc.Status
                                                     </MudChip>
@@ -364,10 +420,25 @@
         await DialogService.ShowAsync<DocumentViewDialog>("Document Details", parameters, options);
     }
 
+    private Color GetWorkloadColor(int percentage) => percentage switch
+    {
+        <= 30 => Color.Success,
+        <= 60 => Color.Warning,
+        _ => Color.Error
+    };
+
+    private string GetPriorityHex(string? priority) => priority switch
+    {
+        "Emergency" => "#f44336",
+        "Urgent" => "#ff9800",
+        "Medium" => "#2196f3",
+        "Low" => "#4caf50",
+        _ => "#9e9e9e"
+    };
+
     public void Dispose()
     {
         NotifService.OnChange -= OnNotificationReceived;
         _debounce.Dispose();
     }
 }
-

@@ -8,12 +8,42 @@
 @inject IDialogService DialogService
 @rendermode InteractiveAuto
 
+<style>
+    .office-panel {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+        .office-panel:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.1) !important;
+        }
+
+    .fade-slide-up {
+        animation: fadeSlideUp 0.5s ease-out both;
+    }
+
+    @@keyframes fadeSlideUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+</style>
+
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-6 mb-8">
 
-    <div class="d-flex justify-space-between align-center mb-4">
-        <div>
-            <MudText Typo="Typo.h4" Class="font-weight-bold">Office Management</MudText>
-            <MudText Typo="Typo.body2" Class="mud-text-secondary">Manage offices and their respective units.</MudText>
+    <div class="d-flex justify-space-between align-center mb-4 fade-slide-up">
+        <div class="d-flex align-center">
+            <MudIcon Icon="@Icons.Material.Filled.Business" Size="Size.Large" Color="Color.Primary" Class="mr-3" />
+            <div>
+                <MudText Typo="Typo.h4" Class="font-weight-bold">Office Management</MudText>
+                <MudText Typo="Typo.body2" Class="mud-text-secondary">Manage the offices and units responsible for handling and routing documents</MudText>
+            </div>
         </div>
         <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
                    OnClick="OpenAddOfficeDialog" Class="d-none d-md-flex">
@@ -29,7 +59,7 @@
                   AdornmentIcon="@Icons.Material.Filled.Search"
                   Variant="Variant.Outlined"
                   Margin="Margin.Dense"
-                  Class="mb-6" />
+                  Class="mb-6 fade-slide-up" />
 
     @if (loading)
     {
@@ -61,9 +91,12 @@
     else if (officeResult.Items.Any())
     {
         <MudExpansionPanels MultiExpansion="true" Elevation="2">
-            @foreach (var office in officeResult.Items)
+            @for (int i = 0; i < officeResult.Items.Count; i++)
             {
-                <MudExpansionPanel @key="office.Id" MaxHeight="1500">
+                var office = officeResult.Items[i];
+                <MudExpansionPanel @key="office.Id" MaxHeight="1500"
+                                   Class="office-panel"
+                                   Style="@($"animation: fadeSlideUp 0.4s ease-out {i * 0.05}s both;")">
                     <TitleContent>
                         <div class="d-flex align-center justify-space-between w-100 pr-2" style="flex-wrap: wrap; gap: 4px;">
                             <div class="d-flex align-center gap-3" style="min-width: 0; flex: 1;">
@@ -138,7 +171,11 @@
                             }
                             else
                             {
-                                <MudText Typo="Typo.caption" Class="mud-text-secondary font-italic">No units yet.</MudText>
+                                <div class="d-flex flex-column align-center pa-4">
+                                    <MudIcon Icon="@Icons.Material.Filled.AccountTree" Size="Size.Medium" Color="Color.Default" Style="opacity:0.3;" Class="mb-2" />
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary font-italic">No units yet.</MudText>
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">Add a unit to this office to assign workers to specific groups</MudText>
+                                </div>
                             }
                         </div>
                     </ChildContent>
@@ -162,6 +199,7 @@
             <MudIcon Icon="@Icons.Material.Filled.BusinessCenter" Size="Size.Large" Color="Color.Default"
                      Class="mb-3" Style="opacity:0.4; font-size:4rem;" />
             <MudText Typo="Typo.body1" Class="mud-text-secondary">No offices found.</MudText>
+            <MudText Typo="Typo.caption" Class="mud-text-secondary mt-1">Try adjusting your search or add a new office to get started</MudText>
         </div>
     }
 

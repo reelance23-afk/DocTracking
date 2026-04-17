@@ -19,3 +19,46 @@
     padding: 8px 16px 2px;
 }
 
+.nav-wrapper .mud-nav-link {
+    transition: transform 0.15s ease, background-color 0.2s ease, padding-left 0.2s ease;
+}
+
+    .nav-wrapper .mud-nav-link:hover {
+        transform: translateX(4px);
+    }
+
+    .nav-wrapper .mud-nav-link.active {
+        transform: translateX(4px);
+    }
+
+.nav-body .mud-nav-menu:nth-child(1) .mud-nav-link {
+    animation: navFadeIn 0.3s ease-out 0.05s both;
+}
+
+.nav-body .mud-nav-menu:nth-child(2) .mud-nav-link {
+    animation: navFadeIn 0.3s ease-out 0.1s both;
+}
+
+.nav-body .mud-nav-menu:nth-child(3) .mud-nav-link {
+    animation: navFadeIn 0.3s ease-out 0.15s both;
+}
+
+.nav-body .mud-nav-menu:nth-child(4) .mud-nav-link {
+    animation: navFadeIn 0.3s ease-out 0.2s both;
+}
+
+.nav-body .mud-nav-menu:nth-child(5) .mud-nav-link {
+    animation: navFadeIn 0.3s ease-out 0.25s both;
+}
+
+@keyframes navFadeIn {
+    from {
+        opacity: 0;
+        transform: translateX(-12px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}

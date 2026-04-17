@@ -8,20 +8,55 @@
 @inject IDialogService DialogService
 @rendermode InteractiveAuto
 
+<style>
+    .fade-slide-up {
+        animation: fadeSlideUp 0.5s ease-out both;
+    }
+
+    @@keyframes fadeSlideUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @@keyframes rowFadeIn {
+        from {
+            opacity: 0;
+            transform: translateX(-20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+</style>
+
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
-    <div class="d-flex justify-space-between align-center mb-4">
-        <div>
-            <MudText Typo="Typo.h4" Class="font-weight-bold">Manage Users</MudText>
-            <MudText Typo="Typo.body2" Class="mud-text-secondary">View and manage all registered users.</MudText>
+    <div class="d-flex justify-space-between align-center mb-4 fade-slide-up">
+        <div class="d-flex align-center">
+            <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Large" Color="Color.Primary" Class="mr-3" />
+            <div>
+                <MudText Typo="Typo.h4" Class="font-weight-bold">Manage Users</MudText>
+                <MudText Typo="Typo.body2" Class="mud-text-secondary">View, assign roles and manage the people who use and operate the system</MudText>
+            </div>
         </div>
-        <MudButton Variant="Variant.Filled" Color="Color.Success"
-                   StartIcon="@Icons.Material.Filled.PersonAdd"
-                   OnClick="OpenAssignDialog" Size="Size.Small">
-            Assign
-        </MudButton>
+        <MudHidden Breakpoint="Breakpoint.SmAndDown">
+            <MudButton Variant="Variant.Filled" Color="Color.Success"
+                       StartIcon="@Icons.Material.Filled.PersonAdd"
+                       OnClick="OpenAssignDialog">
+                Assign
+            </MudButton>
+        </MudHidden>
     </div>
 
-    <MudGrid Spacing="2" Class="mb-4">
+    <MudGrid Spacing="2" Class="mb-4" Style="animation: fadeSlideUp 0.5s ease-out 0.1s both;">
         <MudItem xs="12" sm="6" Class="mt-1">
             <MudTextField @bind-Value="searchString"
                           @bind-Value:after="OnFilterChanged"
@@ -71,9 +106,9 @@
     }
     else
     {
-        <MudPaper Elevation="2">
-            <MudTable @ref="_table" ServerData="LoadServerData" Dense="true" Hover="true" Elevation="0"
-                      Breakpoint="Breakpoint.Sm">
+        <MudPaper Elevation="3" Style="animation: fadeSlideUp 0.5s ease-out 0.2s both;">
+            <MudTable @ref="_table" ServerData="LoadServerData" Dense="false" Hover="true" Elevation="0"
+                      Breakpoint="Breakpoint.Sm" RowStyleFunc="@((item, index) => $"animation: rowFadeIn 0.3s ease both; animation-delay: {Math.Min(index, 10) * 40}ms;")">
                 <HeaderContent>
                     <MudTh>User</MudTh>
                     <MudTh>Office</MudTh>
@@ -89,7 +124,9 @@
                             </MudAvatar>
                             <div>
                                 <MudText Typo="Typo.body2" Class="font-weight-bold">@context.Name</MudText>
-                                <MudText Typo="Typo.caption" Class="mud-text-secondary">@context.Email</MudText>
+                                <MudHidden Breakpoint="Breakpoint.SmAndDown">
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary">@context.Email</MudText>
+                                </MudHidden>
                             </div>
                             @if (context.IsOfficeHead)
                             {
@@ -130,6 +167,10 @@
         </MudPaper>
     }
 </MudContainer>
+
+<MudFab Color="Color.Success" StartIcon="@Icons.Material.Filled.PersonAdd"
+        OnClick="OpenAssignDialog" Class="d-md-none"
+        Style="position: fixed; bottom: 24px; right: 24px; z-index: 1000;" />
 
 <MudDialog @bind-Visible="isEditDialogOpen" Options="dialogOptions">
     <TitleContent>

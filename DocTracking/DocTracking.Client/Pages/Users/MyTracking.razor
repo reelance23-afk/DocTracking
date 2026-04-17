@@ -13,9 +13,41 @@
 @implements IDisposable
 @rendermode InteractiveAuto
 
-<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
-    <div class="mb-6">
-        <div class="d-flex justify-space-between align-center mb-4">
+<style>
+    .fade-slide-up {
+        animation: fadeSlideUp 0.5s ease-out both;
+    }
+
+    @@keyframes fadeSlideUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @@keyframes rowFadeIn {
+        from {
+            opacity: 0;
+            transform: translateX(-20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+</style>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <div class="mb-6 fade-slide-up">
+        <div class="d-flex align-center mb-4">
+                <MudIcon Icon="@Icons.Material.Filled.NoteAdd" Size="Size.Large" Color="Color.Primary" Class="mr-3" />
             <div>
                 <MudText Typo="Typo.h4" Class="font-weight-bold">My Document Tracking</MudText>
                 <MudText Typo="Typo.body2" Class="mud-text-secondary">Personal record of document.</MudText>
@@ -68,12 +100,7 @@
     }
     else
     {
-        <MudPaper Elevation="3" Class="pa-4 pa-md-6 rounded-lg">
-            <div class="d-flex justify-space-between align-center mb-4">
-                <MudText Typo="Typo.h6">All My Documents</MudText>
-            </div>
-
-            <div class="mb-4">
+        <div class="mb-4" Style="animation: fadeSlideUp 0.5s ease-out 0.1s both;">
                 <div style="width:100%;" class="mb-2">
                     <MudTextField Value="@searchString"
                                   ValueChanged="@((string v) => OnSearchChanged(v))"
@@ -142,9 +169,11 @@
                 </div>
             </div>
 
+        <MudPaper Elevation="3" Class="rounded-lg" Style="animation: fadeSlideUp 0.5s ease-out 0.2s both;">
+            <MudTable @ref="_table" ServerData="LoadServerData" Hover="true" T="Document"
+                      SortLabel="Sort By" Elevation="0" Dense="false" Breakpoint="Breakpoint.Sm"
+                      RowStyleFunc="@((item, index) => $"animation: rowFadeIn 0.3s ease both; animation-delay: {Math.Min(index, 10) * 40}ms;")">
 
-            <MudHidden Breakpoint="Breakpoint.SmAndDown">
-                <MudTable @ref="_table" ServerData="LoadServerData" Hover="true" T="Document" SortLabel="Sort By" Elevation="0">
                     <HeaderContent>
                         <MudTh>Document</MudTh>
                         <MudTh>Type</MudTh>
@@ -153,7 +182,7 @@
                         <MudTh>Created</MudTh>
                         <MudTh>Current Location</MudTh>
                         <MudTh>Next Destination</MudTh>
-                        <MudTh>Action</MudTh>
+                    <MudTh Style="text-align:left;">Action</MudTh>
                     </HeaderContent>
                     <RowTemplate>
                         <MudTd DataLabel="Document"><strong>@context.Name</strong></MudTd>
@@ -201,7 +230,7 @@
                                 <MudText Typo="Typo.body2" Color="Color.Default"><em>None</em></MudText>
                             }
                         </MudTd>
-                        <MudTd DataLabel="Action">
+                    <MudTd DataLabel="Action" Style="text-align:left;">
                             <div @onclick:stopPropagation="true" class="d-flex gap-2">
                                 <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary"
                                            StartIcon="@Icons.Material.Filled.Visibility"
@@ -227,79 +256,6 @@
                         <MudTablePager />
                     </PagerContent>
                 </MudTable>
-            </MudHidden>
-
-            <MudHidden Breakpoint="Breakpoint.MdAndUp">
-                @if (!myDocuments.Any())
-                {
-                    <div class="pa-8 text-center">
-                        <MudIcon Icon="@(string.IsNullOrEmpty(searchString) ? Icons.Material.Filled.Inbox : Icons.Material.Filled.SearchOff)" Size="Size.Large" Style="opacity: 0.3; font-size: 4rem;" Class="mb-4" />
-                        <MudText Typo="Typo.h6" Class="mud-text-secondary">@(string.IsNullOrEmpty(searchString) ? "No documents found" : "No matching documents")</MudText>
-                        @if (string.IsNullOrEmpty(searchString))
-                        {
-                            <MudButton Href="create-document" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Class="mt-4" FullWidth="true">
-                                Create Your First Document
-                            </MudButton>
-                        }
-                    </div>
-                }
-                else
-                {
-                    @foreach (var doc in myDocuments)
-                    {
-                        <MudCard Elevation="2" Class="mb-3">
-                            <MudCardContent Class="pa-4">
-                                <div class="d-flex justify-space-between align-start mb-2">
-                                    <MudText Typo="Typo.subtitle1" Class="font-weight-bold">@doc.Name</MudText>
-                                    <MudChip T="string" Color="@DocHelpers.GetPriorityColor(doc.Priority)" Size="Size.Small" Variant="Variant.Filled">
-                                        @doc.Priority
-                                    </MudChip>
-                                </div>
-                                <MudChip T="string" Color="Color.Info" Size="Size.Small" Variant="Variant.Outlined" Class="mb-2">@doc.Type</MudChip>
-                                <MudChip T="string" Color="@(doc.Status == "Received" ? Color.Success : Color.Warning)" Size="Size.Small" Variant="Variant.Filled" Class="mb-3">
-                                    @doc.Status
-                                </MudChip>
-                                <MudText Typo="Typo.body2" Class="mb-2">
-                                    <MudIcon Icon="@Icons.Material.Filled.LocationOn" Size="Size.Small" Class="mr-1" />
-                                    Current: <strong>@(doc.CurrentOffice?.Name ?? "None")</strong>
-                                </MudText>
-                                <MudText Typo="Typo.body2" Class="mb-2">
-                                    <MudIcon Icon="@Icons.Material.Filled.ArrowForward" Size="Size.Small" Class="mr-1" />
-                                    Next: <strong>@(doc.NextOffice?.Name ?? "None")</strong>
-                                </MudText>
-                                <MudText Typo="Typo.caption" Class="mud-text-secondary">
-                                    <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" Class="mr-1" />
-                                    @doc.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy hh:mm tt")
-                                </MudText>
-                            </MudCardContent>
-                            <MudCardActions Class="pa-4 pt-0">
-                                <div @onclick:stopPropagation="true" style="width:100%" class="d-flex gap-2">
-                                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Style="flex:1"
-                                               StartIcon="@Icons.Material.Filled.Visibility"
-                                               OnClick="@(async () => await OpenViewDialog(doc))">View</MudButton>
-                                    <MudIconButton Variant="Variant.Outlined" Color="Color.Secondary"
-                                                   Icon="@Icons.Material.Filled.QrCode"
-                                                   OnClick="@(async () => await OpenQRDialog(doc))" />
-                                    <MudIconButton Variant="Variant.Outlined" Color="Color.Warning"
-                                                   Icon="@Icons.Material.Filled.Edit"
-                                                   OnClick="@(async () => await OpenEditDialog(doc))" />
-
-                                </div>
-                            </MudCardActions>
-                        </MudCard>
-                    }
-                    @if (_mobileTotalCount > myDocuments.Count)
-                    {
-                        <div class="d-flex justify-center mt-4 mb-2">
-                            <MudButton Variant="Variant.Outlined" Color="Color.Primary"
-                                       Disabled="@_isLoadingMore" OnClick="LoadMoreMobile">
-                                @(_isLoadingMore ? "Loading..." : $"Load More ({myDocuments.Count} of {_mobileTotalCount})")
-                            </MudButton>
-                        </div>
-                    }
-
-                }
-            </MudHidden>
 
             @if (!string.IsNullOrEmpty(errorMessage))
             {
@@ -332,11 +288,6 @@
 
     private bool _filterOpen = false;
 
-    private int _mobileTotalCount = 0;
-    private bool _isLoadingMore = false;
-    private const int MobilePageSize = 25;
-
-
     private int ActiveFilterCount =>
         (string.IsNullOrEmpty(statusFilter) ? 0 : 1) +
         (string.IsNullOrEmpty(typeFilter) ? 0 : 1) +
@@ -357,7 +308,6 @@
 
             email = profile.Email;
             _stats = await DocService.GetUserDocumentStatsAsync(email) ?? new();
-            await LoadMobileData();
         }
         catch (Exception ex) { errorMessage = ex.Message; }
         finally { isLoading = false; }
@@ -393,39 +343,6 @@
             await InvokeAsync(StateHasChanged);
         });
 
-    private async Task LoadMobileData()
-    {
-        if (string.IsNullOrEmpty(email)) return;
-        try
-        {
-            _pagedResult = await DocService.GetUserDocumentsAsync(
-                email, page: 1, pageSize: MobilePageSize,
-                search: searchString, status: statusFilter,
-                priority: priorityFilter, type: typeFilter);
-            _mobileTotalCount = _pagedResult.TotalCount;
-        }
-        catch (Exception ex) { Console.WriteLine($"[MyTracking] LoadMobileData error: {ex.Message}"); }
-    }
-
-    private async Task LoadMoreMobile()
-    {
-        _isLoadingMore = true;
-        try
-        {
-            var nextPage = (myDocuments.Count / MobilePageSize) + 1;
-            var result = await DocService.GetUserDocumentsAsync(
-                email, page: nextPage, pageSize: MobilePageSize,
-                search: searchString, status: statusFilter,
-                priority: priorityFilter, type: typeFilter);
-            _pagedResult.Items.AddRange(result.Items);
-            _mobileTotalCount = result.TotalCount;
-        }
-        catch (Exception ex) { Console.WriteLine($"[MyTracking] LoadMoreMobile error: {ex.Message}"); }
-        finally { _isLoadingMore = false; }
-    }
-
-
-
     private async Task<TableData<Document>> LoadServerData(TableState state, CancellationToken ct)
     {
         if (string.IsNullOrEmpty(email)) return new TableData<Document>();
@@ -448,7 +365,6 @@
 
     private async Task LoadDocuments()
     {
-        await LoadMobileData();
         if (_table != null) await _table.ReloadServerData();
     }
 

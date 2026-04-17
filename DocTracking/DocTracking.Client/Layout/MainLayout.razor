@@ -63,7 +63,36 @@
     .loading-subtext {
         animation: slideUp 0.5s ease-out 0.4s both;
     }
+
+    .page-fade-in {
+        animation: pageFadeIn 0.3s ease-out both;
+    }
+
+    .page-fade-out {
+        animation: pageFadeOut 0.3s ease-out both;
+    }
+
+    @@keyframes pageFadeIn {
+        from {
+            opacity: 0;
+        }
+
+        to {
+            opacity: 1;
+        }
+    }
+
+    @@keyframes pageFadeOut {
+        from {
+            opacity: 1;
+        }
+
+        to {
+            opacity: 0;
+        }
+    }
 </style>
+
 
 <MudLayout>
     <MudAppBar Elevation="0" Color="Color.Transparent">
@@ -406,10 +435,13 @@
 
     <MudMainContent>
         <MudContainer MaxWidth="MaxWidth.False" Class="h-100 pb-8">
-            @Body
+            <div class="@(_fadingOut ? "page-fade-out" : "page-fade-in")">
+                @Body
+            </div>
         </MudContainer>
     </MudMainContent>
 </MudLayout>
+
 
 @code {
     bool _drawerOpen = true;
@@ -424,6 +456,8 @@
     private bool _searchOpen = false;
     private bool _searchLoading = false;
     private CancellationTokenSource _searchCts = new();
+
+    private bool _fadingOut = false;
 
     private bool HasAnyResults =>
         _groupedResults.DocumentTracking.Any() ||
@@ -445,7 +479,11 @@
 
             await Task.Delay(100);
 
-            try { await JSRuntime.InvokeVoidAsync("eval", "document.getElementById('app-loading')?.remove()"); }
+            try 
+            { 
+                await JSRuntime.InvokeVoidAsync("eval",
+        "var el = document.getElementById('app-loading'); if(el){ el.classList.add('hide'); setTimeout(() => el.remove(), 500); }");
+            }
             catch { }
 
             try
@@ -556,6 +594,26 @@
     {
         var options = new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true, CloseButton = true };
         await DialogService.ShowAsync<QRScanDialog>("Scan QR Code", options);
+    }
+
+    private IDisposable? _locationChangingRegistration;
+
+    protected override void OnInitialized()
+    {
+        _locationChangingRegistration = Navigation.RegisterLocationChangingHandler(OnLocationChanging);
+    }
+
+    private async ValueTask OnLocationChanging(LocationChangingContext context)
+    {
+        _fadingOut = true;
+        await InvokeAsync(StateHasChanged);
+        await Task.Delay(300);
+        _fadingOut = false;
+    }
+
+    public void Dispose()
+    {
+        _locationChangingRegistration?.Dispose();
     }
 }
 

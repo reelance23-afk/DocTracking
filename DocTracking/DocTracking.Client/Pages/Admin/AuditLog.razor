@@ -7,17 +7,46 @@
 @inject IJSRuntime JS
 @attribute [Authorize(Roles = "Admin")]
 
-<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+<style>
+    .fade-slide-up {
+        animation: fadeSlideUp 0.5s ease-out both;
+    }
 
-    <div class="d-flex justify-space-between align-center mb-4">
+    @@keyframes fadeSlideUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @@keyframes rowFadeIn {
+        from {
+            opacity: 0;
+            transform: translateX(-20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+</style>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
+    <div class="d-flex align-center mb-4 fade-slide-up">
+        <MudIcon Icon="@Icons.Material.Filled.ManageSearch" Size="Size.Large" Color="Color.Primary" Class="mr-3" />
         <div>
             <MudText Typo="Typo.h4" Class="font-weight-bold">Audit Log</MudText>
-            <MudText Typo="Typo.body2" Class="mud-text-secondary">System-wide record of all document actions.</MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">A complete record of all actions taken on documents across the entire system</MudText>
         </div>
     </div>
 
-    <MudPaper Elevation="3" Class="pa-4 pa-md-6 rounded-lg">
-        <div class="mb-4">
+    <div class="mb-4 fade-slide-up">
             <div style="width:100%;" class="mb-2">
                 <MudTextField @bind-Value="@searchText"
                               @bind-Value:after="OnSearchChanged"
@@ -80,11 +109,10 @@
             </div>
         </div>
 
-
-        <MudHidden Breakpoint="Breakpoint.SmAndDown">
-            <div style="overflow-x: auto;">
-                <MudTable @ref="_table" ServerData="LoadServerData" Dense="true" Hover="true" Striped="true"
-                          Breakpoint="Breakpoint.None" Elevation="0">
+    <MudPaper Elevation="3" Class="rounded-lg" Style="animation: fadeSlideUp 0.5s ease-out 0.1s both;">
+        <MudTable @ref="_table" ServerData="LoadServerData" Dense="true" Hover="true"
+                  Breakpoint="Breakpoint.Sm" Elevation="0"
+                  RowStyleFunc="@((item, index) => $"animation: rowFadeIn 0.3s ease both; animation-delay: {Math.Min(index, 10) * 40}ms;")">
                     <HeaderContent>
                         <MudTh>Timestamp</MudTh>
                         <MudTh>Document</MudTh>
@@ -93,28 +121,30 @@
                         <MudTh>Office / Unit</MudTh>
                         <MudTh>Comment</MudTh>
                     </HeaderContent>
-                    <RowTemplate>
-                        <MudTd>@context.TimeStamp.ToLocalTime().ToString("MMM dd, yyyy hh:mm tt")</MudTd>
-                        <MudTd>
-                            <MudText Typo="Typo.body2">@context.Document?.Name</MudText>
-                            <MudText Typo="Typo.caption" Class="mud-text-secondary">@context.Document?.ReferenceNumber</MudText>
-                        </MudTd>
-                        <MudTd>
-                            <MudChip T="string" Size="Size.Small" Color="@GetActionColor(context.Action)">@context.Action</MudChip>
-                        </MudTd>
-                        <MudTd>@(context.AppUser?.Name ?? "—")</MudTd>
-                        <MudTd>
-                            @if (context.Unit != null)
-                            {
-                                <span>@context.Unit.Name <MudText Typo="Typo.caption" Class="mud-text-secondary">(@context.Office?.Name)</MudText></span>
-                            }
-                            else
-                            {
-                                <span>@(context.Office?.Name ?? "—")</span>
-                            }
-                        </MudTd>
-                        <MudTd>@(context.Comment ?? "—")</MudTd>
-                    </RowTemplate>
+            <RowTemplate>
+                <MudTd DataLabel="Timestamp">@context.TimeStamp.ToLocalTime().ToString("MMM dd, yyyy hh:mm tt")</MudTd>
+                <MudTd DataLabel="Document">
+                    <MudText Typo="Typo.body2">@context.Document?.Name</MudText>
+                    <MudHidden Breakpoint="Breakpoint.SmAndDown">
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">@context.Document?.ReferenceNumber</MudText>
+                    </MudHidden>
+                </MudTd>
+                <MudTd DataLabel="Action">
+                    <MudChip T="string" Size="Size.Small" Color="@GetActionColor(context.Action)">@context.Action</MudChip>
+                </MudTd>
+                <MudTd DataLabel="By">@(context.AppUser?.Name ?? "—")</MudTd>
+                <MudTd DataLabel="Office / Unit">
+                    @if (context.Unit != null)
+                    {
+                        <span>@context.Unit.Name <MudText Typo="Typo.caption" Class="mud-text-secondary">(@context.Office?.Name)</MudText></span>
+                    }
+                    else
+                    {
+                        <span>@(context.Office?.Name ?? "—")</span>
+                    }
+                </MudTd>
+                <MudTd DataLabel="Comment">@(context.Comment ?? "—")</MudTd>
+            </RowTemplate>
                     <NoRecordsContent>
                         <div class="pa-8 text-center">
                             <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Large" Style="opacity: 0.3; font-size: 4rem;" Class="mb-4" />
@@ -124,69 +154,10 @@
                     <PagerContent>
                         <MudTablePager PageSizeOptions="new int[] { 25, 50, 100 }" />
                     </PagerContent>
-                </MudTable>
-            </div>
-        </MudHidden>
+            </MudTable>
 
-        <MudHidden Breakpoint="Breakpoint.MdAndUp">
-            @if (!_mobileItems.Any())
-            {
-                <div class="pa-8 text-center">
-                    <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Large" Style="opacity: 0.3; font-size: 4rem;" Class="mb-4" />
-                    <MudText Typo="Typo.h6" Class="mud-text-secondary">No logs found</MudText>
-                </div>
-            }
-            else
-            {
-                @foreach (var log in _mobileItems)
-                {
-                    <MudCard Elevation="2" Class="mb-3">
-                        <MudCardContent Class="pa-4">
-                            <div class="d-flex justify-space-between align-start mb-2">
-                                <MudChip T="string" Size="Size.Small" Color="@GetActionColor(log.Action)">@log.Action</MudChip>
-                                <MudText Typo="Typo.caption" Class="mud-text-secondary">
-                                    @log.TimeStamp.ToLocalTime().ToString("MMM dd, yyyy hh:mm tt")
-                                </MudText>
-                            </div>
-                            <MudText Typo="Typo.body2" Class="font-weight-bold mb-1">@log.Document?.Name</MudText>
-                            <MudText Typo="Typo.caption" Class="mud-text-secondary mb-2">@log.Document?.ReferenceNumber</MudText>
-                            <MudText Typo="Typo.body2" Class="mb-1">
-                                <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Class="mr-1" />
-                                @(log.AppUser?.Name ?? "—")
-                            </MudText>
-                            <MudText Typo="Typo.body2" Class="mb-1">
-                                <MudIcon Icon="@Icons.Material.Filled.Business" Size="Size.Small" Class="mr-1" />
-                                @if (log.Unit != null)
-                                {
-                                    <span>@log.Unit.Name <span class="mud-text-secondary">(@log.Office?.Name)</span></span>
-                                }
-                                else
-                                {
-                                    <span>@(log.Office?.Name ?? "—")</span>
-                                }
-                            </MudText>
-                            @if (!string.IsNullOrEmpty(log.Comment))
-                            {
-                                <MudText Typo="Typo.caption" Class="mud-text-secondary">
-                                    <MudIcon Icon="@Icons.Material.Filled.Comment" Size="Size.Small" Class="mr-1" />
-                                    @log.Comment
-                                </MudText>
-                            }
-                        </MudCardContent>
-                    </MudCard>
-                }
 
-                @if (_mobileItems.Count < _mobileTotalCount)
-                {
-                    <div class="d-flex justify-center mt-4 mb-2">
-                        <MudButton Variant="Variant.Outlined" Color="Color.Primary"
-                                   Disabled="@_isLoadingMore" OnClick="LoadMoreMobile">
-                            @(_isLoadingMore ? "Loading..." : $"Load More ({_mobileItems.Count} of {_mobileTotalCount})")
-                        </MudButton>
-                    </div>
-                }
-            }
-        </MudHidden>
+    
 
     </MudPaper>
 
@@ -205,12 +176,8 @@
     private string? filterOffice;
 
     private static readonly string[] actions = { "Created", "Received", "Forwarded", "Completed", "Admin" };
-    private List<DocumentLog> _mobileItems = new();
-    private int _mobilePage = 1;
-    private int _mobileTotalCount = 0;
     private bool _isLoadingMore = false;
     private bool _filterOpen = false;
-    private const int MobilePageSize = 10;
 
     private int ActiveFilterCount =>
         (string.IsNullOrEmpty(filterAction) ? 0 : 1) +
@@ -222,7 +189,6 @@
     {
         if (!string.IsNullOrEmpty(SearchParam))
             searchText = SearchParam;
-        await LoadMobileData();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -233,22 +199,6 @@
             searchText = SearchParam;
             await _table.ReloadServerData();
         }
-    }
-
-    private async Task LoadMobileData()
-    {
-        try
-        {
-            _mobilePage = 1;
-            var result = await DocService.GetAuditLogsAsync(
-                page: 1, pageSize: MobilePageSize,
-                search: searchText, action: filterAction,
-                date: filterDate?.ToString("yyyy-MM-dd"),
-                sender: filterSender, office: filterOffice);
-            _mobileItems = result.Items;
-            _mobileTotalCount = result.TotalCount;
-        }
-        catch (Exception ex) { Console.WriteLine($"[AuditLog] LoadMobileData error: {ex.Message}"); }
     }
 
     private async Task<TableData<DocumentLog>> LoadServerData(TableState state, CancellationToken ct)
@@ -270,27 +220,9 @@
         }
     }
 
-    private async Task LoadMoreMobile()
-    {
-        _isLoadingMore = true;
-        try
-        {
-            _mobilePage++;
-            var result = await DocService.GetAuditLogsAsync(
-                page: _mobilePage, pageSize: MobilePageSize,
-                search: searchText, action: filterAction,
-                date: filterDate?.ToString("yyyy-MM-dd"),
-                sender: filterSender, office: filterOffice);
-            _mobileItems.AddRange(result.Items);
-            _mobileTotalCount = result.TotalCount;
-        }
-        catch (Exception ex) { Console.WriteLine($"[AuditLog] LoadMoreMobile error: {ex.Message}"); }
-        finally { _isLoadingMore = false; }
-    }
 
     private async Task OnFilterChanged()
     {
-        await LoadMobileData();
         if (_table != null) await _table.ReloadServerData();
     }
 

@@ -11,15 +11,46 @@
 @inject IJSRuntime JS
 @rendermode InteractiveAuto
 
+<style>
+    .fade-slide-up {
+        animation: fadeSlideUp 0.5s ease-out both;
+    }
+
+    @@keyframes fadeSlideUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @@keyframes rowFadeIn {
+        from {
+            opacity: 0;
+            transform: translateX(-20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+</style>
+
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
-    <div class="d-flex justify-space-between align-center mb-4">
+    <div class="d-flex align-center mb-4">
+        <MudIcon Icon="@Icons.Material.Filled.TrackChanges" Size="Size.Large" Color="Color.Primary" Class="mr-3" />
         <div>
-            <MudText Typo="Typo.h4" Class="font-weight-bold">Tracking List</MudText>
-            <MudText Typo="Typo.body2" Class="mud-text-secondary">System-wide record of all document.</MudText>
+            <MudText Typo="Typo.h4" Class="font-weight-bold">My Document Tracking</MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">Track and monitor all documents you have submitted and routed</MudText>
         </div>
     </div>
 
-    <div class="mb-4">
+    <div class="mb-4" Style="animation: fadeSlideUp 0.5s ease-out 0.1s both;">
         <div style="width:100%;" class="mb-2">
             <MudTextField @bind-Value="searchString"
                           @bind-Value:after="OnSearchChanged"
@@ -105,74 +136,78 @@
         </div>
     </div>
 
-    <MudTable @ref="_table" ServerData="LoadServerData" Hover="true" T="Document"
-              MultiSelection="@_multiSelectMode" @bind-SelectedItems="_selectedDocs"
-              Breakpoint="Breakpoint.Xs" Elevation="3">
-        <HeaderContent>
-            <MudTh>Name</MudTh>
-            <MudTh>Sender</MudTh>
-            <MudTh>Location</MudTh>
-            <MudTh>Status</MudTh>
-            <MudTh>Date</MudTh>
-            <MudTh>Actions</MudTh>
-        </HeaderContent>
-        <RowTemplate>
-            <MudTd DataLabel="Name"><strong>@context.Name</strong></MudTd>
-            <MudTd DataLabel="Sender">@context.Creator?.Name</MudTd>
-            <MudTd DataLabel="Location">
-                @if (context.CurrentOffice != null)
-                {
-                    <MudText Typo="Typo.body2"><strong>@context.CurrentOffice.Name</strong><br />
-                        @if (context.CurrentUnit?.Name != null) {
-                        <span style="color: gray; font-size: 0.85em;">↳ @(context.CurrentUnit?.Name)</span>
-                        }
-                    </MudText>
-                }
-                else if (context.NextOffice != null)
-                {
-                    <MudText Typo="Typo.body2"><span style="color: #ff9800; font-size: 0.85em; font-style: italic;">Routing to:</span><br /><strong>@context.NextOffice.Name</strong><br />
-                        @if(context.NextUnit?.Name != null) 
-                        {
-                            <span style="color: gray; font-size: 0.85em;">↳ @(context.NextUnit?.Name)</span>
-                        }
-                    </MudText>
-                }
-                else
-                {
-                    <MudText Typo="Typo.body2" Color="Color.Default">Unassigned</MudText>
-                }
-            </MudTd>
-            <MudTd DataLabel="Status">
-                <MudChip T="string" Color="@DocHelpers.GetStatusColor(context.Status)" Size="Size.Small" Variant="Variant.Filled">@context.Status</MudChip>
-            </MudTd>
-            <MudTd DataLabel="Date">@context.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")</MudTd>
-            <MudTd DataLabel="Actions">
-                <div class="d-flex gap-2">
-                    <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary"
-                               StartIcon="@Icons.Material.Filled.Visibility"
-                               OnClick="@(async () => await OpenViewDialog(context))">View</MudButton>
-                    <MudIconButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Secondary"
-                                   Icon="@Icons.Material.Filled.QrCode"
-                                   OnClick="@(async () => await OpenQRDialog(context))" />
-                    <MudIconButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Warning"
-                                   Icon="@Icons.Material.Filled.Edit"
-                                   OnClick="@(async () => await OpenEditDialog(context))" />
-                    @if (_multiSelectMode == false)  {
-                    <MudIconButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Error"
-                                   Icon="@Icons.Material.Filled.Delete"
-                                   OnClick="@(async () => await DeleteDocument(context))" />
+    <MudPaper Elevation="3" Style="animation: fadeSlideUp 0.5s ease-out 0.2s both;">
+    <MudTable @ref="_table" ServerData="LoadServerData" Hover="true" T="Document" Dense="false"
+        MultiSelection="@_multiSelectMode" @bind-SelectedItems="_selectedDocs"
+              Breakpoint="Breakpoint.Sm" Elevation="0"
+              RowStyleFunc="@((item, index) => $"animation: rowFadeIn 0.3s ease both; animation-delay: {Math.Min(index, 10) * 40}ms;")">
+            <HeaderContent>
+                <MudTh>Name</MudTh>
+                <MudTh>Sender</MudTh>
+                <MudTh>Location</MudTh>
+                <MudTh>Status</MudTh>
+                <MudTh>Date</MudTh>
+                <MudTh Style="text-align:right; justify-content:flex-end;">Actions</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Name"><strong>@context.Name</strong></MudTd>
+                <MudTd DataLabel="Sender">@context.Creator?.Name</MudTd>
+                <MudTd DataLabel="Location">
+                    @if (context.CurrentOffice != null)
+                    {
+                        <MudText Typo="Typo.body2"><strong>@context.CurrentOffice.Name</strong><br />
+                            @if (context.CurrentUnit?.Name != null) {
+                            <span style="color: gray; font-size: 0.85em;">↳ @(context.CurrentUnit?.Name)</span>
+                            }
+                        </MudText>
                     }
+                    else if (context.NextOffice != null)
+                    {
+                        <MudText Typo="Typo.body2"><span style="color: #ff9800; font-size: 0.85em; font-style: italic;">Routing to:</span><br /><strong>@context.NextOffice.Name</strong><br />
+                            @if(context.NextUnit?.Name != null) 
+                            {
+                                <span style="color: gray; font-size: 0.85em;">↳ @(context.NextUnit?.Name)</span>
+                            }
+                        </MudText>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.body2" Color="Color.Default">Unassigned</MudText>
+                    }
+                </MudTd>
+                <MudTd DataLabel="Status">
+                    <MudChip T="string" Color="@DocHelpers.GetStatusColor(context.Status)" Size="Size.Small" Variant="Variant.Filled">@context.Status</MudChip>
+                </MudTd>
+                <MudTd DataLabel="Date">@context.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")</MudTd>
+                <MudTd DataLabel="Actions" Style="text-align:right;">
+                    <div class="d-flex justify-end gap-2">
+                        <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.Visibility"
+                                   OnClick="@(async () => await OpenViewDialog(context))">View</MudButton>
+                        <MudIconButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Secondary"
+                                       Icon="@Icons.Material.Filled.QrCode"
+                                       OnClick="@(async () => await OpenQRDialog(context))" />
+                        <MudIconButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Warning"
+                                       Icon="@Icons.Material.Filled.Edit"
+                                       OnClick="@(async () => await OpenEditDialog(context))" />
+                        @if (_multiSelectMode == false)
+                        {
+                            <MudIconButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Error"
+                                           Icon="@Icons.Material.Filled.Delete"
+                                           OnClick="@(async () => await DeleteDocument(context))" />
+                        }
+                    </div>
+                </MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <div class="pa-8 text-center">
+                    <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Large" Style="opacity: 0.3; font-size: 4rem;" Class="mb-4" />
+                    <MudText Typo="Typo.h6" Class="mud-text-secondary">No documents found</MudText>
                 </div>
-            </MudTd>
-        </RowTemplate>
-        <NoRecordsContent>
-            <div class="pa-8 text-center">
-                <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Large" Style="opacity: 0.3; font-size: 4rem;" Class="mb-4" />
-                <MudText Typo="Typo.h6" Class="mud-text-secondary">No documents found</MudText>
-            </div>
-        </NoRecordsContent>
-        <PagerContent><MudTablePager /></PagerContent>
-    </MudTable>
+            </NoRecordsContent>
+            <PagerContent><MudTablePager /></PagerContent>
+        </MudTable>
+    </MudPaper>
 
 </MudContainer>
 
