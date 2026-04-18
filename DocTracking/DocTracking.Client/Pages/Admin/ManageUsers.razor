@@ -39,22 +39,29 @@
 </style>
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
-    <div class="d-flex justify-space-between align-center mb-4 fade-slide-up">
+    <div class="d-flex align-center justify-space-between mb-4 fade-slide-up flex-wrap gap-2">
         <div class="d-flex align-center">
             <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Large" Color="Color.Primary" Class="mr-3" />
             <div>
                 <MudText Typo="Typo.h4" Class="font-weight-bold">Manage Users</MudText>
-                <MudText Typo="Typo.body2" Class="mud-text-secondary">View, assign roles and manage the people who use and operate the system</MudText>
             </div>
         </div>
-        <MudHidden Breakpoint="Breakpoint.SmAndDown">
-            <MudButton Variant="Variant.Filled" Color="Color.Success"
-                       StartIcon="@Icons.Material.Filled.PersonAdd"
-                       OnClick="OpenAssignDialog">
-                Assign
-            </MudButton>
-        </MudHidden>
+        <div class="d-flex align-center gap-2 flex-wrap">
+            <MudAlert Severity="Severity.Info" Dense="true" Icon="@Icons.Material.Filled.Info" Style="width: fit-content; margin: 0;">
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                    Assign roles, offices and units to users. Use the Assign button to bulk-assign users to offices or units.
+                </MudText>
+            </MudAlert>
+            <MudHidden Breakpoint="Breakpoint.SmAndDown">
+                <MudButton Variant="Variant.Filled" Color="Color.Success"
+                           StartIcon="@Icons.Material.Filled.PersonAdd"
+                           OnClick="OpenAssignDialog">
+                    Assign
+                </MudButton>
+            </MudHidden>
+        </div>
     </div>
+
 
     <MudGrid Spacing="2" Class="mb-4" Style="animation: fadeSlideUp 0.5s ease-out 0.1s both;">
         <MudItem xs="12" sm="6" Class="mt-1">
@@ -114,7 +121,7 @@
                     <MudTh>Office</MudTh>
                     <MudTh>Unit</MudTh>
                     <MudTh>Role</MudTh>
-                    <MudTh Style="text-align:right;">Actions</MudTh>
+                    <MudTh>Actions</MudTh>
                 </HeaderContent>
                 <RowTemplate>
                     <MudTd DataLabel="User">
@@ -145,15 +152,13 @@
                     <MudTd DataLabel="Role">
                         <MudChip T="string" Color="@GetRoleColor(context.Role)" Size="Size.Small" Variant="Variant.Text">@context.Role</MudChip>
                     </MudTd>
-                    <MudTd DataLabel="Actions" Style="text-align:right;">
-                        <div class="d-flex justify-end gap-1">
+                    <MudTd DataLabel="Actions">
                             <MudIconButton Icon="@Icons.Material.Filled.History" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined"
                                            OnClick="@(async () => await OpenActivityDialog(context))" />
                             <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined"
                                            OnClick="@(() => OpenEditDialog(context))" />
                             <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" Variant="Variant.Outlined"
                                            OnClick="@(async () => await DeleteUser(context))" />
-                        </div>
                     </MudTd>
                 </RowTemplate>
                 <NoRecordsContent>

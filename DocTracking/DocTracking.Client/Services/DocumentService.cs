@@ -225,7 +225,7 @@ namespace DocTracking.Client.Services
             await GetJsonAsync<UserDocumentStats>($"api/documents/user/{email}/stats");
 
         public async Task<UserHomeData> GetUserHomeDataAsync(string email) =>
-            await GetJsonAsync<UserHomeData>($"api/documents/user/{email}/home-data");
+            await GetJsonAsync<UserHomeData>($"api/documents/user/{Uri.EscapeDataString(email)}/home-data");
 
         public async Task<LocationDocStats?> GetLocationDocStatsAsync(int? unitId, int? officeId)
         {

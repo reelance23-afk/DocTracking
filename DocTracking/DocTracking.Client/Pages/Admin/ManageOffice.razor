@@ -37,19 +37,26 @@
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-6 mb-8">
 
-    <div class="d-flex justify-space-between align-center mb-4 fade-slide-up">
+    <div class="d-flex align-center justify-space-between mb-4 fade-slide-up flex-wrap gap-2">
         <div class="d-flex align-center">
             <MudIcon Icon="@Icons.Material.Filled.Business" Size="Size.Large" Color="Color.Primary" Class="mr-3" />
             <div>
                 <MudText Typo="Typo.h4" Class="font-weight-bold">Office Management</MudText>
-                <MudText Typo="Typo.body2" Class="mud-text-secondary">Manage the offices and units responsible for handling and routing documents</MudText>
             </div>
         </div>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
-                   OnClick="OpenAddOfficeDialog" Class="d-none d-md-flex">
-            Manage Office/Unit
-        </MudButton>
+        <div class="d-flex align-center gap-2 flex-wrap">
+            <MudAlert Severity="Severity.Info" Dense="true" Icon="@Icons.Material.Filled.Info" Style="width: fit-content; margin: 0;">
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                    Offices with active documents or assigned users cannot be deleted. Set receiving schedules per office.
+                </MudText>
+            </MudAlert>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
+                       OnClick="OpenAddOfficeDialog" Class="d-none d-md-flex">
+                Manage Office/Unit
+            </MudButton>
+        </div>
     </div>
+
 
     <MudTextField @bind-Value="searchString"
                   @bind-Value:after="OnSearchChanged"

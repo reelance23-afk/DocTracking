@@ -1,8 +1,6 @@
 ﻿@using DocTracking.Client.Models
 @using DocTracking.Client.Services
 @inject NotificationService NotifService
-@inject DocumentService DocService
-@inject IJSRuntime JS
 @implements IAsyncDisposable
 @rendermode InteractiveAuto
 
@@ -73,42 +71,9 @@
 @code {
     private bool _menuOpen = false;
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    protected override void OnInitialized()
     {
-        if (!firstRender) return;
-        try { await JS.InvokeVoidAsync("eval", "0"); }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[Bell] JS not ready, skipping connect: {ex.Message}");
-            return;
-        }
-
         NotifService.OnChange += StateHasChanged;
-
-        try
-        {
-            var profile = await DocService.GetProfileAsync();
-            if (profile == null) return;
-
-            var groups = new List<string>();
-            var resolvedOfficeId = profile.OfficeId ?? profile.Unit?.OfficeId;
-
-            Console.WriteLine($"[Bell] UnitId={profile.UnitId}, OfficeId={profile.OfficeId}, IsOfficeHead={profile.IsOfficeHead}, resolvedOfficeId={resolvedOfficeId}");
-
-            if (profile.UnitId.HasValue)
-                groups.Add($"unit-{profile.UnitId}");
-
-            if (profile.IsOfficeHead && resolvedOfficeId.HasValue)
-                groups.Add($"office-head-{resolvedOfficeId}");
-            else if (!profile.IsOfficeHead && resolvedOfficeId.HasValue && !profile.UnitId.HasValue)
-                groups.Add($"office-{resolvedOfficeId}");
-
-            await NotifService.ConnectAsync($"user-{profile.Id}", groups);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[Bell] ERROR: {ex.Message}");
-        }
     }
 
     private async Task ToggleMenu()
@@ -129,3 +94,4 @@
         return ValueTask.CompletedTask;
     }
 }
+

@@ -194,9 +194,9 @@ namespace DocTracking.Services
         }
 
         public async Task<(List<Document> Items, int TotalCount)> GetUserDocumentsAsync(
-            string email, int page, int pageSize,
-            string? search = null, string? status = null,
-            string? priority = null, string? type = null)
+        string email, int page, int pageSize,
+        string? search = null, string? status = null,
+        string? priority = null, string? type = null)
         {
             try
             {
@@ -233,6 +233,16 @@ namespace DocTracking.Services
                     .Take(pageSize)
                     .ToListAsync();
 
+                var docIds = items.Select(d => d.Id).ToList();
+                var receivedDocIds = await _context.DocumentLogs
+                    .Where(l => docIds.Contains(l.DocumentId) && l.Action == "Received")
+                    .Select(l => l.DocumentId)
+                    .Distinct()
+                    .ToListAsync();
+
+                foreach (var doc in items)
+                    doc.HasBeenReceived = receivedDocIds.Contains(doc.Id);
+
                 return (items, total);
             }
             catch (Exception ex)
@@ -241,6 +251,7 @@ namespace DocTracking.Services
                 return (new List<Document>(), 0);
             }
         }
+
 
         public async Task<UserDocumentStats> GetUserDocumentStatsAsync(string? email)
         {
@@ -280,7 +291,7 @@ namespace DocTracking.Services
             {
                 var baseQuery = _context.Documents.Where(d => d.Creator != null && d.Creator.Email == email);
 
-                var statsTask = baseQuery
+                var stats = await baseQuery
                     .GroupBy(_ => 1)
                     .Select(g => new
                     {
@@ -290,15 +301,11 @@ namespace DocTracking.Services
                     })
                     .FirstOrDefaultAsync();
 
-                var docsTask = baseQuery
+                var allRecent = await baseQuery
                     .Include(d => d.Creator).Include(d => d.NextOffice).Include(d => d.CurrentOffice)
                     .OrderByDescending(d => d.LastActionDate ?? d.CreatedAt)
                     .Take(500)
                     .ToListAsync();
-
-                await Task.WhenAll(statsTask, docsTask);
-                var stats = statsTask.Result;
-                var allRecent = docsTask.Result;
 
                 var stuckThreshold = DateTime.UtcNow.AddDays(-1);
 

@@ -1,10 +1,13 @@
 using DocTracking.Client.Models;
 using DocTracking.Data;
+using DocTracking.Hubs;
 using DocTracking.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+
 
 namespace DocTracking.Controllers
 {
@@ -17,11 +20,14 @@ namespace DocTracking.Controllers
         private readonly ApplicationDbContext _context;
         private readonly UserClaimsTransformation _claimsTransform;
         private readonly ILogger<AppUsersController> _logger;
+        private readonly IHubContext<NotificationHub> _hub;
 
-        public AppUsersController(ApplicationDbContext context, UserClaimsTransformation claimsTransform, ILogger<AppUsersController> logger)
+        public AppUsersController(ApplicationDbContext context, UserClaimsTransformation claimsTransform,
+            IHubContext<NotificationHub> hub, ILogger<AppUsersController> logger)
         {
-            _context = context;
+           _context = context;
             _claimsTransform = claimsTransform;
+            _hub = hub;
             _logger = logger;
         }
 
@@ -40,6 +46,8 @@ namespace DocTracking.Controllers
             {
                 await _context.SaveChangesAsync();
                 if (user.Email != null) _claimsTransform.InvalidateUser(user.Email);
+                Console.WriteLine($"[UpdateUser] Sending RoleChanged to user-{user.Id}");
+                await _hub.Clients.Group($"user-{user.Id}").SendAsync("RoleChanged");
             }
             catch (Exception ex)
             {
@@ -58,12 +66,10 @@ namespace DocTracking.Controllers
             await using var tx = await _context.Database.BeginTransactionAsync();
             try
             {
-                // Nullify CreatorId on documents — no load into memory
                 await _context.Documents
                     .Where(d => d.CreatorId == id)
                     .ExecuteUpdateAsync(d => d.SetProperty(x => x.CreatorId, (int?)null));
 
-                // Preserve UserName on logs that don't have one, then nullify AppUserId
                 await _context.DocumentLogs
                     .Where(dl => dl.AppUserId == id && (dl.UserName == null || dl.UserName == ""))
                     .ExecuteUpdateAsync(dl => dl.SetProperty(x => x.UserName, user.Name));
@@ -72,7 +78,6 @@ namespace DocTracking.Controllers
                     .Where(dl => dl.AppUserId == id)
                     .ExecuteUpdateAsync(dl => dl.SetProperty(x => x.AppUserId, (int?)null));
 
-                // Delete notifications
                 await _context.AppNotifications
                     .Where(n => n.AppUserId == id)
                     .ExecuteDeleteAsync();
@@ -107,6 +112,7 @@ namespace DocTracking.Controllers
             {
                 user.UnitId = request.ToUnitId;
                 user.OfficeId = targetUnit.OfficeId;
+                user.Role = "Office";
             }
 
             try
@@ -140,6 +146,7 @@ namespace DocTracking.Controllers
             {
                 user.UnitId = request.ToUnitId;
                 user.OfficeId = targetUnit.OfficeId;
+                user.Role = "Office";
             }
 
             try

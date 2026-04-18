@@ -57,6 +57,7 @@ namespace DocTracking.Client.Models
 
         public string FilePath { get; set; } = string.Empty;
 
-        
+        [NotMapped]
+        public bool HasBeenReceived { get; set; }
     }
 }

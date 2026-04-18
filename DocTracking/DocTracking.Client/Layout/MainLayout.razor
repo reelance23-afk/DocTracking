@@ -3,6 +3,7 @@
 @using System.Security.Claims
 @using DocTracking.Client.Pages
 @inject AuthenticationStateProvider AuthStateProvider
+@inject NotificationService NotifService
 @inject NavigationManager Navigation
 @inject ThemeService ThemeService
 @inject DocumentService DocService
@@ -440,6 +441,23 @@
             </div>
         </MudContainer>
     </MudMainContent>
+    @if (_roleChanged)
+    {
+        <div style="position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center;">
+            <MudPaper Elevation="8" Class="pa-8 rounded-xl text-center" Style="max-width:400px; width:90%;">
+                <MudIcon Icon="@Icons.Material.Filled.AdminPanelSettings" Size="Size.Large" Color="Color.Warning" Class="mb-4" Style="font-size:4rem;" />
+                <MudText Typo="Typo.h5" Class="font-weight-bold mb-2">Your role has been updated</MudText>
+                <MudText Typo="Typo.body2" Class="mud-text-secondary mb-6">
+                    An administrator has changed your account role. Please log out and log back in for the changes to take effect.
+                </MudText>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
+                           StartIcon="@Icons.Material.Filled.Logout"
+                           Href="/Account/Logout">
+                    Log Out Now
+                </MudButton>
+            </MudPaper>
+        </div>
+    }
 </MudLayout>
 
 
@@ -458,6 +476,7 @@
     private CancellationTokenSource _searchCts = new();
 
     private bool _fadingOut = false;
+    private bool _roleChanged = false;
 
     private bool HasAnyResults =>
         _groupedResults.DocumentTracking.Any() ||
@@ -479,8 +498,8 @@
 
             await Task.Delay(100);
 
-            try 
-            { 
+            try
+            {
                 await JSRuntime.InvokeVoidAsync("eval",
         "var el = document.getElementById('app-loading'); if(el){ el.classList.add('hide'); setTimeout(() => el.remove(), 500); }");
             }
@@ -489,20 +508,39 @@
             try
             {
                 var profile = await DocService.GetProfileAsync();
-                displayName = profile?.Name;
-                _userRole = profile?.Role;
-                displayRole = _userRole switch
+                if (profile != null)
                 {
-                    "Admin" => "System Administrator",
-                    "Office" => "Office Worker",
-                    _ => "User"
-                };
+                    displayName = profile.Name;
+                    _userRole = profile.Role;
+                    displayRole = _userRole switch
+                    {
+                        "Admin" => "System Administrator",
+                        "Office" => "Office Worker",
+                        _ => "User"
+                    };
+
+                    var groups = new List<string>();
+                    var resolvedOfficeId = profile.OfficeId ?? profile.Unit?.OfficeId;
+
+                    if (profile.UnitId.HasValue)
+                        groups.Add($"unit-{profile.UnitId}");
+
+                    if (profile.IsOfficeHead && resolvedOfficeId.HasValue)
+                        groups.Add($"office-head-{resolvedOfficeId}");
+                    else if (!profile.IsOfficeHead && resolvedOfficeId.HasValue && !profile.UnitId.HasValue)
+                        groups.Add($"office-{resolvedOfficeId}");
+
+                    await NotifService.ConnectAsync($"user-{profile.Id}", groups);
+                    Console.WriteLine($"[MainLayout] SignalR connected for user-{profile.Id}");
+                    NotifService.OnRoleChanged += OnRoleChangedReceived;
+                }
             }
             catch (Exception ex) { Console.WriteLine($"[MainLayout] Profile load error: {ex.Message}"); }
 
             StateHasChanged();
         }
     }
+
 
     private async void OnSearchChanged(string value)
     {
@@ -611,9 +649,16 @@
         _fadingOut = false;
     }
 
+    private void OnRoleChangedReceived()
+    {
+        _roleChanged = true;
+        InvokeAsync(StateHasChanged);
+    }
+
     public void Dispose()
     {
         _locationChangingRegistration?.Dispose();
+        NotifService.OnRoleChanged -= OnRoleChangedReceived;
     }
 }
 

@@ -12,18 +12,94 @@
 @implements IDisposable
 @rendermode InteractiveAuto
 
+<style>
+    .fade-slide-up {
+        animation: fadeSlideUp 0.5s ease-out both;
+    }
+
+    @@keyframes fadeSlideUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+</style>
+
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
 
     @if (isLoadingInitial)
     {
-        <div class="text-center pa-8">
-            <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
-            <MudText Class="mt-4">Loading dashboard...</MudText>
+        <div class="d-flex align-center mb-6">
+            <MudSkeleton SkeletonType="SkeletonType.Circle" Width="40px" Height="40px" Class="mr-3" />
+            <div>
+                <MudSkeleton SkeletonType="SkeletonType.Text" Width="180px" Height="32px" Class="mb-1" />
+                <MudSkeleton SkeletonType="SkeletonType.Text" Width="280px" />
+            </div>
         </div>
+
+        <MudGrid Class="mb-6">
+            @for (int i = 0; i < 3; i++)
+            {
+                <MudItem xs="12" sm="4">
+                    <MudPaper Elevation="2" Class="pa-4">
+                        <div class="d-flex justify-space-between align-center">
+                            <div style="flex: 1;">
+                                <MudSkeleton SkeletonType="SkeletonType.Text" Width="60px" Height="48px" Class="mb-1" />
+                                <MudSkeleton SkeletonType="SkeletonType.Text" Width="120px" />
+                            </div>
+                            <MudSkeleton SkeletonType="SkeletonType.Circle" Width="40px" Height="40px" />
+                        </div>
+                    </MudPaper>
+                </MudItem>
+            }
+        </MudGrid>
+
+        <MudGrid Class="mb-6">
+            <MudItem xs="12" md="7">
+                <MudPaper Elevation="2" Class="pa-4" Style="min-height: 500px;">
+                    <div class="d-flex justify-space-between align-center mb-4">
+                        <MudSkeleton SkeletonType="SkeletonType.Text" Width="160px" />
+                        <MudSkeleton SkeletonType="SkeletonType.Text" Width="80px" />
+                    </div>
+                    <MudGrid Spacing="2">
+                        <MudItem xs="12" sm="6">
+                            <MudSkeleton SkeletonType="SkeletonType.Text" Width="80px" Class="mb-3" />
+                            @for (int i = 0; i < 4; i++)
+                            {
+                                <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="64px" Class="mb-2" />
+                            }
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudSkeleton SkeletonType="SkeletonType.Text" Width="100px" Class="mb-3" />
+                            @for (int i = 0; i < 4; i++)
+                            {
+                                <MudSkeleton SkeletonType="SkeletonType.Text" Class="mb-2" />
+                                <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="8px" Class="mb-3 rounded-lg" />
+                            }
+                        </MudItem>
+                    </MudGrid>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" md="5">
+                <MudPaper Elevation="2" Class="pa-4" Style="min-height: 500px;">
+                    <MudSkeleton SkeletonType="SkeletonType.Text" Width="140px" Class="mb-4" />
+                    @for (int i = 0; i < 5; i++)
+                    {
+                        <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="72px" Class="mb-3" />
+                    }
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
     }
+
     else
     {
-        <div class="d-flex align-center mb-6">
+        <div class="d-flex align-center mb-6 fade-slide-up">
             <MudIcon Icon="@Icons.Material.Filled.Business" Size="Size.Large" Color="Color.Primary" Class="mr-3" />
             <div>
                 @if(myUnitId.HasValue){
@@ -38,7 +114,7 @@
         </div>
 
         <MudGrid Class="mb-6">
-            <MudItem xs="12" sm="4">
+            <MudItem xs="12" sm="4" Style="animation: fadeSlideUp 0.5s ease-out 0.1s both;">
                 <MudPaper Elevation="2" Class="pa-4" Style="border-top: 4px solid var(--mud-palette-error);">
                     <div class="d-flex justify-space-between align-center">
                         <div>
@@ -49,7 +125,7 @@
                     </div>
                 </MudPaper>
             </MudItem>
-            <MudItem xs="12" sm="4">
+            <MudItem xs="12" sm="4" Style="animation: fadeSlideUp 0.5s ease-out 0.2s both;">
                 <MudPaper Elevation="2" Class="pa-4" Style="border-top: 4px solid var(--mud-palette-warning);">
                     <div class="d-flex justify-space-between align-center">
                         <div>
@@ -60,7 +136,7 @@
                     </div>
                 </MudPaper>
             </MudItem>
-            <MudItem xs="12" sm="4">
+            <MudItem xs="12" sm="4" Style="animation: fadeSlideUp 0.5s ease-out 0.3s both;">
                 <MudPaper Elevation="2" Class="pa-4" Style="border-top: 4px solid var(--mud-palette-info);">
                     <div class="d-flex justify-space-between align-center">
                         <div>
@@ -73,9 +149,9 @@
             </MudItem>
         </MudGrid>
 
-        <MudGrid Class="mb-6" Style="align-items: stretch;">
+        <MudGrid Class="mb-6" Style="align-items: stretch; animation: fadeSlideUp 0.5s ease-out 0.4s both;">
             <MudItem xs="12" md="7" Style="display: flex; flex-direction: column;">
-                <MudPaper Elevation="2" Class="pa-4 flex-grow-1">
+                <MudPaper Elevation="2" Class="pa-4 flex-grow-1" Style="display: flex; flex-direction: column;">
                     <div class="d-flex align-center justify-space-between mb-4">
                         <div class="d-flex align-center">
                             <MudIcon Icon="@Icons.Material.Filled.ViewKanban" Class="mr-2" Color="Color.Primary" />
@@ -85,12 +161,15 @@
                             Manage
                         </MudButton>
                     </div>
-                    <div class="d-flex gap-4 flex-grow-1" style="min-height: 0;">
-                        <div style="flex: 1; background: rgba(var(--mud-palette-error-rgb), 0.08); border-radius: 8px; padding: 12px; max-height: 400px; overflow-y: auto;">
+                    <div class="d-flex gap-4" style="flex: 1; min-height: 0; align-items: stretch;">
+                        <div style="flex: 1; background: rgba(var(--mud-palette-error-rgb), 0.08); border-radius: 8px; padding: 12px; overflow-y: auto;">
                             <MudText Typo="Typo.subtitle2" Color="Color.Error" Class="mb-3 font-weight-bold">Incoming</MudText>
+                            @{
+                                int incomingIndex = 0;
+                            }
                             @foreach (var doc in incomingDocs.Take(5))
                             {
-                                <MudPaper Elevation="1" Class="pa-3 mb-2">
+                                <MudPaper Elevation="1" Class="pa-3 mb-2" Style="@($"animation: fadeSlideUp 0.3s ease both; animation-delay: {incomingIndex++ * 60}ms;")">
                                     <MudText Typo="Typo.body2" Class="font-weight-bold mb-1">@doc.Name</MudText>
                                     <div class="d-flex justify-space-between align-center">
                                         <MudChip T="string" Size="Size.Small" Color="@DocHelpers.GetPriorityColor(doc.Priority)" Variant="Variant.Filled">@doc.Priority</MudChip>
@@ -101,15 +180,20 @@
                             }
                             @if (!incomingDocs.Any())
                             {
-                                <MudText Typo="Typo.caption" Class="mud-text-secondary">No incoming documents</MudText>
+                                <div class="d-flex flex-column align-center pa-4">
+                                    <MudIcon Icon="@Icons.Material.Filled.Inbox" Size="Size.Large" Color="Color.Error" Style="opacity:0.5;" />
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary mt-2">No incoming documents</MudText>
+                                </div>
                             }
                         </div>
-                        <div style="flex: 1; background: rgba(var(--mud-palette-warning-rgb), 0.08); border-radius: 8px; padding: 12px; max-height: 400px; overflow-y: auto;">
-
+                        <div style="flex: 1; background: rgba(var(--mud-palette-warning-rgb), 0.08); border-radius: 8px; padding: 12px; overflow-y: auto;">
                             <MudText Typo="Typo.subtitle2" Color="Color.Warning" Class="mb-3 font-weight-bold">On Desk</MudText>
+                            @{
+                                int deskIndex = 0;
+                            }
                             @foreach (var doc in deskDocs.Take(5))
                             {
-                                <MudPaper Elevation="1" Class="pa-3 mb-2">
+                                <MudPaper Elevation="1" Class="pa-3 mb-2" Style="@($"animation: fadeSlideUp 0.3s ease both; animation-delay: {deskIndex++ * 60}ms;")">
                                     <MudText Typo="Typo.body2" Class="font-weight-bold mb-1">@doc.Name</MudText>
                                     <div class="d-flex justify-space-between align-center">
                                         <MudChip T="string" Size="Size.Small" Color="@DocHelpers.GetPriorityColor(doc.Priority)" Variant="Variant.Filled">@doc.Priority</MudChip>
@@ -120,12 +204,16 @@
                             }
                             @if (!deskDocs.Any())
                             {
-                                <MudText Typo="Typo.caption" Class="mud-text-secondary">Desk is clear</MudText>
+                                <div class="d-flex flex-column align-center pa-4">
+                                    <MudIcon Icon="@Icons.Material.Filled.AssignmentTurnedIn" Size="Size.Large" Color="Color.Warning" Style="opacity:0.5;" />
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary mt-2">Desk is clear</MudText>
+                                </div>
                             }
                         </div>
                     </div>
                 </MudPaper>
             </MudItem>
+
 
             <MudItem xs="12" md="5" Style="display: flex; flex-direction: column;">
                 <MudPaper Elevation="2" Class="pa-4 flex-grow-1">

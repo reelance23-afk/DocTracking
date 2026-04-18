@@ -5,6 +5,11 @@
 
 <MudDialog>
     <DialogContent>
+        <MudAlert Severity="Severity.Info" Dense="true" Icon="@Icons.Material.Filled.Info" Class="mb-4">
+            <MudText Typo="Typo.caption">
+                Type an existing office name to add a unit to it, or enter a new name to create a new office.
+            </MudText>
+        </MudAlert>
         <MudForm @bind-IsValid="isValid" @ref="form" Class="mt-2">
             <MudAutocomplete T="string"
                              Label="Office Name"
@@ -45,7 +50,7 @@
     }
 
     private async Task<IEnumerable<string>> SearchOffices(string value, CancellationToken ct)
-    {
+    {                                                                                                                                               
         _offices = await DocService.GetOfficesSimpleAsync(string.IsNullOrWhiteSpace(value) ? null : value);
         return _offices.Select(o => o.Name!);
     }

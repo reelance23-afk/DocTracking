@@ -17,6 +17,24 @@
         </div>
     </TitleContent>
     <DialogContent>
+        @if (Doc.Status == "In Motion")
+        {
+            <MudAlert Severity="Severity.Warning" Dense="true" Icon="@Icons.Material.Filled.DirectionsWalk" Class="mb-4">
+                <MudText Typo="Typo.caption">This document is currently in transit to <strong>@(Doc.NextOffice?.Name ?? "an office")</strong>.</MudText>
+            </MudAlert>
+        }
+        else if (Doc.Status == "Received")
+        {
+            <MudAlert Severity="Severity.Info" Dense="true" Icon="@Icons.Material.Filled.Inbox" Class="mb-4">
+                <MudText Typo="Typo.caption">This document has been received and is currently being processed at <strong>@(Doc.CurrentOffice?.Name ?? "an office")</strong>.</MudText>
+            </MudAlert>
+        }
+        else if (Doc.Status == "Completed")
+        {
+            <MudAlert Severity="Severity.Success" Dense="true" Icon="@Icons.Material.Filled.CheckCircle" Class="mb-4">
+                <MudText Typo="Typo.caption">This document has been completed and closed.</MudText>
+            </MudAlert>
+        }
         <MudGrid Spacing="3">
             <MudItem xs="12" sm="6">
                 <MudText Typo="Typo.caption" Color="Color.Secondary">Type</MudText>

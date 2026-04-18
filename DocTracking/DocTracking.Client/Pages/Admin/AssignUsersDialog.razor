@@ -13,7 +13,9 @@
     <DialogContent>
         @if (_selectedOffice == null)
         {
-            <MudText Typo="Typo.body2" Class="mud-text-secondary mb-3">Select an office to assign users to.</MudText>
+            <MudAlert Severity="Severity.Info" Dense="true" Icon="@Icons.Material.Filled.Info" Class="mb-3">
+                <MudText Typo="Typo.caption">Select an office to assign users to.</MudText>
+            </MudAlert>
             <MudTextField Value="_officeSearch" ValueChanged="@((string v) => OnOfficeSearchChanged(v))"
                           Placeholder="Search offices..." DebounceInterval="300"
                           Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
@@ -76,9 +78,9 @@
                           Placeholder="Search users..." DebounceInterval="300"
                           Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
                           Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" Class="mb-2" />
-            <MudText Typo="Typo.caption" Class="mud-text-secondary mb-3 d-block">
-                Check to assign to office, uncheck to remove.
-            </MudText>
+            <MudAlert Severity="Severity.Info" Dense="true" Icon="@Icons.Material.Filled.Info" Class="mb-3">
+                <MudText Typo="Typo.caption">Check to assign to office, uncheck to remove.</MudText>
+            </MudAlert>
             @if (_loadingUsers)
             {
                 <MudProgressLinear Indeterminate="true" Class="mb-2" />
@@ -125,9 +127,9 @@
                           Placeholder="Search users..." DebounceInterval="300"
                           Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
                           Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" Class="mb-2" />
-            <MudText Typo="Typo.caption" Class="mud-text-secondary mb-3 d-block">
-                Check to assign to this unit, uncheck to remove.
-            </MudText>
+            <MudAlert Severity="Severity.Info" Dense="true" Icon="@Icons.Material.Filled.Info" Class="mb-3">
+                <MudText Typo="Typo.caption">Check to assign to this unit, uncheck to remove.</MudText>
+            </MudAlert>
             @if (_loadingUsers)
             {
                 <MudProgressLinear Indeterminate="true" Class="mb-2" />

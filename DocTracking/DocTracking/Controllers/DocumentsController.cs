@@ -790,6 +790,19 @@ namespace DocTracking.Controllers
 
             var email = CurrentUserEmail;
             var appUser = await _context.AppUsers.FirstOrDefaultAsync(u => u.Email == email);
+            var isAdmin = User.IsInRole("Admin");
+
+            if (!isAdmin)
+            {
+                if (existing.CreatorId != appUser?.Id)
+                    return Forbid();
+
+                var hasBeenReceived = await _context.DocumentLogs
+                    .AnyAsync(l => l.DocumentId == id && l.Action == "Received");
+
+                if (hasBeenReceived)
+                    return BadRequest("Document can no longer be edited once it has been received by an office.");
+            }
 
             var changes = new List<string>();
             if (existing.Name != doc.Name) changes.Add($"Name: '{existing.Name}' to '{doc.Name}'");

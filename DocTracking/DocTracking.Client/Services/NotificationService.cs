@@ -16,6 +16,7 @@ namespace DocTracking.Client.Services
         public int UnreadCount => Notifications.Count(n => !n.IsRead);
         public bool IsConnected => _hub?.State == HubConnectionState.Connected;
         public event Action? OnChange;
+        public event Action? OnRoleChanged;
 
         public NotificationService(NavigationManager navigation, HttpClient http)
         {
@@ -41,6 +42,11 @@ namespace DocTracking.Client.Services
                         Time = DateTime.UtcNow
                     });
                     OnChange?.Invoke();
+                });
+
+                _hub.On("RoleChanged", () =>
+                {
+                    OnRoleChanged?.Invoke();
                 });
 
                 _hub.Reconnected += async _ =>

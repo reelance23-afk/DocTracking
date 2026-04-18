@@ -42,13 +42,20 @@
 </style>
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
-    <div class="d-flex align-center mb-4">
-        <MudIcon Icon="@Icons.Material.Filled.TrackChanges" Size="Size.Large" Color="Color.Primary" Class="mr-3" />
-        <div>
-            <MudText Typo="Typo.h4" Class="font-weight-bold">My Document Tracking</MudText>
-            <MudText Typo="Typo.body2" Class="mud-text-secondary">Track and monitor all documents you have submitted and routed</MudText>
+    <div class="d-flex align-center justify-space-between mb-4 fade-slide-up flex-wrap gap-2">
+        <div class="d-flex align-center">
+            <MudIcon Icon="@Icons.Material.Filled.TrackChanges" Size="Size.Large" Color="Color.Primary" Class="mr-3" />
+            <div>
+                <MudText Typo="Typo.h4" Class="font-weight-bold">Document Tracking</MudText>
+            </div>
         </div>
+        <MudAlert Severity="Severity.Info" Dense="true" Icon="@Icons.Material.Filled.Info" Style="width: fit-content; margin: 0;">
+            <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                Full visibility of all documents. Use filters to narrow by status, office, sender or date. Export to CSV for reporting.
+            </MudText>
+        </MudAlert>
     </div>
+
 
     <div class="mb-4" Style="animation: fadeSlideUp 0.5s ease-out 0.1s both;">
         <div style="width:100%;" class="mb-2">

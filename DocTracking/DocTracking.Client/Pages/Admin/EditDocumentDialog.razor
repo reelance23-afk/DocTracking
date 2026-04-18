@@ -22,6 +22,11 @@
         }
         else
         {
+            <MudAlert Severity="Severity.Warning" Dense="true" Icon="@Icons.Material.Filled.AdminPanelSettings" Class="mb-4">
+                <MudText Typo="Typo.caption">
+                    Changes to status and office routing will be applied as an admin override and logged in the audit trail.
+                </MudText>
+            </MudAlert>
             <MudGrid Spacing="3">
                 <MudItem xs="12">
                     <MudTextField @bind-Value="Doc.Name" Label="Document Title" Variant="Variant.Outlined"

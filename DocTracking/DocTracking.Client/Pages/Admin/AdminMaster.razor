@@ -126,12 +126,18 @@
             }
         </style>
 
-        <div class="d-flex align-center mb-6 fade-slide-up">
-            <MudIcon Icon="@Icons.Material.Filled.AdminPanelSettings" Size="Size.Large" Color="Color.Primary" Class="mr-3" />
-            <div>
-                <MudText Typo="Typo.h4" Class="font-weight-bold">Admin Dashboard</MudText>
-                <MudText Typo="Typo.body2" Class="mud-text-secondary">Overview of system activity and document tracking.</MudText>
+        <div class="d-flex align-center justify-space-between mb-6 fade-slide-up flex-wrap gap-2">
+            <div class="d-flex align-center">
+                <MudIcon Icon="@Icons.Material.Filled.AdminPanelSettings" Size="Size.Large" Color="Color.Primary" Class="mr-3" />
+                <div>
+                    <MudText Typo="Typo.h4" Class="font-weight-bold">Admin Dashboard</MudText>
+                </div>
             </div>
+            <MudAlert Severity="Severity.Info" Dense="true" Icon="@Icons.Material.Filled.Info" Style="width: fit-content; margin: 0;">
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                    Monitor system activity in real-time. Click on any stat card to navigate directly to its section. Use the Broadcast feature to send announcements to all users or a specific office.
+                </MudText>
+            </MudAlert>
         </div>
 
         <MudGrid Class="mb-6">
