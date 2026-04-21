@@ -41,6 +41,12 @@
             transform: translateX(0);
         }
     }
+
+    @@media (max-width: 600px) {
+        .actions-cell {
+            text-align: right;
+        }
+    }
 </style>
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4 mb-8">
@@ -104,56 +110,66 @@
 
         <MudPaper Elevation="3" Style="animation: fadeSlideUp 0.5s ease-out 0.3s both;">
             <MudTable Items="@historyResult.Items" Hover="true" T="Document" Elevation="0"
-                      Dense="false" Breakpoint="Breakpoint.Sm"
+                      Dense="true" Breakpoint="Breakpoint.Sm"
                       RowStyleFunc="@((item, index) => $"animation: rowFadeIn 0.3s ease both; animation-delay: {Math.Min(index, 10) * 40}ms;")">
                 <HeaderContent>
                     <MudTh>Document</MudTh>
                     <MudTh>Type</MudTh>
                     <MudTh>Priority</MudTh>
                     <MudTh>Status</MudTh>
-                    <MudTh>Created On</MudTh>
-                    <MudTh>Current Location</MudTh>
-                    <MudTh Style="text-align:right;">Actions</MudTh>
+                    <MudTh>Created</MudTh>
+                    <MudTh>Location</MudTh>
+                    <MudTh>Actions</MudTh>
                 </HeaderContent>
                 <RowTemplate>
                     <MudTd DataLabel="Document"><strong>@context.Name</strong></MudTd>
-                    <MudTd DataLabel="Type">@context.Type</MudTd>
+                    <MudTd DataLabel="Type">
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Info">@context.Type</MudChip>
+                    </MudTd>
                     <MudTd DataLabel="Priority">
-                        <MudChip T="string" Color="@DocHelpers.GetPriorityColor(context.Priority)" Size="Size.Small" Variant="Variant.Filled">@context.Priority</MudChip>
+                        <MudChip T="string" Color="@DocHelpers.GetPriorityColor(context.Priority)" Size="Size.Small" Variant="Variant.Filled">
+                            @context.Priority
+                        </MudChip>
                     </MudTd>
                     <MudTd DataLabel="Status">
-                        <MudChip T="string" Color="@DocHelpers.GetStatusColor(context.Status)" Size="Size.Small" Variant="Variant.Filled">@context.Status</MudChip>
+                        <MudChip T="string" Color="@DocHelpers.GetStatusColor(context.Status)" Size="Size.Small" Variant="Variant.Outlined">
+                            @context.Status
+                        </MudChip>
                     </MudTd>
-                    <MudTd DataLabel="Created On">@context.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")</MudTd>
-                    <MudTd DataLabel="Current Location">
+                    <MudTd DataLabel="Created">@context.CreatedAt.ToLocalTime().ToString("MMM dd, hh:mm tt")</MudTd>
+                    <MudTd DataLabel="Location">
                         @if (context.CurrentOffice != null)
                         {
                             <MudText Typo="Typo.body2">
-                                <strong>@context.CurrentOffice.Name</strong><br />
-                                @if (context.CurrentUnit?.Name != null)
+                                <strong>@context.CurrentOffice.Name</strong>
+                                @if (context.CurrentUnit != null)
                                 {
-                                    <span style="color: gray; font-size: 0.85em;">↳ @(context.CurrentUnit?.Name)</span>
+                                    <br />
+                        
+                                    <span style="color: gray; font-size: 0.85em;">↳ @context.CurrentUnit.Name</span>
                                 }
                             </MudText>
                         }
                         else if (context.NextOffice != null)
                         {
                             <MudText Typo="Typo.body2">
-                                <span style="color: #ff9800; font-size: 0.85em; font-style: italic;">Routing to:</span><br /><strong>@context.NextOffice.Name</strong>
-                                @if (context.NextUnit?.Name != null)
+                                <span style="color: #ff9800; font-size: 0.85em; font-style: italic;">Routing to:</span><br />
+                                <strong>@context.NextOffice.Name</strong>
+                                @if (context.NextUnit != null)
                                 {
                                     <br />
-                                    <span style="color: gray; font-size: 0.85em;">↳ @(context.NextUnit?.Name)</span>
+                        
+                                    <span style="color: gray; font-size: 0.85em;">↳ @context.NextUnit.Name</span>
                                 }
                             </MudText>
                         }
                         else
                         {
-                            <MudText Typo="Typo.body2" Color="Color.Default"><em>Completed / None</em></MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Default"><em>None</em></MudText>
                         }
                     </MudTd>
-                    <MudTd DataLabel="Actions" Style="text-align:right;">
-                        <div class="d-flex justify-end gap-2">
+                    <MudTd DataLabel="Actions" Style="text-align:left;">
+                        <div class="actions-cell">
                             <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary"
                                        StartIcon="@Icons.Material.Filled.Visibility"
                                        OnClick="@(async () => await OpenViewDialog(context))">View</MudButton>

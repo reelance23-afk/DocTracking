@@ -39,6 +39,12 @@
             transform: translateX(0);
         }
     }
+
+    @@media (max-width: 600px) {
+        .actions-cell {
+            text-align: right;
+        }
+    }
 </style>
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
@@ -144,20 +150,20 @@
     </div>
 
     <MudPaper Elevation="3" Style="animation: fadeSlideUp 0.5s ease-out 0.2s both;">
-    <MudTable @ref="_table" ServerData="LoadServerData" Hover="true" T="Document" Dense="false"
+    <MudTable @ref="_table" ServerData="LoadServerData" Hover="true" T="Document" Dense="true"
         MultiSelection="@_multiSelectMode" @bind-SelectedItems="_selectedDocs"
               Breakpoint="Breakpoint.Sm" Elevation="0"
               RowStyleFunc="@((item, index) => $"animation: rowFadeIn 0.3s ease both; animation-delay: {Math.Min(index, 10) * 40}ms;")">
             <HeaderContent>
-                <MudTh>Name</MudTh>
+                <MudTh>Document</MudTh>
                 <MudTh>Sender</MudTh>
                 <MudTh>Location</MudTh>
                 <MudTh>Status</MudTh>
-                <MudTh>Date</MudTh>
-                <MudTh Style="text-align:right; justify-content:flex-end;">Actions</MudTh>
+                <MudTh>Created</MudTh>
+                <MudTh>Actions</MudTh>
             </HeaderContent>
             <RowTemplate>
-                <MudTd DataLabel="Name"><strong>@context.Name</strong></MudTd>
+                <MudTd DataLabel="Document"><strong>@context.Name</strong></MudTd>
                 <MudTd DataLabel="Sender">@context.Creator?.Name</MudTd>
                 <MudTd DataLabel="Location">
                     @if (context.CurrentOffice != null)
@@ -185,22 +191,22 @@
                 <MudTd DataLabel="Status">
                     <MudChip T="string" Color="@DocHelpers.GetStatusColor(context.Status)" Size="Size.Small" Variant="Variant.Filled">@context.Status</MudChip>
                 </MudTd>
-                <MudTd DataLabel="Date">@context.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")</MudTd>
-                <MudTd DataLabel="Actions" Style="text-align:right;">
-                    <div class="d-flex justify-end gap-2">
+                <MudTd DataLabel="Created">@context.CreatedAt.ToLocalTime().ToString("MMM dd, yyyy")</MudTd>
+                <MudTd DataLabel="Actions">
+                    <div class="actions-cell">
                         <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary"
                                    StartIcon="@Icons.Material.Filled.Visibility"
                                    OnClick="@(async () => await OpenViewDialog(context))">View</MudButton>
-                        <MudIconButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Secondary"
-                                       Icon="@Icons.Material.Filled.QrCode"
+                        <MudIconButton Size="Size.Small" Color="Color.Secondary"
+                                       Icon="@Icons.Material.Outlined.QrCode"
                                        OnClick="@(async () => await OpenQRDialog(context))" />
-                        <MudIconButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Warning"
-                                       Icon="@Icons.Material.Filled.Edit"
+                        <MudIconButton class="mr-1" Size="Size.Small" Color="Color.Warning"
+                                       Icon="@Icons.Material.Outlined.Edit"
                                        OnClick="@(async () => await OpenEditDialog(context))" />
                         @if (_multiSelectMode == false)
                         {
-                            <MudIconButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Error"
-                                           Icon="@Icons.Material.Filled.Delete"
+                            <MudIconButton Size="Size.Small" Color="Color.Error"
+                                           Icon="@Icons.Material.Outlined.Delete"
                                            OnClick="@(async () => await DeleteDocument(context))" />
                         }
                     </div>

@@ -571,7 +571,8 @@ namespace DocTracking.Services
                     .Include(m => m.Document)
                     .Include(m => m.Office)
                     .Include(m => m.Unit)
-                    .Include(m => m.AppUser)
+                    .Include(m => m.AppUser).ThenInclude(u => u.Unit)
+                    .Include(m => m.AppUser).ThenInclude(u => u.Office)
                     .AsQueryable();
 
                 query = ApplyAuditFilters(query, search, action, date, sender, office);
@@ -599,7 +600,8 @@ namespace DocTracking.Services
                 .Include(m => m.Document)
                 .Include(m => m.Office)
                 .Include(m => m.Unit)
-                .Include(m => m.AppUser)
+                .Include(m => m.AppUser).ThenInclude(u => u.Unit)
+                .Include(m => m.AppUser).ThenInclude(u => u.Office)
                 .AsQueryable();
 
             query = ApplyAuditFilters(query, search, action, date, sender, office);

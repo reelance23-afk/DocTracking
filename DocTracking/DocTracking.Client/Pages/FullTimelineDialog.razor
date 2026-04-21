@@ -24,14 +24,9 @@
         <TrackingTimeline Logs="logs" IsLoading="isLoading" ErrorMessage="@_errorMessage" Status="@Doc.Status" />
     </DialogContent>
     <DialogActions>
-        @if (BackMode == TrackBackMode.None)
-        {
-            <MudButton OnClick="@(() => MudDialog.Cancel())" Variant="Variant.Text">Close</MudButton>
-        }
-        else
+        @if (BackMode != TrackBackMode.None)
         {
             <MudButton OnClick="GoBack" Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.ArrowBack">Back</MudButton>
-            <MudButton OnClick="@(() => MudDialog.Cancel())" Variant="Variant.Text">Close</MudButton>
         }
     </DialogActions>
 </MudDialog>

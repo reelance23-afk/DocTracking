@@ -13,6 +13,11 @@
         </div>
     </TitleContent>
     <DialogContent>
+        <MudAlert Severity="Severity.Info" Dense="true" Icon="@Icons.Material.Filled.Info" Class="mb-4">
+            <MudText Typo="Typo.caption">
+                You can only edit this document before it has been received by an office.
+            </MudText>
+        </MudAlert>
         <MudGrid Spacing="3">
             <MudItem xs="12">
                 <MudTextField @bind-Value="Doc.Name" Label="Document Title" Variant="Variant.Outlined"
@@ -42,6 +47,43 @@
                 <MudTextField @bind-Value="Doc.Description" Label="Description / Notes" Variant="Variant.Outlined"
                               Lines="3" />
             </MudItem>
+            @if (!Doc.HasBeenReceived)
+            {
+                <MudItem xs="12" md="@(_selectedOffice != null && _units.Any() ? 8 : 12)">
+                    <MudAutocomplete T="Office"
+                                     Label="Route to Office"
+                                     Value="_selectedOffice"
+                                     ValueChanged="OnOfficeAutoChanged"
+                                     SearchFunc="SearchOffices"
+                                     ToStringFunc="@(o => o == null ? string.Empty : $"{o.Name}{(string.IsNullOrEmpty(o.ReceivingSchedule) ? "" : $" ({o.ReceivingSchedule})")}")"
+                                     Variant="Variant.Outlined"
+                                     AdornmentIcon="@Icons.Material.Filled.Business"
+                                     AdornmentColor="Color.Primary"
+                                     CoerceText="false"
+                                     CoerceValue="false"
+                                     ResetValueOnEmptyText="true"
+                                     MaxItems="null" />
+                </MudItem>
+                @if (_selectedOffice != null && _units.Any())
+                {
+                    <MudItem xs="12" md="4">
+                        <MudAutocomplete T="Unit"
+                                         Label="Specific Unit"
+                                         Value="_selectedUnit"
+                                         ValueChanged="OnUnitAutoChanged"
+                                         SearchFunc="SearchUnits"
+                                         ToStringFunc="@(u => u?.Name ?? string.Empty)"
+                                         Variant="Variant.Outlined"
+                                         AdornmentIcon="@Icons.Material.Filled.Group"
+                                         AdornmentColor="Color.Secondary"
+                                         CoerceText="false"
+                                         CoerceValue="false"
+                                         ResetValueOnEmptyText="true"
+                                         Placeholder="— No specific unit —"
+                                         MaxItems="null" />
+                    </MudItem>
+                }
+            }
             <MudItem xs="12">
                 <MudFileUpload T="IBrowserFile" FilesChanged="OnFileSelected"
                                Accept=".pdf,.doc,.docx,.jpg,.png" DragAndDrop="true" />
@@ -87,6 +129,11 @@
     private IBrowserFile? selectedFile;
     private bool isSaving;
     private static readonly string[] AllowedExtensions = { ".pdf", ".doc", ".docx", ".jpg", ".png" };
+
+    private List<Office> _offices = new();
+    private List<Unit> _units = new();
+    private Office? _selectedOffice;
+    private Unit? _selectedUnit;
 
     private void OnFileSelected(IBrowserFile file)
     {
@@ -159,6 +206,47 @@
         MudDialog.Close(DialogResult.Ok("deleted"));
     }
 
+    protected override async Task OnInitializedAsync()
+    {
+        _offices = await DocService.GetOfficesSimpleAsync();
+        if (Doc.NextOfficeId.HasValue)
+        {
+            _selectedOffice = _offices.FirstOrDefault(o => o.Id == Doc.NextOfficeId);
+            _units = await DocService.GetUnitsByOfficeAsync(Doc.NextOfficeId.Value);
+            _selectedUnit = _units.FirstOrDefault(u => u.Id == Doc.NextUnitId);
+        }
+    }
+
+    private Task<IEnumerable<Office>> SearchOffices(string value, CancellationToken ct)
+    {
+        var results = string.IsNullOrWhiteSpace(value)
+            ? _offices
+            : _offices.Where(o => o.Name!.Contains(value, StringComparison.OrdinalIgnoreCase));
+        return Task.FromResult<IEnumerable<Office>>(results);
+    }
+
+    private Task<IEnumerable<Unit>> SearchUnits(string value, CancellationToken ct)
+    {
+        var results = string.IsNullOrWhiteSpace(value)
+            ? _units
+            : _units.Where(u => u.Name!.Contains(value, StringComparison.OrdinalIgnoreCase));
+        return Task.FromResult<IEnumerable<Unit>>(results);
+    }
+
+    private async Task OnOfficeAutoChanged(Office? office)
+    {
+        _selectedOffice = office;
+        _selectedUnit = null;
+        Doc.NextOfficeId = office?.Id;
+        Doc.NextUnitId = null;
+        _units = office != null ? await DocService.GetUnitsByOfficeAsync(office.Id) : new();
+    }
+
+    private void OnUnitAutoChanged(Unit? unit)
+    {
+        _selectedUnit = unit;
+        Doc.NextUnitId = unit?.Id;
+    }
 
     private void Cancel() => MudDialog.Cancel();
 }

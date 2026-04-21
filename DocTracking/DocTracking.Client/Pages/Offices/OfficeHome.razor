@@ -102,14 +102,16 @@
         <div class="d-flex align-center mb-6 fade-slide-up">
             <MudIcon Icon="@Icons.Material.Filled.Business" Size="Size.Large" Color="Color.Primary" Class="mr-3" />
             <div>
+                <div class="d-flex align-center gap-2">
+                    <MudText Typo="Typo.h4" Class="font-weight-bold">@myOffice?.Name</MudText>
+                    @if (isOfficeHead)
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Text">Head</MudChip>
+                    }
+                </div>
                 @if(myUnitId.HasValue){
-                <MudText Typo="Typo.h4" Class="font-weight-bold">@myUnitName</MudText>
+                <MudText Typo="Typo.body2" Class="mud-text-secondary">@myUnitName</MudText>
                 }       
-                else
-                 {
-               <MudText Typo="Typo.h4" Class="font-weight-bold">@myOffice?.Name</MudText>
-                 }
-                <MudText Typo="Typo.body2" Class="mud-text-secondary">Dashboard</MudText>
             </div>
         </div>
 
@@ -281,6 +283,7 @@
     private bool isLoadingInitial = true;
 
     private string? myUnitName;
+    private bool isOfficeHead;
 
 
     protected override async Task OnInitializedAsync()
@@ -300,6 +303,7 @@
                 {
                     myOffice = await DocService.GetOfficeByIdAsync(officeId.Value);
                 }
+                isOfficeHead = profile.IsOfficeHead;
             }
 
             if (myOffice != null)

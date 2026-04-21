@@ -124,7 +124,7 @@
                         <MudTh>Document</MudTh>
                         <MudTh>Action</MudTh>
                         <MudTh>By</MudTh>
-                        <MudTh>Office / Unit</MudTh>
+                        <MudTh>Location</MudTh>
                         <MudTh>Comment</MudTh>
                     </HeaderContent>
             <RowTemplate>
@@ -138,15 +138,33 @@
                 <MudTd DataLabel="Action">
                     <MudChip T="string" Size="Size.Small" Color="@GetActionColor(context.Action)">@context.Action</MudChip>
                 </MudTd>
-                <MudTd DataLabel="By">@(context.AppUser?.Name ?? "—")</MudTd>
-                <MudTd DataLabel="Office / Unit">
-                    @if (context.Unit != null)
+                <MudTd DataLabel="By">
+                    @(context.AppUser?.Name ?? "—")
+                    @if (context.AppUser?.IsOfficeHead == true)
                     {
-                        <span>@context.Unit.Name <MudText Typo="Typo.caption" Class="mud-text-secondary">(@context.Office?.Name)</MudText></span>
+                        <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Text">Head</MudChip>
+                    }
+                </MudTd>
+                <MudTd DataLabel="Location">
+                    @{
+                        var actorUnit = context.AppUser?.Unit;
+                        var actorOfficeName = actorUnit != null
+                        ? actorUnit.Name
+                        : context.AppUser?.Office?.Name;
+                    }
+                    @if (!string.IsNullOrEmpty(actorOfficeName))
+                    {
+                        <div class="d-flex align-center gap-1">
+                            <MudText Typo="Typo.body2"><strong>@actorOfficeName</strong></MudText>
+                        </div>
+                        @if (actorUnit != null)
+                        {
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary">↳ @context.AppUser?.Office?.Name</MudText>
+                        }
                     }
                     else
                     {
-                        <span>@(context.Office?.Name ?? "—")</span>
+                        <span>—</span>
                     }
                 </MudTd>
                 <MudTd DataLabel="Comment">@(context.Comment ?? "—")</MudTd>
@@ -161,10 +179,6 @@
                         <MudTablePager PageSizeOptions="new int[] { 25, 50, 100 }" />
                     </PagerContent>
             </MudTable>
-
-
-    
-
     </MudPaper>
 
 </MudContainer>

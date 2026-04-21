@@ -811,6 +811,24 @@ namespace DocTracking.Controllers
             if (existing.Description != doc.Description) changes.Add("Description updated");
             if (existing.FilePath != doc.FilePath) changes.Add("Attachment replaced");
 
+            if (!isAdmin)
+            {
+                if (existing.NextOfficeId != doc.NextOfficeId)
+                {
+                    var oldOffice = existing.NextOfficeId.HasValue ? await _context.Offices.FindAsync(existing.NextOfficeId) : null;
+                    var newOffice = doc.NextOfficeId.HasValue ? await _context.Offices.FindAsync(doc.NextOfficeId) : null;
+                    changes.Add($"Routing: '{oldOffice?.Name ?? "None"}' to '{newOffice?.Name ?? "None"}'");
+                }
+                if (existing.NextUnitId != doc.NextUnitId)
+                {
+                    var oldUnit = existing.NextUnitId.HasValue ? await _context.Units.FindAsync(existing.NextUnitId) : null;
+                    var newUnit = doc.NextUnitId.HasValue ? await _context.Units.FindAsync(doc.NextUnitId) : null;
+                    changes.Add($"Unit: '{oldUnit?.Name ?? "None"}' to '{newUnit?.Name ?? "None"}'");
+                }
+                existing.NextOfficeId = doc.NextOfficeId;
+                existing.NextUnitId = doc.NextUnitId;
+            }
+
             existing.Name = doc.Name;
             existing.Type = doc.Type;
             existing.Description = doc.Description;

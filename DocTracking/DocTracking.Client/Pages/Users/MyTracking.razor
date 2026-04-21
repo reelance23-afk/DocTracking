@@ -42,52 +42,84 @@
         }
     }
 
+    @@media (max-width: 600px) {
+        .actions-cell {
+            text-align: right;
+        }
+    }
 </style>
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
     <div class="mb-6 fade-slide-up">
-        <div class="d-flex align-center mb-4">
+        <div class="d-flex align-center justify-space-between mb-4 flex-wrap gap-2">
+            <div class="d-flex align-center">
                 <MudIcon Icon="@Icons.Material.Filled.NoteAdd" Size="Size.Large" Color="Color.Primary" Class="mr-3" />
-            <div>
-                <MudText Typo="Typo.h4" Class="font-weight-bold">My Document Tracking</MudText>
-                <MudText Typo="Typo.body2" Class="mud-text-secondary">Personal record of document.</MudText>
+                <div>
+                    <MudText Typo="Typo.h4" Class="font-weight-bold">My Document Tracking</MudText>
+                </div>
             </div>
+            <MudAlert Severity="Severity.Info" Dense="true" Icon="@Icons.Material.Filled.Info" Style="width: fit-content; margin: 0;">
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                    Track all your submitted documents here. Use filters to narrow down by status, type, or priority.
+                </MudText>
+            </MudAlert>
         </div>
 
+
         <MudGrid>
-            <MudItem xs="12" sm="4">
-                <MudPaper Style="border-top: 4px solid var(--mud-palette-warning);" Elevation="2" Class="pa-4 rounded-lg">
-                    <div class="d-flex align-center justify-space-between">
-                        <div>
-                            <MudText Typo="Typo.h3" Class="font-weight-bold" Color="Color.Warning">@_stats.TotalInMotionCount</MudText>
-                            <MudText Typo="Typo.body2" Color="Color.Warning">In Motion</MudText>
+            @if (isLoading)
+            {
+                @for (int i = 0; i < 3; i++)
+                {
+                    <MudItem xs="12" sm="4">
+                        <MudPaper Elevation="2" Class="pa-4 rounded-lg">
+                            <div class="d-flex align-center justify-space-between">
+                                <div>
+                                    <MudSkeleton SkeletonType="SkeletonType.Text" Width="60px" Height="48px" Class="mb-1" />
+                                    <MudSkeleton SkeletonType="SkeletonType.Text" Width="80px" />
+                                </div>
+                                <MudSkeleton SkeletonType="SkeletonType.Circle" Width="40px" Height="40px" />
+                            </div>
+                        </MudPaper>
+                    </MudItem>
+                }
+            }
+            else
+            {
+                <MudItem xs="12" sm="4">
+                    <MudPaper Style="border-top: 4px solid var(--mud-palette-warning);" Elevation="2" Class="pa-4 rounded-lg">
+                        <div class="d-flex align-center justify-space-between">
+                            <div>
+                                <MudText Typo="Typo.h3" Class="font-weight-bold" Color="Color.Warning">@_stats.TotalInMotionCount</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Warning">In Motion</MudText>
+                            </div>
+                            <MudIcon Icon="@Icons.Material.Filled.DirectionsWalk" Size="Size.Large" Color="Color.Warning" />
                         </div>
-                        <MudIcon Icon="@Icons.Material.Filled.DirectionsWalk" Size="Size.Large" Color="Color.Warning" />
-                    </div>
-                </MudPaper>
-            </MudItem>
-            <MudItem xs="12" sm="4">
-                <MudPaper Style="border-top: 4px solid var(--mud-palette-success);" Elevation="2" Class="pa-4 rounded-lg">
-                    <div class="d-flex align-center justify-space-between">
-                        <div>
-                            <MudText Typo="Typo.h3" Class="font-weight-bold" Color="Color.Success">@_stats.TotalReceivedCount</MudText>
-                            <MudText Typo="Typo.body2" Color="Color.Success">Received</MudText>
+                    </MudPaper>
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudPaper Style="border-top: 4px solid var(--mud-palette-success);" Elevation="2" Class="pa-4 rounded-lg">
+                        <div class="d-flex align-center justify-space-between">
+                            <div>
+                                <MudText Typo="Typo.h3" Class="font-weight-bold" Color="Color.Success">@_stats.TotalReceivedCount</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Success">Received</MudText>
+                            </div>
+                            <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Large" Color="Color.Success" />
                         </div>
-                        <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Large" Color="Color.Success" />
-                    </div>
-                </MudPaper>
-            </MudItem>
-            <MudItem xs="12" sm="4">
-                <MudPaper Style="border-top: 4px solid var(--mud-palette-info);" Elevation="2" Class="pa-4 rounded-lg">
-                    <div class="d-flex align-center justify-space-between">
-                        <div>
-                            <MudText Typo="Typo.h3" Class="font-weight-bold" Color="Color.Info">@_stats.TotalCompletedCount</MudText>
-                            <MudText Typo="Typo.body2" Color="Color.Info">Completed Documents</MudText>
+                    </MudPaper>
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    <MudPaper Style="border-top: 4px solid var(--mud-palette-info);" Elevation="2" Class="pa-4 rounded-lg">
+                        <div class="d-flex align-center justify-space-between">
+                            <div>
+                                <MudText Typo="Typo.h3" Class="font-weight-bold" Color="Color.Info">@_stats.TotalCompletedCount</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Info">Completed Documents</MudText>
+                            </div>
+                            <MudIcon Icon="@Icons.Material.Filled.Description" Size="Size.Large" Color="Color.Info" />
                         </div>
-                        <MudIcon Icon="@Icons.Material.Filled.Description" Size="Size.Large" Color="Color.Info" />
-                    </div>
-                </MudPaper>
-            </MudItem>
+                    </MudPaper>
+                </MudItem>
+            }
         </MudGrid>
     </div>
 
@@ -171,75 +203,76 @@
 
         <MudPaper Elevation="3" Class="rounded-lg" Style="animation: fadeSlideUp 0.5s ease-out 0.2s both;">
             <MudTable @ref="_table" ServerData="LoadServerData" Hover="true" T="Document"
-                      SortLabel="Sort By" Elevation="0" Dense="false" Breakpoint="Breakpoint.Sm"
+                      SortLabel="Sort By" Elevation="0" Dense="true" Breakpoint="Breakpoint.Sm"
                       RowStyleFunc="@((item, index) => $"animation: rowFadeIn 0.3s ease both; animation-delay: {Math.Min(index, 10) * 40}ms;")">
-                    <HeaderContent>
-                        <MudTh>Document</MudTh>
-                        <MudTh>Type</MudTh>
-                        <MudTh>Status</MudTh>
-                        <MudTh>Priority</MudTh>
-                        <MudTh>Created</MudTh>
-                        <MudTh>Current Location</MudTh>
-                        <MudTh>Next Destination</MudTh>
-                    <MudTh Style="text-align:left;">Action</MudTh>
-                    </HeaderContent>
-                    <RowTemplate>
-                        <MudTd DataLabel="Document"><strong>@context.Name</strong></MudTd>
-                        <MudTd DataLabel="Type">
-                            <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Info">@context.Type</MudChip>
-                        </MudTd>
-                        <MudTd DataLabel="Status">
-                            <MudChip T="string" Color="@(context.Status == "Received" ? Color.Success : Color.Warning)" Size="Size.Small" Variant="Variant.Outlined">
-                                @context.Status
-                            </MudChip>
-                        </MudTd>
-                        <MudTd DataLabel="Priority">
-                            <MudChip T="string" Color="@DocHelpers.GetPriorityColor(context.Priority)" Size="Size.Small" Variant="Variant.Filled">
-                                @context.Priority
-                            </MudChip>
-                        </MudTd>
-                        <MudTd DataLabel="Created">@context.CreatedAt.ToLocalTime().ToString("MMM dd, hh:mm tt")</MudTd>
-                        <MudTd DataLabel="Current Location">
-                            @if (context.CurrentOffice != null)
-                            {
+                <HeaderContent>
+                    <MudTh>Document</MudTh>
+                    <MudTh>Type</MudTh>
+                    <MudTh>Priority</MudTh>
+                    <MudTh>Status</MudTh>
+                    <MudTh>Created</MudTh>
+                    <MudTh>Location</MudTh>
+                    <MudTh>Actions</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Document"><strong>@context.Name</strong></MudTd>
+                    <MudTd DataLabel="Type">
+                        <MudChip T="string" Size="Size.Small" Variant="Variant.Text" Color="Color.Info">@context.Type</MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="Priority">
+                        <MudChip T="string" Color="@DocHelpers.GetPriorityColor(context.Priority)" Size="Size.Small" Variant="Variant.Filled">
+                            @context.Priority
+                        </MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="Status">
+                        <MudChip T="string" Color="@DocHelpers.GetStatusColor(context.Status)" Size="Size.Small" Variant="Variant.Outlined">
+                            @context.Status
+                        </MudChip>
+                    </MudTd>
+                    <MudTd DataLabel="Created">@context.CreatedAt.ToLocalTime().ToString("MMM dd, hh:mm tt")</MudTd>
+                    <MudTd DataLabel="Location">
+                        @if (context.CurrentOffice != null)
+                        {
+                            <MudText Typo="Typo.body2">
                                 <strong>@context.CurrentOffice.Name</strong>
                                 @if (context.CurrentUnit != null)
                                 {
                                     <br />
+                        
                                     <span style="color: gray; font-size: 0.85em;">↳ @context.CurrentUnit.Name</span>
                                 }
-                            }
-                            else
-                            {
-                                <MudText Typo="Typo.body2" Color="Color.Default"><em>None</em></MudText>
-                            }
-                        </MudTd>
-                        <MudTd DataLabel="Next Destination">
-                            @if (context.NextOffice != null)
-                            {
+                            </MudText>
+                        }
+                        else if (context.NextOffice != null)
+                        {
+                            <MudText Typo="Typo.body2">
+                                <span style="color: #ff9800; font-size: 0.85em; font-style: italic;">Routing to:</span><br />
                                 <strong>@context.NextOffice.Name</strong>
                                 @if (context.NextUnit != null)
                                 {
                                     <br />
+                        
                                     <span style="color: gray; font-size: 0.85em;">↳ @context.NextUnit.Name</span>
                                 }
-                            }
-                            else
-                            {
-                                <MudText Typo="Typo.body2" Color="Color.Default"><em>None</em></MudText>
-                            }
-                        </MudTd>
-                    <MudTd DataLabel="Action" Style="text-align:left;">
-                            <div @onclick:stopPropagation="true" class="d-flex gap-2">
+                            </MudText>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Default"><em>None</em></MudText>
+                        }
+                    </MudTd>
+                    <MudTd DataLabel="Actions">
+
+                            <div class="actions-cell">
                                 <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary"
                                            StartIcon="@Icons.Material.Filled.Visibility"
                                            OnClick="@(async () => await OpenViewDialog(context))">View</MudButton>
-                                <MudIconButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Secondary"
+                                <MudIconButton Size="Size.Small" Color="Color.Secondary"
                                                Icon="@Icons.Material.Filled.QrCode"
                                                OnClick="@(async () => await OpenQRDialog(context))" />
                             @if (!context.HasBeenReceived)
                             {
-                                <MudIconButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Warning"
+                                <MudIconButton Size="Size.Small" Color="Color.Warning"
                                                Icon="@Icons.Material.Filled.Edit"
                                                OnClick="@(async () => await OpenEditDialog(context))" />
                             }

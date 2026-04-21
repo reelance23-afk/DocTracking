@@ -32,20 +32,68 @@
 
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
-    <div class="d-flex align-center mb-6 fade-slide-up">
-        <MudIcon Icon="@Icons.Material.Filled.NoteAdd" Size="Size.Large" Color="Color.Primary" Class="mr-3" />
-        <div>
-            <MudText Typo="Typo.h4" Class="font-weight-bold">Create New Document</MudText>
-            <MudText Typo="Typo.body2" Class="mud-text-secondary">Fill in the details below to submit and route a new document through the system</MudText>
+    <div class="d-flex align-center justify-space-between mb-6 fade-slide-up flex-wrap gap-2">
+        <div class="d-flex align-center">
+            <MudIcon Icon="@Icons.Material.Filled.NoteAdd" Size="Size.Large" Color="Color.Primary" Class="mr-3" />
+            <div>
+                <MudText Typo="Typo.h4" Class="font-weight-bold">Create New Document</MudText>
+            </div>
         </div>
+        <MudAlert Severity="Severity.Info" Dense="true" Icon="@Icons.Material.Filled.Info" Style="width: fit-content; margin: 0;">
+            <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                Fill in all required fields and attach a file. Once submitted, the document cannot be edited after it has been received.
+            </MudText>
+        </MudAlert>
     </div>
 
     @if (isLoadingOffices)
     {
-        <div class="text-center pa-8">
-            <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
-            <MudText Class="mt-4">Loading form...</MudText>
-        </div>
+        <MudGrid Spacing="3">
+            <MudItem xs="12" Style="animation: fadeSlideUp 0.5s ease-out 0.1s both;">
+                <MudPaper Elevation="2" Class="pa-4" Style="border-top: 4px solid var(--mud-palette-primary);">
+                    <MudSkeleton SkeletonType="SkeletonType.Text" Width="180px" Class="mb-4" />
+                    <MudGrid Spacing="3">
+                        <MudItem xs="12">
+                            <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="56px" />
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="56px" />
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="56px" />
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="96px" />
+                        </MudItem>
+                    </MudGrid>
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" Style="animation: fadeSlideUp 0.5s ease-out 0.2s both;">
+                <MudPaper Elevation="2" Class="pa-4" Style="border-top: 4px solid var(--mud-palette-info);">
+                    <MudSkeleton SkeletonType="SkeletonType.Text" Width="80px" Class="mb-4" />
+                    <MudGrid Spacing="3">
+                        <MudItem xs="12">
+                            <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="56px" />
+                        </MudItem>
+                    </MudGrid>
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" Style="animation: fadeSlideUp 0.5s ease-out 0.3s both;">
+                <MudPaper Elevation="2" Class="pa-4" Style="border-top: 4px solid var(--mud-palette-success);">
+                    <MudSkeleton SkeletonType="SkeletonType.Text" Width="100px" Class="mb-4" />
+                    <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="80px" />
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12">
+                <div class="d-flex gap-3 justify-end">
+                    <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="100px" Height="42px" />
+                    <MudSkeleton SkeletonType="SkeletonType.Rectangle" Width="160px" Height="42px" />
+                </div>
+            </MudItem>
+        </MudGrid>
     }
     else
     {
@@ -145,40 +193,39 @@
                         <MudText Typo="Typo.subtitle1" Class="font-weight-bold mb-4">Routing</MudText>
                         <MudGrid Spacing="3">
                             <MudItem xs="12" md="@(newDocument.NextOfficeId.HasValue && GetUnitsForOffice(newDocument.NextOfficeId.Value).Any() ? 8 : 12)">
-                                <MudSelect T="int?" Value="newDocument.NextOfficeId" ValueChanged="OnOfficeChanged"
-                                           Label="Route to Office"
-                                           Variant="Variant.Outlined"
-                                           Required="true"
-                                           RequiredError="Destination office required">
-                                    @foreach (var off in RoutableOffices)
-                                    {
-                                        <MudSelectItem T="int?" Value="@((int?)off.Id)">
-                                            <div class="d-flex align-center">
-                                                <MudIcon Icon="@Icons.Material.Filled.Business" Size="Size.Small" Class="mr-2" Color="Color.Primary" />
-                                                @off.Name @off.ReceivingSchedule
-                                            </div>
-                                        </MudSelectItem>
-                                    }
-                                </MudSelect>
+                                <MudAutocomplete T="Office"
+                                                 Label="Route to Office"
+                                                 Value="_selectedOffice"
+                                                 ValueChanged="OnOfficeAutoChanged"
+                                                 SearchFunc="SearchOffices"
+                                                 ToStringFunc="@(o => o == null ? string.Empty : $"{o.Name}{(string.IsNullOrEmpty(o.ReceivingSchedule) ? "" : $" ({o.ReceivingSchedule})")}")"
+                                                 Variant="Variant.Outlined"
+                                                 Required="true"
+                                                 RequiredError="Destination office required"
+                                                 AdornmentIcon="@Icons.Material.Filled.Business"
+                                                 AdornmentColor="Color.Primary"
+                                                 CoerceText="false"
+                                                 CoerceValue="false"
+                                                 ResetValueOnEmptyText="true"
+                                                 MaxItems="null" />
                             </MudItem>
                             @if (newDocument.NextOfficeId.HasValue && GetUnitsForOffice(newDocument.NextOfficeId.Value).Any())
                             {
                                 <MudItem xs="12" md="4">
-                                    <MudSelect T="int?" @bind-Value="newDocument.NextUnitId"
-                                               Label="Specific Unit"
-                                               Variant="Variant.Outlined"
-                                               ToStringFunc="@(id => GetUnitsForOffice(newDocument.NextOfficeId!.Value).FirstOrDefault(u => u.Id == id)?.Name ?? string.Empty)">
-                                        <MudSelectItem T="int?" Value="@((int?)null)">— No specific unit —</MudSelectItem>
-                                        @foreach (var unit in GetUnitsForOffice(newDocument.NextOfficeId.Value))
-                                        {
-                                            <MudSelectItem T="int?" Value="@((int?)unit.Id)">
-                                                <div class="d-flex align-center">
-                                                    <MudIcon Icon="@Icons.Material.Filled.Group" Size="Size.Small" Class="mr-2" Color="Color.Secondary" />
-                                                    @unit.Name
-                                                </div>
-                                            </MudSelectItem>
-                                        }
-                                    </MudSelect>
+                                    <MudAutocomplete T="Unit"
+                                                     Label="Specific Unit"
+                                                     Value="_selectedUnit"
+                                                     ValueChanged="OnUnitAutoChanged"
+                                                     SearchFunc="SearchUnits"
+                                                     ToStringFunc="@(u => u?.Name ?? string.Empty)"
+                                                     Variant="Variant.Outlined"
+                                                     AdornmentIcon="@Icons.Material.Filled.Group"
+                                                     AdornmentColor="Color.Secondary"
+                                                     CoerceText="false"
+                                                     CoerceValue="false"
+                                                     ResetValueOnEmptyText="true"
+                                                     Placeholder="— No specific unit —"
+                                                     MaxItems="null" />
                                 </MudItem>
                             }
                         </MudGrid>
@@ -228,6 +275,8 @@
     private bool isOfficeRole;
     private int? myOfficeId;
     private int? myUnitId;
+    private Office? _selectedOffice;
+    private Unit? _selectedUnit;
     private static readonly string[] AllowedExtensions = { ".pdf", ".doc", ".docx", ".jpg", ".png" };
 
     protected override async Task OnInitializedAsync()
@@ -336,6 +385,39 @@
             isSaving = false;
         }
     }
+
+    private Task<IEnumerable<Office>> SearchOffices(string value, CancellationToken ct)
+    {
+        var results = string.IsNullOrWhiteSpace(value)
+            ? RoutableOffices
+            : RoutableOffices.Where(o => o.Name!.Contains(value, StringComparison.OrdinalIgnoreCase));
+        return Task.FromResult(results);
+    }
+
+    private Task<IEnumerable<Unit>> SearchUnits(string value, CancellationToken ct)
+    {
+        var units = newDocument.NextOfficeId.HasValue
+            ? GetUnitsForOffice(newDocument.NextOfficeId.Value)
+            : Enumerable.Empty<Unit>();
+        var results = string.IsNullOrWhiteSpace(value)
+            ? units
+            : units.Where(u => u.Name!.Contains(value, StringComparison.OrdinalIgnoreCase));
+        return Task.FromResult(results);
+    }
+
+    private async Task OnOfficeAutoChanged(Office? office)
+    {
+        _selectedOffice = office;
+        _selectedUnit = null;
+        await OnOfficeChanged(office?.Id);
+    }
+
+    private void OnUnitAutoChanged(Unit? unit)
+    {
+        _selectedUnit = unit;
+        newDocument.NextUnitId = unit?.Id;
+    }
+
 
 
     private void RemoveFile()

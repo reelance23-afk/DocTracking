@@ -36,6 +36,12 @@
             transform: translateX(0);
         }
     }
+
+    @@media (max-width: 600px) {
+        .actions-cell {
+            text-align: right;
+        }
+    }
 </style>
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
@@ -73,15 +79,20 @@
                           Variant="Variant.Outlined" Margin="Margin.Dense" />
         </MudItem>
         <MudItem xs="12" sm="6">
-            <MudSelect T="int?" @bind-Value="_selectedOfficeId"
-                       @bind-Value:after="OnFilterChanged"
-                       Label="Filter by Office" Variant="Variant.Outlined"
-                       Margin="Margin.Dense" Clearable="true">
-                @foreach (var office in allOffices)
-                {
-                    <MudSelectItem T="int?" Value="@((int?)office.Id)">@office.Name</MudSelectItem>
-                }
-            </MudSelect>
+            <MudAutocomplete T="Office"
+                             Label="Filter by Office"
+                             Value="_selectedOfficeFilter"
+                             ValueChanged="OnOfficeFilterChanged"
+                             SearchFunc="SearchFilterOffices"
+                             ToStringFunc="@(o => o?.Name ?? string.Empty)"
+                             Variant="Variant.Outlined"
+                             Margin="Margin.Dense"
+                             ResetValueOnEmptyText="true"
+                             CoerceText="false"
+                             CoerceValue="false"
+                             AdornmentIcon="@Icons.Material.Filled.Business"
+                             AdornmentColor="Color.Primary" 
+                             MaxItems="null" />
         </MudItem>
     </MudGrid>
 
@@ -114,7 +125,7 @@
     else
     {
         <MudPaper Elevation="3" Style="animation: fadeSlideUp 0.5s ease-out 0.2s both;">
-            <MudTable @ref="_table" ServerData="LoadServerData" Dense="false" Hover="true" Elevation="0"
+            <MudTable @ref="_table" ServerData="LoadServerData" Dense="true" Hover="true" Elevation="0"
                       Breakpoint="Breakpoint.Sm" RowStyleFunc="@((item, index) => $"animation: rowFadeIn 0.3s ease both; animation-delay: {Math.Min(index, 10) * 40}ms;")">
                 <HeaderContent>
                     <MudTh>User</MudTh>
@@ -153,12 +164,14 @@
                         <MudChip T="string" Color="@GetRoleColor(context.Role)" Size="Size.Small" Variant="Variant.Text">@context.Role</MudChip>
                     </MudTd>
                     <MudTd DataLabel="Actions">
-                            <MudIconButton Icon="@Icons.Material.Filled.History" Size="Size.Small" Color="Color.Info" Variant="Variant.Outlined"
+                        <div class="actions-cell" >
+                            <MudIconButton Icon="@Icons.Material.Filled.History" Size="Size.Small" Color="Color.Info"
                                            OnClick="@(async () => await OpenActivityDialog(context))" />
-                            <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined"
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Warning"
                                            OnClick="@(() => OpenEditDialog(context))" />
-                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" Variant="Variant.Outlined"
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
                                            OnClick="@(async () => await DeleteUser(context))" />
+                        </div>
                     </MudTd>
                 </RowTemplate>
                 <NoRecordsContent>
@@ -204,7 +217,7 @@
                 </MudSelect>
                 @if (GetActiveOfficeId(editingUser) != null)
                 {
-                    <MudCheckBox @bind-Value="isOfficeHead" Label="Office Head" Color="Color.Warning" Class="mb-2" />
+                    <MudCheckBox @bind-Value="isOfficeHead" Label="@($"Office Head of {allOffices.FirstOrDefault(o => o.Id == GetActiveOfficeId(editingUser))?.Name}")" Color="Color.Warning" Class="mb-2" />
                     @if (!isOfficeHead && GetUnitsForActiveOffice(editingUser).Any())
                     {
                         <MudSelect @bind-Value="editingUser.UnitId" Label="Select Unit" Variant="Variant.Outlined" Class="mb-3">
@@ -309,6 +322,8 @@
     private bool isActivityDialogOpen = false;
     private bool activityLoading = false;
     private DialogOptions activityDialogOptions = new() { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
+
+    private Office? _selectedOfficeFilter;
 
     protected override async Task OnInitializedAsync()
     {
@@ -478,6 +493,21 @@
         var result = await dialog.Result;
         if (result is { Canceled: false })
             if (_table != null) await _table.ReloadServerData();
+    }
+
+    private Task<IEnumerable<Office>> SearchFilterOffices(string value, CancellationToken ct)
+    {
+        var results = string.IsNullOrWhiteSpace(value)
+            ? allOffices
+            : allOffices.Where(o => o.Name!.Contains(value, StringComparison.OrdinalIgnoreCase));
+        return Task.FromResult<IEnumerable<Office>>(results);
+    }
+
+    private async Task OnOfficeFilterChanged(Office? office)
+    {
+        _selectedOfficeFilter = office;
+        _selectedOfficeId = office?.Id;
+        await OnFilterChanged();
     }
 
     private Color GetRoleColor(string? role) => role switch
