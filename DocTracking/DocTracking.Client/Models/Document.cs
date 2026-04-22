@@ -53,9 +53,7 @@ namespace DocTracking.Client.Models
         [ForeignKey("CreatorId")]
         public AppUser? Creator { get; set; }
 
-        public string FileName { get; set; } = string.Empty;
-
-        public string FilePath { get; set; } = string.Empty;
+        public List<DocumentAttachment> Attachments { get; set; } = new();
 
         [NotMapped]
         public bool HasBeenReceived { get; set; }

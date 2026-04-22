@@ -76,7 +76,8 @@ namespace DocTracking.Services
             {
                 var query = ApplyDocumentFilters(
                     _context.Documents.Include(d => d.Creator).Include(d => d.NextOffice)
-                        .Include(d => d.CurrentOffice).Include(d => d.NextUnit).Include(d => d.CurrentUnit),
+                        .Include(d => d.CurrentOffice).Include(d => d.NextUnit).Include(d => d.CurrentUnit)
+                        .Include(d => d.Attachments),
                     search, status, office, dateFrom, dateTo, sender);
 
                 var total = await query.CountAsync();
@@ -206,6 +207,7 @@ namespace DocTracking.Services
                     .Include(d => d.NextUnit)
                     .Include(d => d.CurrentOffice)
                     .Include(d => d.CurrentUnit)
+                    .Include(d => d.Attachments)
                     .Where(d => d.Creator != null && d.Creator.Email == email);
 
                 if (!string.IsNullOrEmpty(search))
@@ -361,6 +363,7 @@ namespace DocTracking.Services
                     .Include(d => d.Creator)
                     .Include(d => d.NextOffice)
                     .Include(d => d.NextUnit)
+                    .Include(d => d.Attachments)
                     .Where(d => d.NextOfficeId == officeId && d.Status == "In Motion");
 
                 if (unitId.HasValue)
@@ -392,9 +395,10 @@ namespace DocTracking.Services
                     .Include(d => d.Creator)
                     .Include(d => d.CurrentOffice)
                     .Include(d => d.CurrentUnit)
+                    .Include(d => d.Attachments)
                     .Where(d => d.CurrentOfficeId == officeId && d.Status == "Received");
 
-                if(!isOfficeHead)
+                if (!isOfficeHead)
                 {
                 if (unitId.HasValue)
                     query = query.Where(d => d.CurrentUnitId == null || d.CurrentUnitId == unitId);
@@ -424,6 +428,7 @@ namespace DocTracking.Services
                     .Include(d => d.Creator)
                     .Include(d => d.NextOffice)
                     .Include(d => d.NextUnit)
+                    .Include(d => d.Attachments)
                     .Where(d => d.Status == "In Motion" &&
                         _context.DocumentLogs
                     .Any(log => log.Action == "Forwarded" &&
@@ -462,6 +467,7 @@ namespace DocTracking.Services
                     .Include(d => d.CurrentOffice)
                     .Include(d => d.NextUnit)
                     .Include(d => d.CurrentUnit)
+                    .Include(d => d.Attachments)
                     .Where(d => _context.DocumentLogs
                     .Any(l => l.UnitId == unitId && l.DocumentId == d.Id));
 

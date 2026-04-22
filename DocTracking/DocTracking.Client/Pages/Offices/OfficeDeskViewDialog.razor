@@ -72,18 +72,21 @@
                     </MudPaper>
                 </MudItem>
             }
-            @if (!string.IsNullOrEmpty(Doc.FileName))
+            @if (Doc.Attachments.Any())
             {
                 <MudItem xs="12">
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">Attached File</MudText>
-                    <div class="d-flex align-center mt-1 gap-2">
-                        <MudIcon Icon="@Icons.Material.Filled.AttachFile" Size="Size.Small" />
-                        <MudText Typo="Typo.body2">@Doc.FileName</MudText>
-                        <MudButton Href="@Doc.FilePath" Target="_blank" Variant="Variant.Outlined"
-                                   Size="Size.Small" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Download">
-                            Download
-                        </MudButton>
-                    </div>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Attachments</MudText>
+                    @foreach (var attachment in Doc.Attachments)
+                    {
+                        <div class="d-flex align-center mt-1 gap-2">
+                            <MudIcon Icon="@Icons.Material.Filled.AttachFile" Size="Size.Small" />
+                            <MudText Typo="Typo.body2">@attachment.FileName</MudText>
+                            <MudButton Href="@attachment.FilePath" Target="_blank" Variant="Variant.Outlined"
+                                       Size="Size.Small" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Download">
+                                Download
+                            </MudButton>
+                        </div>
+                    }
                 </MudItem>
             }
 

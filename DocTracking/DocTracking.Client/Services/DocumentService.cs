@@ -313,6 +313,27 @@ namespace DocTracking.Client.Services
             }
         }
 
+        public async Task<(bool Success, string? Error)> AddAttachmentAsync(int documentId, string fileName, string filePath)
+        {
+            try
+            {
+                var response = await _http.PostAsJsonAsync($"api/documents/{documentId}/attachments",
+                    new DocumentAttachment { FileName = fileName, FilePath = filePath });
+                if (!response.IsSuccessStatusCode)
+                    return (false, await response.Content.ReadAsStringAsync());
+                return (true, null);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[DocumentService] AddAttachmentAsync failed: {ex.Message}");
+                return (false, "An unexpected error occurred.");
+            }
+        }
+
+        public async Task<(bool Success, string? Error)> DeleteAttachmentAsync(int documentId, int attachmentId) =>
+            await ToResult(_http.DeleteAsync($"api/documents/{documentId}/attachments/{attachmentId}"));
+
+
         public Task<(bool Success, string? Error)> ReceivedDocumentAsync(int id) =>
             ToResult(_http.PutAsync($"api/documents/{id}/receive", null));
 

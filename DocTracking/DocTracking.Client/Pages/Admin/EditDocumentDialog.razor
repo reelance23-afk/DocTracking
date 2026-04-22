@@ -93,23 +93,42 @@
                                   Lines="3" />
                 </MudItem>
                 <MudItem xs="12">
-                    <MudFileUpload T="IBrowserFile" FilesChanged="OnFileSelected"
-                                   Accept=".pdf,.doc,.docx,.jpg,.png" DragAndDrop="true" />
-                    @if (!string.IsNullOrEmpty(Doc.FilePath) && selectedFile == null)
+                    <MudFileUpload T="IReadOnlyList<IBrowserFile>" FilesChanged="OnFilesSelected"
+                                    Accept=".pdf,.doc,.docx,.jpg,.png" DragAndDrop="true" Multiple="true">
+                        <ActivatorContent>
+                            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.AttachFile">
+                                Select Files
+                            </MudButton>
+                        </ActivatorContent>
+                    </MudFileUpload>
+                    @if (selectedFiles.Any())
                     {
-                        <MudPaper Elevation="0" Class="pa-3 mt-3" Style="border-left: 4px solid var(--mud-palette-info); background: rgba(33,150,243,0.06);">
-                            <div class="d-flex align-center justify-space-between">
-                                <div class="d-flex align-center">
-                                    <MudIcon Icon="@Icons.Material.Filled.AttachFile" Color="Color.Info" Class="mr-2" />
-                                    <div>
-                                        <MudText Typo="Typo.body2" Class="font-weight-medium">@Doc.FileName</MudText>
-                                        <MudText Typo="Typo.caption" Class="mud-text-secondary">Current attachment</MudText>
-                                    </div>
+                        <div class="mt-2">
+                            @foreach (var file in selectedFiles)
+                            {
+                                <div class="d-flex align-center gap-2 mb-1">
+                                    <MudIcon Icon="@Icons.Material.Filled.AttachFile" Size="Size.Small" />
+                                    <MudText Typo="Typo.body2">@file.Name</MudText>
+                                    <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" Color="Color.Error"
+                                                    OnClick="@(() => selectedFiles.Remove(file))" />
                                 </div>
-                                <MudIconButton Icon="@Icons.Material.Filled.Download" Color="Color.Primary"
-                                               Size="Size.Small" Href="@Doc.FilePath" Target="_blank" />
+                            }
+                        </div>
+                    }
+                    @if (Doc.Attachments.Any())
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-3">Current Attachments</MudText>
+                        @foreach (var attachment in Doc.Attachments)
+                        {
+                            <div class="d-flex align-center gap-2 mb-1">
+                                <MudIcon Icon="@Icons.Material.Filled.AttachFile" Size="Size.Small" />
+                                <MudText Typo="Typo.body2">@attachment.FileName</MudText>
+                                <MudIconButton Icon="@Icons.Material.Filled.Download" Size="Size.Small" Color="Color.Primary"
+                                                Href="@attachment.FilePath" Target="_blank" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
+                                                OnClick="@(async () => await RemoveAttachment(attachment))" />
                             </div>
-                        </MudPaper>
+                        }
                     }
                 </MudItem>
             </MudGrid>
@@ -131,7 +150,7 @@
     [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
     [Parameter] public Document Doc { get; set; } = new();
 
-    private IBrowserFile? selectedFile;
+    private List<IBrowserFile> selectedFiles = new();
     private List<Office> _offices = new();
     private List<Unit> reassignOfficeUnits = new();
     private string overrideStatus = "";
@@ -157,16 +176,19 @@
         _loadingInit = false;
     }
 
-    private void OnFileSelected(IBrowserFile file)
+    private void OnFilesSelected(IReadOnlyList<IBrowserFile> files)
     {
-        var ext = Path.GetExtension(file.Name).ToLowerInvariant();
-        if (!AllowedExtensions.Contains(ext))
+        foreach (var file in files)
         {
-            Snackbar.Add($"File type '{ext}' is not allowed.", Severity.Error);
-            return;
+            var ext = Path.GetExtension(file.Name).ToLowerInvariant();
+            if (!AllowedExtensions.Contains(ext))
+            {
+                Snackbar.Add($"'{file.Name}' is not allowed.", Severity.Error);
+                continue;
+            }
+            if (!selectedFiles.Any(f => f.Name == file.Name))
+                selectedFiles.Add(file);
         }
-        selectedFile = file;
-        Doc.FileName = file.Name;
     }
 
     private async Task OnOfficeChanged(int? officeId)
@@ -196,23 +218,25 @@
         if (confirmResult.Canceled) return;
 
         isSaving = true;
-        string? uploadedPath = null;
         try
         {
-            if (selectedFile != null)
-            {
-                uploadedPath = await DocService.UploadFileAsync(selectedFile);
-                if (uploadedPath != null) Doc.FilePath = uploadedPath;
-                else Snackbar.Add("File upload failed, saving without new file.", Severity.Warning);
-            }
-
             var (docOk, docError) = await DocService.UpdateDocumentAsync(Doc);
             if (!docOk)
             {
-                if (uploadedPath != null)
-                    try { await DocService.DeleteUploadAsync(uploadedPath); } catch { }
                 Snackbar.Add(docError ?? "Failed to save document.", Severity.Error);
                 return;
+            }
+
+            if (selectedFiles.Any())
+            {
+                foreach (var file in selectedFiles)
+                {
+                    var path = await DocService.UploadFileAsync(file);
+                    if (path != null)
+                        await DocService.AddAttachmentAsync(Doc.Id, file.Name, path);
+                    else
+                        Snackbar.Add($"Failed to upload '{file.Name}'.", Severity.Warning);
+                }
             }
 
             if (!string.IsNullOrEmpty(overrideStatus) || reassignOfficeId.HasValue)
@@ -237,8 +261,6 @@
         {
             Console.WriteLine($"[EditDoc] Submit error: {ex.Message}");
             Snackbar.Add("An unexpected error occurred while saving.", Severity.Error);
-            if (uploadedPath != null)
-                try { await DocService.DeleteUploadAsync(uploadedPath); } catch { }
         }
         finally { isSaving = false; }
     }
@@ -267,5 +289,13 @@
         {
             Snackbar.Add($"Failed to delete document: {error}", Severity.Error);
         }
+    }
+
+    private async Task RemoveAttachment(DocumentAttachment attachment)
+    {
+        var (ok, error) = await DocService.DeleteAttachmentAsync(Doc.Id, attachment.Id);
+        if (!ok) { Snackbar.Add(error ?? "Failed to remove attachment.", Severity.Error); return; }
+        Doc.Attachments.Remove(attachment);
+        await DocService.DeleteUploadAsync(attachment.FilePath);
     }
 }

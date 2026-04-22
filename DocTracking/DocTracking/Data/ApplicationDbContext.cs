@@ -17,6 +17,7 @@ namespace DocTracking.Data
         public DbSet<Unit> Units { get; set; }
         public DbSet<AppNotification> AppNotifications { get; set; }
         public DbSet<DataProtectionKey> DataProtectionKeys { get; set; } = null!;
+        public DbSet<DocumentAttachment> DocumentAttachments { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -85,7 +86,11 @@ namespace DocTracking.Data
             modelBuilder.Entity<AppNotification>()
                 .HasIndex(n => new { n.AppUserId, n.Time });
 
-
+            modelBuilder.Entity<DocumentAttachment>()
+                .HasOne(a => a.Document)
+                .WithMany(d => d.Attachments)
+                .HasForeignKey(a => a.DocumentId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

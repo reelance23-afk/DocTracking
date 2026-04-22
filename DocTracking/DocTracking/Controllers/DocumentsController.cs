@@ -460,9 +460,9 @@ namespace DocTracking.Controllers
             {
                 var appUser = await _context.AppUsers.FirstOrDefaultAsync(u => u.Email == email);
                 if (appUser == null) return Forbid();
-                var ownsFile = await _context.Documents.AnyAsync(d =>
-                    d.CreatorId == appUser.Id &&
-                    (d.FilePath == path || d.FilePath == $"/api/documents/file/{fileName}"));
+                var ownsFile = await _context.DocumentAttachments.AnyAsync(a =>
+                    a.Document != null && a.Document.CreatorId == appUser.Id &&
+                    (a.FilePath == path || a.FilePath == $"/api/documents/file/{fileName}"));
                 if (!ownsFile) return Forbid();
             }
 
@@ -482,9 +482,6 @@ namespace DocTracking.Controllers
                 var unitBelongs = await _context.Units.AnyAsync(u => u.Id == doc.NextUnitId && u.OfficeId == doc.NextOfficeId);
                 if (!unitBelongs) return BadRequest("Unit does not belong to the specified office.");
             }
-
-            if (string.IsNullOrEmpty(doc.FilePath))
-                return BadRequest("A file attachment is required.");
 
             var email = CurrentUserEmail;
             var appuser = await _context.AppUsers.FirstOrDefaultAsync(u => u.Email == email);
@@ -809,7 +806,6 @@ namespace DocTracking.Controllers
             if (existing.Type != doc.Type) changes.Add($"Type: '{existing.Type}' to '{doc.Type}'");
             if (existing.Priority != doc.Priority) changes.Add($"Priority: '{existing.Priority}' to '{doc.Priority}'");
             if (existing.Description != doc.Description) changes.Add("Description updated");
-            if (existing.FilePath != doc.FilePath) changes.Add("Attachment replaced");
 
             if (!isAdmin)
             {
@@ -833,8 +829,6 @@ namespace DocTracking.Controllers
             existing.Type = doc.Type;
             existing.Description = doc.Description;
             existing.Priority = doc.Priority;
-            existing.FileName = doc.FileName;
-            existing.FilePath = doc.FilePath;
 
             await using var tx = await _context.Database.BeginTransactionAsync();
             try
@@ -1313,6 +1307,65 @@ namespace DocTracking.Controllers
                 query = query.Where(u => u.Name!.Contains(search));
             var senders = await query.Select(u => u.Name!).Distinct().OrderBy(n => n).Take(20).ToListAsync();
             return Ok(senders);
+        }
+
+        [HttpPost("{id}/attachments")]
+        public async Task<IActionResult> AddAttachment(int id, [FromBody] DocumentAttachment attachment)
+        {
+            var doc = await _context.Documents.FindAsync(id);
+            if (doc == null) return NotFound();
+
+            var email = CurrentUserEmail;
+            var appUser = await _context.AppUsers.FirstOrDefaultAsync(u => u.Email == email);
+            var isAdmin = User.IsInRole("Admin");
+
+            if (!isAdmin && doc.CreatorId != appUser?.Id)
+                return Forbid();
+
+            attachment.DocumentId = id;
+            attachment.UploadedAt = DateTime.UtcNow;
+            _context.DocumentAttachments.Add(attachment);
+
+            try
+            {
+                await _context.SaveChangesAsync();
+                return Ok(attachment);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[AddAttachment] Failed");
+                return StatusCode(500, "Failed to add attachment.");
+            }
+        }
+
+        [HttpDelete("{id}/attachments/{attachmentId}")]
+        public async Task<IActionResult> DeleteAttachment(int id, int attachmentId)
+        {
+            var attachment = await _context.DocumentAttachments
+                .FirstOrDefaultAsync(a => a.Id == attachmentId && a.DocumentId == id);
+            if (attachment == null) return NotFound();
+
+            var email = CurrentUserEmail;
+            var appUser = await _context.AppUsers.FirstOrDefaultAsync(u => u.Email == email);
+            var isAdmin = User.IsInRole("Admin");
+
+            if (!isAdmin)
+            {
+                var doc = await _context.Documents.FindAsync(id);
+                if (doc?.CreatorId != appUser?.Id) return Forbid();
+            }
+
+            _context.DocumentAttachments.Remove(attachment);
+            try
+            {
+                await _context.SaveChangesAsync();
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[DeleteAttachment] Failed");
+                return StatusCode(500, "Failed to delete attachment.");
+            }
         }
     }
     public class ForwardRequest
