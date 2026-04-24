@@ -437,7 +437,8 @@
             Priority = doc.Priority,
             Status = doc.Status,
             CurrentOfficeId = doc.CurrentOfficeId,
-            NextOfficeId = doc.NextOfficeId
+            NextOfficeId = doc.NextOfficeId,
+            Attachments = doc.Attachments
         };
         var parameters = new DialogParameters<UserEditDocumentDialog> { { x => x.Doc, editingDoc } };
         var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };

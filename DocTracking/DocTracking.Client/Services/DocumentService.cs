@@ -278,8 +278,23 @@ namespace DocTracking.Client.Services
             return await GetJsonAsync<PagedResult<Document>>(url) ?? new();
         }
 
-        public Task<(bool Success, string? Error)> CreateDocumentAsync(Document doc) =>
-            ToResult(_http.PostAsJsonAsync("api/documents", doc));
+        public async Task<(bool Success, string? Error, Document? Created)> CreateDocumentAsync(Document doc)
+        {
+            try
+            {
+                var response = await _http.PostAsJsonAsync("api/documents", doc);
+                if (!response.IsSuccessStatusCode)
+                    return (false, await response.Content.ReadAsStringAsync(), null);
+                var created = await response.Content.ReadFromJsonAsync<Document>(_jsonOptions);
+                return (true, null, created);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[DocumentService] CreateDocumentAsync failed: {ex.Message}");
+                return (false, "An unexpected error occurred.", null);
+            }
+        }
+
 
         public async Task<string?> UploadFileAsync(IBrowserFile file)
         {

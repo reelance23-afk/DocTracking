@@ -353,10 +353,11 @@
             CurrentOffice = doc.CurrentOffice,
             NextOffice = doc.NextOffice,
             CurrentUnitId = doc.CurrentUnitId,
-            NextUnitId = doc.NextUnitId
+            NextUnitId = doc.NextUnitId,
+            Attachments = doc.Attachments
         };
         var parameters = new DialogParameters { { "Doc", editingDoc } };
-        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
         var dialog = await DialogService.ShowAsync<EditDocumentDialog>("Edit Document", parameters, options);
         var result = await dialog.Result;
         if (!result!.Canceled) await OnFilterChanged();
@@ -365,7 +366,7 @@
     private async Task OpenViewDialog(Document doc)
     {
         var parameters = new DialogParameters<DocumentViewDialog> { { x => x.Doc, doc } };
-        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
         var dialog = await DialogService.ShowAsync<DocumentViewDialog>("Document Details", parameters, options);
         var result = await dialog.Result;
         if (!result!.Canceled) await OnFilterChanged();

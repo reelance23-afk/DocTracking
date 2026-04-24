@@ -56,7 +56,30 @@
             <MudText Typo="Typo.h4" Class="font-weight-bold">@(isOfficeHead ? "Office History" : "Unit History")</MudText>
         </div>
         <MudText Typo="Typo.body1" Class="mud-text-secondary mb-4">A complete record of all documents processed by @myUnitName.</MudText>
-        <DocStatCards InMotion="@_stats.InMotion" Received="@_stats.Received" Completed="@_stats.Completed" />
+        @if (isLoading)
+        {
+            <MudGrid>
+                @for (int i = 0; i < 3; i++)
+                {
+                    <MudItem xs="12" sm="4">
+                        <MudPaper Elevation="2" Class="pa-4 rounded-lg">
+                            <div class="d-flex align-center justify-space-between">
+                                <div>
+                                    <MudSkeleton SkeletonType="SkeletonType.Text" Width="60px" Height="48px" Class="mb-1" />
+                                    <MudSkeleton SkeletonType="SkeletonType.Text" Width="80px" />
+                                </div>
+                                <MudSkeleton SkeletonType="SkeletonType.Circle" Width="40px" Height="40px" />
+                            </div>
+                        </MudPaper>
+                    </MudItem>
+                }
+            </MudGrid>
+        }
+        else
+        {
+            <DocStatCards InMotion="@_stats.InMotion" Received="@_stats.Received" Completed="@_stats.Completed" />
+        }
+
     </div>
 
     @if (isLoading)

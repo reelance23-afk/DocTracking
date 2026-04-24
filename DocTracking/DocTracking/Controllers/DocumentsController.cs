@@ -299,6 +299,7 @@ namespace DocTracking.Controllers
                     .Include(d => d.CurrentOffice)
                     .Include(d => d.NextUnit)
                     .Include(d => d.CurrentUnit)
+                    .Include(d => d.Attachments)
                     .FirstOrDefaultAsync(d => d.ReferenceNumber == referenceNumber);
                 return doc == null ? NotFound() : Ok(doc);
             }
@@ -460,9 +461,12 @@ namespace DocTracking.Controllers
             {
                 var appUser = await _context.AppUsers.FirstOrDefaultAsync(u => u.Email == email);
                 if (appUser == null) return Forbid();
-                var ownsFile = await _context.DocumentAttachments.AnyAsync(a =>
-                    a.Document != null && a.Document.CreatorId == appUser.Id &&
-                    (a.FilePath == path || a.FilePath == $"/api/documents/file/{fileName}"));
+                var ownsFile = await _context.DocumentAttachments
+                   .Include(a => a.Document)
+                   .AnyAsync(a =>
+                       a.Document != null && a.Document.CreatorId == appUser.Id &&
+                       (a.FilePath == path || a.FilePath == $"/api/documents/file/{fileName}"));
+
                 if (!ownsFile) return Forbid();
             }
 

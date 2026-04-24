@@ -24,7 +24,7 @@
         {
             <MudAlert Severity="Severity.Warning" Dense="true" Icon="@Icons.Material.Filled.AdminPanelSettings" Class="mb-4">
                 <MudText Typo="Typo.caption">
-                    Changes to status and office routing will be applied as an admin override and logged in the audit trail.
+                    Changes to status and office routing will be applied as an admin and logged in the audit trail.
                 </MudText>
             </MudAlert>
             <MudGrid Spacing="3">
@@ -60,15 +60,22 @@
                     </MudSelect>
                 </MudItem>
                 <MudItem xs="12" md="6">
-                    <MudSelect Value="reassignOfficeId" Label="Office" Variant="Variant.Outlined" T="int?"
-                               ValueChanged="OnOfficeChanged"
-                               HelperText="@($"Current: {Doc.CurrentOffice?.Name ?? Doc.NextOffice?.Name ?? "—"}")">
-                        @foreach (var office in _offices)
-                        {
-                            <MudSelectItem T="int?" Value="@((int?)office.Id)">@office.Name</MudSelectItem>
-                        }
-                    </MudSelect>
+                    <MudAutocomplete T="Office"
+                                     Label="Office"
+                                     Value="_selectedReassignOffice"
+                                     ValueChanged="OnOfficeAutoChanged"
+                                     SearchFunc="SearchReassignOffices"
+                                     ToStringFunc="@(o => o?.Name ?? string.Empty)"
+                                     Variant="Variant.Outlined"
+                                     AdornmentIcon="@Icons.Material.Filled.Business"
+                                     AdornmentColor="Color.Primary"
+                                     CoerceText="false"
+                                     CoerceValue="false"
+                                     ResetValueOnEmptyText="true"
+                                     MaxItems="null"
+                                     HelperText="@($"Current: {Doc.CurrentOffice?.Name ?? Doc.NextOffice?.Name ?? "—"}")" />
                 </MudItem>
+
                 @if (reassignOfficeId != null && _loadingUnits)
                 {
                     <MudItem xs="12" md="6">
@@ -152,6 +159,7 @@
 
     private List<IBrowserFile> selectedFiles = new();
     private List<Office> _offices = new();
+    private Office? _selectedReassignOffice;
     private List<Unit> reassignOfficeUnits = new();
     private string overrideStatus = "";
     private int? reassignOfficeId;
@@ -168,6 +176,7 @@
         reassignOfficeId = Doc.CurrentOfficeId ?? Doc.NextOfficeId;
         reassignUnitId = Doc.CurrentUnitId ?? Doc.NextUnitId;
 
+        _selectedReassignOffice = _offices.FirstOrDefault(o => o.Id == reassignOfficeId);
         _offices = await DocService.GetOfficesSimpleAsync();
 
         if (reassignOfficeId.HasValue)
@@ -178,6 +187,7 @@
 
     private void OnFilesSelected(IReadOnlyList<IBrowserFile> files)
     {
+        if (files == null) return;
         foreach (var file in files)
         {
             var ext = Path.GetExtension(file.Name).ToLowerInvariant();
@@ -203,6 +213,20 @@
             reassignOfficeUnits = await DocService.GetUnitsByOfficeAsync(officeId.Value);
             _loadingUnits = false;
         }
+    }
+
+    private Task<IEnumerable<Office>> SearchReassignOffices(string value, CancellationToken ct)
+    {
+        var results = string.IsNullOrWhiteSpace(value)
+            ? _offices
+            : _offices.Where(o => o.Name!.Contains(value, StringComparison.OrdinalIgnoreCase));
+        return Task.FromResult<IEnumerable<Office>>(results);
+    }
+
+    private async Task OnOfficeAutoChanged(Office? office)
+    {
+        _selectedReassignOffice = office;
+        await OnOfficeChanged(office?.Id);
     }
 
     private async Task Submit()

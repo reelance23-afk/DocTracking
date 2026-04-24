@@ -81,10 +81,8 @@
                         <div class="d-flex align-center mt-1 gap-2">
                             <MudIcon Icon="@Icons.Material.Filled.AttachFile" Size="Size.Small" />
                             <MudText Typo="Typo.body2">@attachment.FileName</MudText>
-                            <MudButton Href="@attachment.FilePath" Target="_blank" Variant="Variant.Outlined"
-                                       Size="Size.Small" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Download">
-                                Download
-                            </MudButton>
+                            <MudIconButton Href="@attachment.FilePath" Target="_blank"
+                                           Size="Size.Small" Color="Color.Primary" Icon="@Icons.Material.Filled.Download" />
                         </div>
                     }
                 </MudItem>

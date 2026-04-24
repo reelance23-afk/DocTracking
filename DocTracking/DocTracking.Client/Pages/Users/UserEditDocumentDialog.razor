@@ -156,6 +156,7 @@
 
     private void OnFilesSelected(IReadOnlyList<IBrowserFile> files)
     {
+        if (files == null) return;
         foreach (var file in files)
         {
             var ext = Path.GetExtension(file.Name).ToLowerInvariant();

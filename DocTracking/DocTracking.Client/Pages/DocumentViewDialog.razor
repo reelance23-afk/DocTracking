@@ -140,14 +140,14 @@
     private async Task OpenFullTimeline()
     {
         var parameters = new DialogParameters { ["Doc"] = Doc };
-        var options = new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true, CloseButton = true };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
         await DialogService.ShowAsync(typeof(FullTimelineDialog), Doc.Name ?? "Timeline", parameters, options);
     }
 
     private async Task EditDocument()
     {
         var parameters = new DialogParameters { { "Doc", Doc } };
-        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseButton = true };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
         var dialog = await DialogService.ShowAsync<EditDocumentDialog>("Edit Document", parameters, options);
         var result = await dialog.Result;
         if (!result.Canceled)

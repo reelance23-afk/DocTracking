@@ -243,20 +243,7 @@
                                     </MudButton>
                                 </ActivatorContent>
                             </MudFileUpload>
-                            @if (selectedFiles.Any())
-                            {
-                                <div class="mt-2">
-                                    @foreach (var file in selectedFiles)
-                                    {
-                                        <div class="d-flex align-center gap-2 mb-1">
-                                            <MudIcon Icon="@Icons.Material.Filled.AttachFile" Size="Size.Small" />
-                                            <MudText Typo="Typo.body2">@file.Name</MudText>
-                                            <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" Color="Color.Error"
-                                                           OnClick="@(() => selectedFiles.Remove(file))" />
-                                        </div>
-                                    }
-                                </div>
-                            }
+
                     </MudPaper>
                 </MudItem>
                 <MudItem xs="12">
@@ -329,6 +316,7 @@
 
     private void OnFilesSelected(IReadOnlyList<IBrowserFile> files)
     {
+        if (files == null) return;
         foreach (var file in files)
         {
             var ext = Path.GetExtension(file.Name).ToLowerInvariant();
@@ -368,10 +356,9 @@
         isSaving = true;
         try
         {
-            var (success, error) = await DocService.CreateDocumentAsync(newDocument);
+            var (success, error, createdDoc) = await DocService.CreateDocumentAsync(newDocument);
             if (success)
             {
-                var createdDoc = await DocService.GetDocumentByRefAsync(newDocument.ReferenceNumber ?? "");
                 if (createdDoc != null && selectedFiles.Any())
                 {
                     Snackbar.Add("Uploading files...", Severity.Info);
@@ -391,6 +378,7 @@
             {
                 Snackbar.Add(error ?? "Error saving document.", Severity.Error);
             }
+
         }
         catch (Exception ex)
         {
