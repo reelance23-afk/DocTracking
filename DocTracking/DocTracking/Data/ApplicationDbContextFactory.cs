@@ -8,7 +8,7 @@ namespace DocTracking.Data
         public ApplicationDbContext CreateDbContext(string[] args)
         {
             var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-                .UseSqlServer("Server =.\\SQLEXPRESS; Database = DocTrackingDB; Trusted_Connection = True; TrustServerCertificate = True; ")
+                .UseNpgsql("Host=shuttle.proxy.rlwy.net;Port=41015;Database=railway;Username=postgres;Password=KxuEFeImHxrsluZDXxNbpTnmBsGzrKzY;")
                 .Options;
             return new ApplicationDbContext(options);
         }
