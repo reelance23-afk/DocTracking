@@ -510,6 +510,8 @@
                         _ => "User"
                     };
 
+                    await InvokeAsync(StateHasChanged);
+
                     var groups = new List<string>();
                     var resolvedOfficeId = profile.OfficeId ?? profile.Unit?.OfficeId;
 
