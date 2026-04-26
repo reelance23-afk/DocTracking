@@ -496,15 +496,6 @@
             ThemeService.OnChange += () => { CurrentTheme = BuildTheme(); StateHasChanged(); };
             CurrentTheme = BuildTheme();
 
-            await Task.Delay(100);
-
-            try
-            {
-                await JSRuntime.InvokeVoidAsync("eval",
-        "var el = document.getElementById('app-loading'); if(el){ el.classList.add('hide'); setTimeout(() => el.remove(), 500); }");
-            }
-            catch { }
-
             try
             {
                 var profile = await DocService.GetProfileAsync();
@@ -537,9 +528,17 @@
             }
             catch (Exception ex) { Console.WriteLine($"[MainLayout] Profile load error: {ex.Message}"); }
 
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("eval",
+                    "var el = document.getElementById('app-loading'); if(el){ el.classList.add('hide'); setTimeout(() => el.remove(), 500); }");
+            }
+            catch { }
+
             StateHasChanged();
         }
     }
+
 
 
     private async void OnSearchChanged(string value)
