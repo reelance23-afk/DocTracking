@@ -220,7 +220,7 @@
 
         <MudGrid Class="mb-6" Style="align-items: stretch; animation: fadeSlideUp 0.5s ease-out 0.5s both;">
             <MudItem xs="12" md="7" Style="display: flex; flex-direction: column;">
-                <MudPaper Elevation="2" Class="pa-4 flex-grow-1">
+                <MudPaper Elevation="2" Class="pa-4 flex-grow-1" Style="display: flex; flex-direction: column;">
                     <div class="d-flex align-center justify-space-between mb-4">
                         <div class="d-flex align-center">
                             <MudAvatar Color="Color.Primary" Variant="Variant.Filled" Class="mr-3">
@@ -235,69 +235,66 @@
                             View All
                         </MudButton>
                     </div>
-                    <MudGrid Spacing="2" Style="align-items: stretch; height: 100%;">
-                        <MudItem xs="12" sm="6" Style="display: flex; flex-direction: column;">
-                            <MudPaper Elevation="0" Class="pa-3 rounded-lg flex-grow-1" Style="background: rgba(var(--mud-palette-warning-rgb), 0.08); max-height: 400px; overflow-y: auto;">
-                                <MudText Typo="Typo.subtitle2" Color="Color.Warning" Class="font-weight-bold">In Motion</MudText>
-                                @if (!stats.InMotionDocs.Any())
+                    <div class="d-flex gap-4 flex-grow-1" style="min-height: 0;">
+                        <div style="flex: 1; background: rgba(var(--mud-palette-warning-rgb), 0.08); border-radius: 8px; padding: 12px; overflow-y: auto;">
+                            <MudText Typo="Typo.subtitle2" Color="Color.Warning" Class="font-weight-bold">In Motion</MudText>
+                            @if (!stats.InMotionDocs.Any())
+                            {
+                                <div class="d-flex flex-column align-center pa-4">
+                                    <MudIcon Icon="@Icons.Material.Filled.CheckCircleOutline" Size="Size.Large" Color="Color.Success" Style="opacity:0.5;" />
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary mt-2">All clear! No documents in motion</MudText>
+                                </div>
+                            }
+                            else
+                            {
+                                @foreach (var doc in stats.InMotionDocs)
                                 {
-                                    <div class="d-flex flex-column align-center pa-4">
-                                        <MudIcon Icon="@Icons.Material.Filled.CheckCircleOutline" Size="Size.Large" Color="Color.Success" Style="opacity:0.5;" />
-                                        <MudText Typo="Typo.caption" Class="mud-text-secondary mt-2">All clear! No documents in motion</MudText>
-                                    </div>
-                                }
-                                else
-                                {
-                                    @foreach (var doc in stats.InMotionDocs)
-                                    {
-                                        <MudPaper Elevation="1" Class="pa-3 mb-2" Style="@($"border-left: 3px solid {GetPriorityHex(doc.Priority)};")">
-                                            <MudText Typo="Typo.body2" Class="font-weight-bold mb-1">@doc.Name</MudText>
-                                            <div class="d-flex justify-space-between align-center">
-                                                <MudChip T="string" Size="Size.Small" Color="@DocHelpers.GetPriorityColor(doc.Priority)" Variant="Variant.Filled">@doc.Priority</MudChip>
-                                                <MudIconButton Icon="@Icons.Material.Filled.OpenInNew" Size="Size.Small" Color="Color.Primary" OnClick="@(async () => await OpenViewDialog(doc))" />
-                                            </div>
-                                        </MudPaper>
-                                    }
-                                }
-                            </MudPaper>
-                        </MudItem>
-                        <MudItem xs="12" sm="6" Style="display: flex; flex-direction: column;">
-                            <MudPaper Elevation="0" Class="pa-3 rounded-lg flex-grow-1" Style="background: rgba(var(--mud-palette-info-rgb), 0.08); max-height: 400px; overflow-y: auto;">
-                                <MudText Typo="Typo.subtitle2" Color="Color.Info" Class="font-weight-bold">Office Workload</MudText>
-                                @if (!stats.OfficeWorkloads.Any())
-                                {
-                                    <div class="d-flex flex-column align-center pa-4">
-                                        <MudIcon Icon="@Icons.Material.Filled.Business" Size="Size.Large" Color="Color.Default" Style="opacity:0.3;" />
-                                        <MudText Typo="Typo.caption" Class="mud-text-secondary mt-2">No workload data available</MudText>
-                                    </div>
-                                }
-                                else
-                                {
-                                    @foreach (var workload in stats.OfficeWorkloads)
-                                    {
-                                        <div class="mb-3">
-                                            <div class="d-flex justify-space-between mb-1">
-                                                <MudText Typo="Typo.caption" Class="font-weight-bold text-truncate" Style="max-width: 70%;">@workload.OfficeName</MudText>
-                                            </div>
-                                            <MudProgressLinear Color="@GetWorkloadColor(workload.Percentage)" Value="@workload.Percentage" Class="rounded-lg" Size="Size.Small" />
-                                            @if (workload.UnitWorkloads.Any())
-                                            {
-                                                <div class="ml-3 mt-1">
-                                                    @foreach (var unit in workload.UnitWorkloads)
-                                                    {
-                                                        <div class="d-flex justify-space-between">
-                                                            <MudText Typo="Typo.caption" Class="mud-text-secondary">@unit.UnitName</MudText>
-                                                            <MudText Typo="Typo.caption" Class="mud-text-secondary">@unit.DocumentCount</MudText>
-                                                        </div>
-                                                    }
-                                                </div>
-                                            }
+                                    <MudPaper Elevation="1" Class="pa-3 mb-2" Style="@($"border-left: 3px solid {GetPriorityHex(doc.Priority)};")">
+                                        <MudText Typo="Typo.body2" Class="font-weight-bold mb-1">@doc.Name</MudText>
+                                        <div class="d-flex justify-space-between align-center">
+                                            <MudChip T="string" Size="Size.Small" Color="@DocHelpers.GetPriorityColor(doc.Priority)" Variant="Variant.Filled">@doc.Priority</MudChip>
+                                            <MudIconButton Icon="@Icons.Material.Filled.OpenInNew" Size="Size.Small" Color="Color.Primary" OnClick="@(async () => await OpenViewDialog(doc))" />
                                         </div>
-                                    }
+                                    </MudPaper>
                                 }
-                            </MudPaper>
-                        </MudItem>
-                    </MudGrid>
+                            }
+                        </div>
+                        <div style="flex: 1; background: rgba(var(--mud-palette-info-rgb), 0.08); border-radius: 8px; padding: 12px; overflow-y: auto;">
+                            <MudText Typo="Typo.subtitle2" Color="Color.Info" Class="font-weight-bold">Office Workload</MudText>
+                            @if (!stats.OfficeWorkloads.Any())
+                            {
+                                <div class="d-flex flex-column align-center pa-4">
+                                    <MudIcon Icon="@Icons.Material.Filled.Business" Size="Size.Large" Color="Color.Default" Style="opacity:0.3;" />
+                                    <MudText Typo="Typo.caption" Class="mud-text-secondary mt-2">No workload data available</MudText>
+                                </div>
+                            }
+                            else
+                            {
+                                @foreach (var workload in stats.OfficeWorkloads)
+                                {
+                                    <div class="mb-3">
+                                        <div class="d-flex justify-space-between mb-1">
+                                            <MudText Typo="Typo.caption" Class="font-weight-bold text-truncate" Style="max-width: 70%;">@workload.OfficeName</MudText>
+                                        </div>
+                                        <MudProgressLinear Color="@GetWorkloadColor(workload.Percentage)" Value="@workload.Percentage" Class="rounded-lg" Size="Size.Small" />
+                                        @if (workload.UnitWorkloads.Any())
+                                        {
+                                            <div class="ml-3 mt-1">
+                                                @foreach (var unit in workload.UnitWorkloads)
+                                                {
+                                                    <div class="d-flex justify-space-between">
+                                                        <MudText Typo="Typo.caption" Class="mud-text-secondary">@unit.UnitName</MudText>
+                                                        <MudText Typo="Typo.caption" Class="mud-text-secondary">@unit.DocumentCount</MudText>
+                                                    </div>
+                                                }
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                            }
+                        </div>
+                    </div>
+
                 </MudPaper>
             </MudItem>
 
