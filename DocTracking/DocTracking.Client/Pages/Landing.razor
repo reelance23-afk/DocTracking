@@ -1,42 +1,246 @@
 ﻿@page "/"
 @layout EmptyLayout
 @using DocTracking.Client.Layout
+@inject IJSRuntime JS
 @rendermode @(new InteractiveAutoRenderMode(prerender: false))
 
 <style>
-    html, body {
+    * {
+        box-sizing: border-box;
         margin: 0;
         padding: 0;
-        height: 100%;
+    }
+
+    .landing-wrapper {
+        min-height: 100vh;
+        background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        font-family: 'Roboto', sans-serif;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .glow-circle {
+        position: absolute;
+        border-radius: 50%;
+        filter: blur(80px);
+        opacity: 0.15;
+        pointer-events: none;
+    }
+
+    .glow-1 {
+        width: 500px;
+        height: 500px;
+        background: #6c63ff;
+        top: -100px;
+        left: -100px;
+    }
+
+    .glow-2 {
+        width: 400px;
+        height: 400px;
+        background: #e94560;
+        bottom: -100px;
+        right: -100px;
+    }
+
+    .glow-3 {
+        width: 300px;
+        height: 300px;
+        background: #00d2ff;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+    }
+
+    .landing-content {
+        position: relative;
+        z-index: 1;
+        text-align: center;
+        padding: 40px 24px;
+        max-width: 900px;
+        width: 100%;
+    }
+
+    .landing-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: rgba(255,255,255,0.08);
+        border: 1px solid rgba(255,255,255,0.15);
+        border-radius: 50px;
+        padding: 6px 16px;
+        margin-bottom: 32px;
+        color: rgba(255,255,255,0.8);
+        font-size: 0.8rem;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+    }
+
+    .landing-title {
+        font-size: clamp(2.5rem, 6vw, 4.5rem);
+        font-weight: 900;
+        color: white;
+        line-height: 1.1;
+        margin-bottom: 20px;
+        letter-spacing: -1px;
+    }
+
+        .landing-title span {
+            background: linear-gradient(90deg, #6c63ff, #e94560);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+    .landing-subtitle {
+        font-size: clamp(1rem, 2vw, 1.2rem);
+        color: rgba(255,255,255,0.6);
+        max-width: 560px;
+        margin: 0 auto 40px;
+        line-height: 1.7;
+    }
+
+    .landing-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        background: linear-gradient(135deg, #6c63ff, #e94560);
+        color: white;
+        border: none;
+        border-radius: 50px;
+        padding: 16px 40px;
+        font-size: 1rem;
+        font-weight: 700;
+        cursor: pointer;
+        text-decoration: none;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        box-shadow: 0 8px 32px rgba(108, 99, 255, 0.4);
+        letter-spacing: 0.5px;
+    }
+
+        .landing-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 40px rgba(108, 99, 255, 0.6);
+            color: white;
+            text-decoration: none;
+        }
+
+    .features {
+        display: flex;
+        gap: 20px;
+        margin-top: 64px;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .feature-card {
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 16px;
+        padding: 24px;
+        width: 240px;
+        text-align: left;
+        backdrop-filter: blur(10px);
+        transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+
+        .feature-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(108, 99, 255, 0.5);
+        }
+
+    .feature-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 16px;
+        font-size: 1.5rem;
+    }
+
+    .feature-title {
+        color: white;
+        font-weight: 700;
+        font-size: 0.95rem;
+        margin-bottom: 8px;
+    }
+
+    .feature-desc {
+        color: rgba(255,255,255,0.5);
+        font-size: 0.82rem;
+        line-height: 1.6;
+    }
+
+    .landing-footer {
+        position: relative;
+        z-index: 1;
+        margin-top: 48px;
+        color: rgba(255,255,255,0.3);
+        font-size: 0.78rem;
     }
 </style>
 
 <AuthorizeView>
     <Authorized>
         @{
-            if (context.User.IsInRole("Admin"))
-                Navigation.NavigateTo("/dashboard");
-            else if (context.User.IsInRole("Office"))
-                Navigation.NavigateTo("/dashboard");
-            else
-                Navigation.NavigateTo("/dashboard");
+            Navigation.NavigateTo("/dashboard");
         }
     </Authorized>
     <NotAuthorized>
-        <div style="min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);">
-            <div style="text-align: center; padding: 40px; max-width: 500px;">
-                <MudIcon Icon="@Icons.Material.Filled.Description" Style="font-size: 5rem; color: #e94560;" Class="mb-4" />
-                <MudText Typo="Typo.h3" Style="color: white; font-weight: 800;" Class="mb-2">DocTracking</MudText>
-                <MudText Typo="Typo.subtitle1" Style="color: rgba(255,255,255,0.7);" Class="mb-6">
-                    A document tracking system for managing and monitoring document flow across offices.
-                </MudText>
-                <MudButton Variant="Variant.Filled"
-                           Size="Size.Large"
-                           Style="background: #e94560; color: white; padding: 12px 40px; border-radius: 8px; font-weight: 700;"
-                           Href="/Account/Login"
-                           StartIcon="@Icons.Material.Filled.Login">
+        <div class="landing-wrapper">
+            <div class="glow-circle glow-1"></div>
+            <div class="glow-circle glow-2"></div>
+            <div class="glow-circle glow-3"></div>
+
+            <div class="landing-content">
+                <div class="landing-badge">
+                    <span>📄</span>
+                    <span>Document Tracking System</span>
+                </div>
+
+                <h1 class="landing-title">
+                    Track Every Document<br />
+                    <span>Seamlessly</span>
+                </h1>
+
+                <p class="landing-subtitle">
+                    A modern document tracking system that helps offices manage, monitor, and route documents efficiently across departments.
+                </p>
+
+                <a href="/Account/Login" class="landing-btn">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z" />
+                    </svg>
                     Login with Microsoft
-                </MudButton>
+                </a>
+
+                <div class="features">
+                    <div class="feature-card">
+                        <div class="feature-icon" style="background: rgba(108,99,255,0.2);">📬</div>
+                        <div class="feature-title">Real-time Tracking</div>
+                        <div class="feature-desc">Monitor document status and location across all offices in real-time.</div>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon" style="background: rgba(233,69,96,0.2);">🔔</div>
+                        <div class="feature-title">Instant Notifications</div>
+                        <div class="feature-desc">Get notified instantly when your document is received, forwarded or completed.</div>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon" style="background: rgba(0,210,255,0.2);">📊</div>
+                        <div class="feature-title">Audit Trail</div>
+                        <div class="feature-desc">Full history of every action taken on every document across the system.</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="landing-footer">
+                © @DateTime.Now.Year DocTracking. All rights reserved.
             </div>
         </div>
     </NotAuthorized>
@@ -44,4 +248,17 @@
 
 @code {
     [Inject] NavigationManager Navigation { get; set; } = default!;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("eval",
+                    "var el = document.getElementById('app-loading'); if(el){ el.classList.add('hide'); setTimeout(() => el.remove(), 500); }");
+            }
+            catch { }
+        }
+    }
 }
