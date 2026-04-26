@@ -1,4 +1,5 @@
 ﻿@inject NavigationManager Navigation
+@inject IDialogService DialogService
 @using Microsoft.AspNetCore.Components.Authorization
 
 <div class="nav-wrapper">
@@ -132,6 +133,30 @@
                         </MudNavLink>
                     </MudNavMenu>
 
+                    @if (!string.IsNullOrEmpty(context.User.FindFirst("OfficeId")?.Value))
+                    {
+                        @if (ShowText)
+                        {
+                            <div class="nav-label">
+                                <MudText Typo="Typo.overline" Class="mud-text-secondary">Office</MudText>
+                            </div>
+                        }
+                        <MudNavMenu Rounded="true" Margin="Margin.Dense" Class="px-2 mb-2">
+                            <MudNavLink Href="/office-desk" Icon="@Icons.Material.Filled.Inbox" IconColor="Color.Warning">
+                                @if (ShowText)
+                                {
+                                    <span>Pending Documents</span>
+                                }
+                            </MudNavLink>
+                            <MudNavLink Href="/unit-history" Icon="@Icons.Material.Filled.Folder" IconColor="Color.Info">
+                                @if (ShowText)
+                                {
+                                    <span>Document History</span>
+                                }
+                            </MudNavLink>
+                        </MudNavMenu>
+                    }
+
                     @if (ShowText)
                     {
                         <div class="nav-label">
@@ -153,8 +178,6 @@
                         </MudNavLink>
                     </MudNavMenu>
                 }
-
-
             </Authorized>
         </AuthorizeView>
     </div>
@@ -170,7 +193,7 @@
                             <span>Settings</span>
                         }
                     </MudNavLink>
-                    <MudNavLink Href="/Account/Logout" ForceLoad="true" Icon="@Icons.Material.Filled.Logout" IconColor="Color.Error">
+                    <MudNavLink Icon="@Icons.Material.Filled.Logout" IconColor="Color.Error" OnClick="ConfirmLogout">
                         @if (ShowText)
                         {
                             <MudText Color="Color.Error">Logout</MudText>
@@ -185,5 +208,19 @@
 @code {
     [CascadingParameter]
     public bool ShowText { get; set; } = true;
+
+    private async Task ConfirmLogout()
+    {
+        var parameters = new DialogParameters
+        {
+            { "Message", "Are you sure you want to log out?" },
+            { "YesText", "Log Out" },
+            { "CancelText", "Cancel" }
+        };
+        var dialog = await DialogService.ShowAsync<MudMessageBox>("Confirm Logout", parameters);
+        var result = await dialog.Result;
+        if (result is null || result.Canceled) return;
+        Navigation.NavigateTo("Account/Logout", forceLoad: true);
+    }
 }
 

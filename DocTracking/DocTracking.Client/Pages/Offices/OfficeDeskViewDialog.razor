@@ -1,4 +1,5 @@
 ﻿@using DocTracking.Client
+@using DocTracking.Client.Pages.Users
 @using DocTracking.Client.Models
 @using DocTracking.Client.Services
 @using DocTracking.Client.Services.Helpers
@@ -164,6 +165,13 @@
             }
         </MudGrid>
     </DialogContent>
+    <DialogActions>
+        @if (Tab == DeskTab.Outgoing)
+        {
+            <MudButton Color="Color.Warning" Variant="Variant.Outlined"
+                       StartIcon="@Icons.Material.Filled.Edit" OnClick="EditDocument">Edit</MudButton>
+        }
+    </DialogActions>
 </MudDialog>
 
 @code {
@@ -293,5 +301,15 @@
             Snackbar.Add("Failed to complete document. Please try again.", Severity.Error);
         }
         finally { busy = false; }
+    }
+
+    private async Task EditDocument()
+    {
+        var parameters = new DialogParameters<UserEditDocumentDialog> { { x => x.Doc, Doc } };
+        var options = new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true };
+        var dialog = await DialogService.ShowAsync<UserEditDocumentDialog>("Edit Document", parameters, options);
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+            MudDialog.Close(DialogResult.Ok(true));
     }
 }

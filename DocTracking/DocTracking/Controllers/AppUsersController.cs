@@ -37,6 +37,13 @@ namespace DocTracking.Controllers
             var user = await _context.AppUsers.FindAsync(id);
             if (user == null) return NotFound();
 
+            if (user.Role == "Admin" && updatedUser.Role != "Admin")
+            {
+                var adminCount = await _context.AppUsers.CountAsync(u => u.Role == "Admin");
+                if (adminCount <= 1)
+                    return BadRequest("Cannot change the role of the last Admin in the system.");
+            }
+
             user.Role = updatedUser.Role;
             user.UnitId = updatedUser.UnitId;
             user.OfficeId = updatedUser.OfficeId;
@@ -56,6 +63,7 @@ namespace DocTracking.Controllers
             }
             return Ok();
         }
+
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteUser(int id)

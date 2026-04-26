@@ -200,16 +200,24 @@
         @if (editingUser != null)
         {
             <MudText Typo="Typo.body1" Class="mb-4 font-weight-bold">@editingUser.Name</MudText>
-            <MudSelect @bind-Value="editingUser.Role" Label="Role" Variant="Variant.Outlined" Class="mb-4">
+            @if (_isLastAdmin && editingUser.Role == "Admin")
+            {
+                <MudAlert Severity="Severity.Warning" Dense="true" Class="mb-3">
+                    This is the last Admin in the system. Role cannot be changed.
+                </MudAlert>
+            }
+            <MudSelect @bind-Value="editingUser.Role" Label="Role" Variant="Variant.Outlined" Class="mb-4"
+                       Disabled="@(_isLastAdmin && editingUser.Role == "Admin")">
                 <MudSelectItem Value="@("Admin")">Admin</MudSelectItem>
                 <MudSelectItem Value="@("Office")">Office Worker</MudSelectItem>
                 <MudSelectItem Value="@("User")">User</MudSelectItem>
             </MudSelect>
-            @if (editingUser.Role == "Office")
+            @if (editingUser.Role == "Office" || editingUser.Role == "Admin")
             {
                 <MudSelect T="int?" Value="GetActiveOfficeId(editingUser)"
                            ValueChanged="@((int? id) => OnOfficeChanged(editingUser, id))"
                            Label="Select Office" Variant="Variant.Outlined" Class="mb-3">
+                    <MudSelectItem T="int?" Value="@((int?)null)">— No office —</MudSelectItem>
                     @foreach (var office in allOffices)
                     {
                         <MudSelectItem T="int?" Value="@((int?)office.Id)">@office.Name</MudSelectItem>
@@ -300,6 +308,7 @@
     </DialogActions>
 </MudDialog>
 
+
 @code {
     [SupplyParameterFromQuery(Name = "search")] public string? SearchParam { get; set; }
 
@@ -308,6 +317,7 @@
     private bool isLoading = true;
     private bool isSaving = false;
     private bool isOfficeHead = false;
+    private bool _isLastAdmin = false;
     private string searchString = "";
     private int? _selectedOfficeId;
     private Dictionary<int, int?> activeOfficeEdits = new();
@@ -414,8 +424,20 @@
         _editUnits = officeId.HasValue
             ? await DocService.GetUnitsByOfficeAsync(officeId.Value)
             : new();
+
+        if (user.Role == "Admin")
+        {
+            var allUsers = await DocService.GetAppUserAsync();
+            _isLastAdmin = allUsers.Count(u => u.Role == "Admin") <= 1;
+        }
+        else
+        {
+            _isLastAdmin = false;
+        }
+
         isEditDialogOpen = true;
     }
+
 
     private async Task SaveUser()
     {
@@ -423,7 +445,7 @@
         isSaving = true;
         try
         {
-            if (editingUser.Role != "Office")
+            if (editingUser.Role != "Office" && editingUser.Role != "Admin")
             {
                 editingUser.UnitId = null;
                 editingUser.OfficeId = null;

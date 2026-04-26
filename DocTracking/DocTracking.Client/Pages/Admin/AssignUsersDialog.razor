@@ -333,7 +333,7 @@
                     Id = user.Id,
                     Name = user.Name,
                     Email = user.Email,
-                    Role = "Office",
+                    Role = user.Role == "Admin" ? "Admin" : "Office",
                     UnitId = null,
                     OfficeId = _selectedOffice.Id,
                     IsOfficeHead = false
@@ -351,7 +351,7 @@
                     Id = user.Id,
                     Name = user.Name,
                     Email = user.Email,
-                    Role = "User",
+                    Role = user.Role == "Admin" ? "Admin" : "User",
                     UnitId = null,
                     OfficeId = null,
                     IsOfficeHead = false
@@ -403,7 +403,7 @@
                     Id = user.Id,
                     Name = user.Name,
                     Email = user.Email,
-                    Role = "Office",
+                    Role = user.Role == "Admin" ? "Admin" : "Office",
                     UnitId = null,
                     OfficeId = _selectedOffice!.Id,
                     IsOfficeHead = false

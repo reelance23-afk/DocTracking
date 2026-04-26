@@ -47,7 +47,8 @@ namespace DocTracking.Security
 
                     if (dbUser == null)
                     {
-                        dbUser = new AppUser { Email = email, Name = name, Role = "User" };
+                        var hasAdmin = await db.AppUsers.AnyAsync(u => u.Role == "Admin");
+                        dbUser = new AppUser { Email = email, Name = name, Role = hasAdmin ? "User" : "Admin" };
                         db.AppUsers.Add(dbUser);
                         await db.SaveChangesAsync();
                     }

@@ -1,5 +1,5 @@
 @page "/office-desk"
-@attribute [Authorize(Roles = "Office")]
+@attribute [Authorize(Roles = "Office,Admin")]
 @using System.Security.Claims
 @using DocTracking.Client
 @using DocTracking.Client.Models
@@ -290,6 +290,7 @@
                                 <MudTh>Priority</MudTh>
                                 <MudTh>Routing To</MudTh>
                                 <MudTh>Date Forwarded</MudTh>
+                                <MudTh>Actions</MudTh>
                             </HeaderContent>
                             <RowTemplate>
                                 <MudTd DataLabel="Document"><strong>@context.Name</strong></MudTd>
@@ -308,6 +309,13 @@
                                     }
                                 </MudTd>
                                 <MudTd DataLabel="Date Forwarded">@(context.LastActionDate?.ToLocalTime().ToString("MMM dd, hh:mm tt") ?? context.CreatedAt.ToLocalTime().ToString("MMM dd, hh:mm tt"))</MudTd>
+                                <MudTd DataLabel="Actions">
+                                    <MudButton Color="Color.Primary" Variant="Variant.Filled" Size="Size.Small"
+                                               StartIcon="@Icons.Material.Filled.Visibility"
+                                               OnClick="@(async () => await OpenDeskDialog(context, OfficeDeskViewDialog.DeskTab.Outgoing))">
+                                        View Details
+                                    </MudButton>
+                                </MudTd>
                             </RowTemplate>
                             <NoRecordsContent>
                                 <div class="pa-8 text-center">

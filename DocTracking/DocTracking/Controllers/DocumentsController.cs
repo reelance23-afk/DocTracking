@@ -795,14 +795,40 @@ namespace DocTracking.Controllers
 
             if (!isAdmin)
             {
-                if (existing.CreatorId != appUser?.Id)
+                var appUser2 = await _context.AppUsers.Include(u => u.Unit).FirstOrDefaultAsync(u => u.Email == email);
+                int? callerOfficeId = appUser2?.Unit?.OfficeId ?? appUser2?.OfficeId;
+                bool isCreator = existing.CreatorId == appUser?.Id;
+
+                bool isLastForwarder = false;
+                if (callerOfficeId.HasValue && existing.Status == "In Motion")
+                {
+                    var lastForward = await _context.DocumentLogs
+                        .Where(l => l.DocumentId == id && l.Action == "Forwarded")
+                        .OrderByDescending(l => l.TimeStamp)
+                        .FirstOrDefaultAsync();
+                    isLastForwarder = lastForward?.AppUserId == appUser?.Id ||
+                        (lastForward?.AppUser == null && lastForward != null &&
+                         await _context.DocumentLogs
+                            .AnyAsync(l => l.Id == lastForward.Id &&
+                                l.AppUser != null &&
+                                (l.AppUser.UnitId.HasValue
+                                    ? l.AppUser.Unit!.OfficeId == callerOfficeId
+                                    : l.AppUser.OfficeId == callerOfficeId)));
+                }
+
+                if (!isCreator && !isLastForwarder)
                     return Forbid();
 
-                var hasBeenReceived = await _context.DocumentLogs
-                    .AnyAsync(l => l.DocumentId == id && l.Action == "Received");
+                if (isCreator)
+                {
+                    var hasBeenReceived = await _context.DocumentLogs
+                        .AnyAsync(l => l.DocumentId == id && l.Action == "Received");
+                    if (hasBeenReceived)
+                        return BadRequest("Document can no longer be edited once it has been received by an office.");
+                }
 
-                if (hasBeenReceived)
-                    return BadRequest("Document can no longer be edited once it has been received by an office.");
+                if (isLastForwarder && existing.Status != "In Motion")
+                    return BadRequest("Document can no longer be edited once it has been received.");
             }
 
             var changes = new List<string>();
