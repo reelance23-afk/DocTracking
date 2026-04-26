@@ -1,7 +1,6 @@
 ﻿@page "/"
 @layout EmptyLayout
 @using DocTracking.Client.Layout
-@inject IJSRuntime JS
 @rendermode @(new InteractiveAutoRenderMode(prerender: false))
 
 <style>
@@ -248,17 +247,4 @@
 
 @code {
     [Inject] NavigationManager Navigation { get; set; } = default!;
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            try
-            {
-                await JS.InvokeVoidAsync("eval",
-                    "var el = document.getElementById('app-loading'); if(el){ el.classList.add('hide'); setTimeout(() => el.remove(), 500); }");
-            }
-            catch { }
-        }
-    }
 }
