@@ -1,7 +1,7 @@
 ﻿@page "/"
 @layout EmptyLayout
 @using DocTracking.Client.Layout
-@rendermode InteractiveAuto
+@rendermode @(new InteractiveAutoRenderMode(prerender: false))
 
 <style>
     html, body {
