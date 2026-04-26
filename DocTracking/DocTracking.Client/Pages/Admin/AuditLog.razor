@@ -149,7 +149,7 @@
                     @{
                         var actorUnit = context.AppUser?.Unit;
                         var actorOfficeName = actorUnit != null
-                        ? actorUnit.Name
+                        ? actorUnit.Office?.Name
                         : context.AppUser?.Office?.Name;
                     }
                     @if (!string.IsNullOrEmpty(actorOfficeName))
@@ -159,7 +159,7 @@
                         </div>
                         @if (actorUnit != null)
                         {
-                            <MudText Typo="Typo.caption" Class="mud-text-secondary">↳ @context.AppUser?.Office?.Name</MudText>
+                            <MudText Typo="Typo.caption" Class="mud-text-secondary">↳ @actorUnit.Name</MudText>
                         }
                     }
                     else

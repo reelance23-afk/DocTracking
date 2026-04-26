@@ -1,20 +1,16 @@
-﻿@page "/"
-@attribute [Authorize]
+﻿@page "/dashboard"
 @using DocTracking.Client.Pages.Admin
 @using DocTracking.Client.Pages.Offices
 @using DocTracking.Client.Pages.Users
 @rendermode InteractiveAuto
 
 <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-4">
-
     <AuthorizeView>
         <Authorized>
-
             @if (context.User.IsInRole("Admin"))
             {
                 <AdminMaster />
             }
-
             else if (context.User.IsInRole("Office"))
             {
                 <OfficeHome />
@@ -24,6 +20,8 @@
                 <UserHome />
             }
         </Authorized>
+        <NotAuthorized>
+            <RedirectToLogin />
+        </NotAuthorized>
     </AuthorizeView>
-
 </MudContainer>

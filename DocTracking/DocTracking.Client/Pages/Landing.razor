@@ -1,0 +1,47 @@
+﻿@page "/"
+@layout EmptyLayout
+@using DocTracking.Client.Layout
+@rendermode InteractiveAuto
+
+<style>
+    html, body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+    }
+</style>
+
+<AuthorizeView>
+    <Authorized>
+        @{
+            if (context.User.IsInRole("Admin"))
+                Navigation.NavigateTo("/dashboard");
+            else if (context.User.IsInRole("Office"))
+                Navigation.NavigateTo("/dashboard");
+            else
+                Navigation.NavigateTo("/dashboard");
+        }
+    </Authorized>
+    <NotAuthorized>
+        <div style="min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);">
+            <div style="text-align: center; padding: 40px; max-width: 500px;">
+                <MudIcon Icon="@Icons.Material.Filled.Description" Style="font-size: 5rem; color: #e94560;" Class="mb-4" />
+                <MudText Typo="Typo.h3" Style="color: white; font-weight: 800;" Class="mb-2">DocTracking</MudText>
+                <MudText Typo="Typo.subtitle1" Style="color: rgba(255,255,255,0.7);" Class="mb-6">
+                    A document tracking system for managing and monitoring document flow across offices.
+                </MudText>
+                <MudButton Variant="Variant.Filled"
+                           Size="Size.Large"
+                           Style="background: #e94560; color: white; padding: 12px 40px; border-radius: 8px; font-weight: 700;"
+                           Href="/Account/Login"
+                           StartIcon="@Icons.Material.Filled.Login">
+                    Login with Microsoft
+                </MudButton>
+            </div>
+        </div>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    [Inject] NavigationManager Navigation { get; set; } = default!;
+}

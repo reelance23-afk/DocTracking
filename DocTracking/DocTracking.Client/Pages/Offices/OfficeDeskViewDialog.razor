@@ -123,31 +123,42 @@
                     }
                     else
                     {
-                        <MudSelect T="int?" Value="selectedOfficeId" ValueChanged="OnOfficeSelected"
-                                   Variant="Variant.Outlined" Label="Select Office" Class="mb-3" FullWidth="true">
-                            <MudSelectItem T="int?" Value="@((int?)null)">None</MudSelectItem>
-                            @foreach (var off in _offices.Where(o => o.Id != Doc.CurrentOfficeId))
-                            {
-                                <MudSelectItem T="int?" Value="@((int?)off.Id)">
-                                    @off.Name@(string.IsNullOrEmpty(off.ReceivingSchedule) ? "" : $" ({off.ReceivingSchedule})")
-                                </MudSelectItem>
-                            }
-                        </MudSelect>
+                        <MudAutocomplete T="Office"
+                                         Label="Select Office"
+                                         Value="_selectedOffice"
+                                         ValueChanged="OnOfficeAutoSelected"
+                                         SearchFunc="SearchOffices"
+                                         ToStringFunc="@(o => o == null ? string.Empty : $"{o.Name}{(string.IsNullOrEmpty(o.ReceivingSchedule) ? "" : $" ({o.ReceivingSchedule})")}")"
+                                         Variant="Variant.Outlined"
+                                         AdornmentIcon="@Icons.Material.Filled.Business"
+                                         AdornmentColor="Color.Primary"
+                                         CoerceText="false"
+                                         CoerceValue="false"
+                                         ResetValueOnEmptyText="true"
+                                         MaxItems="null"
+                                         Class="mb-3" />
                     }
-                    @if (selectedOfficeId.HasValue && _loadingUnits)
+                    @if (_selectedOffice != null && _loadingUnits)
                     {
                         <MudProgressLinear Indeterminate="true" Class="mb-3" />
                     }
-                    else if (selectedOfficeId.HasValue && _availableUnits.Any())
+                    else if (_selectedOffice != null && _availableUnits.Any())
                     {
-                        <MudSelect T="int?" @bind-Value="selectedUnitId"
-                                   Variant="Variant.Outlined" Label="Select Unit" Class="mb-3" FullWidth="true">
-                            <MudSelectItem T="int?" Value="@((int?)null)">— No specific unit —</MudSelectItem>
-                            @foreach (var unit in _availableUnits)
-                            {
-                                <MudSelectItem T="int?" Value="@((int?)unit.Id)">@unit.Name</MudSelectItem>
-                            }
-                        </MudSelect>
+                        <MudAutocomplete T="Unit"
+                                         Label="Select Unit"
+                                         Value="_selectedUnit"
+                                         ValueChanged="OnUnitAutoSelected"
+                                         SearchFunc="SearchUnits"
+                                         ToStringFunc="@(u => u?.Name ?? string.Empty)"
+                                         Variant="Variant.Outlined"
+                                         AdornmentIcon="@Icons.Material.Filled.Group"
+                                         AdornmentColor="Color.Secondary"
+                                         CoerceText="false"
+                                         CoerceValue="false"
+                                         ResetValueOnEmptyText="true"
+                                         Placeholder="— No specific unit —"
+                                         MaxItems="null"
+                                         Class="mb-3" />
                     }
                     <div class="d-flex gap-2">
                         <MudButton Color="Color.Primary" Variant="Variant.Filled" FullWidth="true"
@@ -183,6 +194,8 @@
 
     private List<Office> _offices = new();
     private List<Unit> _availableUnits = new();
+    private Office? _selectedOffice;
+    private Unit? _selectedUnit;
     private int? selectedOfficeId;
     private int? selectedUnitId;
     private string? comment;
@@ -249,7 +262,7 @@
             Snackbar.Add("Cannot forward to the same office and unit.", Severity.Warning);
             return;
         }
-        var dest = _offices.FirstOrDefault(o => o.Id == selectedOfficeId)?.Name;
+        var dest = _selectedOffice?.Name;
         var parameters = new DialogParameters
         {
             { "Message", $"Forward this document to {dest}?" },
@@ -312,4 +325,34 @@
         if (result is { Canceled: false })
             MudDialog.Close(DialogResult.Ok(true));
     }
+
+    private Task<IEnumerable<Office>> SearchOffices(string value, CancellationToken ct)
+    {
+        var results = _offices.Where(o => o.Id != Doc.CurrentOfficeId);
+        if (!string.IsNullOrWhiteSpace(value))
+            results = results.Where(o => o.Name!.Contains(value, StringComparison.OrdinalIgnoreCase));
+        return Task.FromResult(results);
+    }
+
+    private Task<IEnumerable<Unit>> SearchUnits(string value, CancellationToken ct)
+    {
+        var results = string.IsNullOrWhiteSpace(value)
+            ? _availableUnits
+            : _availableUnits.Where(u => u.Name!.Contains(value, StringComparison.OrdinalIgnoreCase));
+        return Task.FromResult<IEnumerable<Unit>>(results);
+    }
+
+    private async Task OnOfficeAutoSelected(Office? office)
+    {
+        _selectedOffice = office;
+        _selectedUnit = null;
+        await OnOfficeSelected(office?.Id);
+    }
+
+    private void OnUnitAutoSelected(Unit? unit)
+    {
+        _selectedUnit = unit;
+        selectedUnitId = unit?.Id;
+    }
+
 }

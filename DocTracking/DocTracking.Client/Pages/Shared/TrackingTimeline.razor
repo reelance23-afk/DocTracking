@@ -208,10 +208,6 @@ else
                         <div style="width: 32px; height: 32px; border-radius: 50%; background: @dotColor; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
                             <MudIcon Icon="@DocHelpers.GetIconForAction(log.Action)" Size="Size.Small" Style="color: white;" />
                         </div>
-                        @if (i < Logs.Count - 1)
-                        {
-                            <div style="width: 2px; flex: 1; background: @dotColor; min-height: 16px; margin: 2px 0;"></div>
-                        }
                     </div>
                     <MudCard Elevation="@(isCurrent ? 4 : 1)" Class="mb-3 flex-grow-1" Style="@(isCurrent ? $"border-left: 3px solid {dotColor};" : "")">
                         <MudCardContent Class="pa-3">
