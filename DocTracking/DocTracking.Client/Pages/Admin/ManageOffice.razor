@@ -324,7 +324,18 @@
         {
             var (ok, error) = await DocService.UpdateOfficeAsync(new Office { Id = office.Id, Name = data.OfficeName, ReceivingSchedule = office.ReceivingSchedule });
             if (!ok) { Snackbar.Add(error ?? "Error updating office.", Severity.Error); return; }
-            Snackbar.Add("Office updated.", Severity.Success);
+
+            if (!string.IsNullOrWhiteSpace(data.UnitName))
+            {
+                var (unitOk, unitError) = await DocService.AddUnitAsync(new Unit { Name = data.UnitName, OfficeId = office.Id });
+                if (!unitOk) { Snackbar.Add(unitError ?? "Office updated but failed to add unit.", Severity.Warning); return; }
+                Snackbar.Add($"Unit '{data.UnitName}' added to '{data.OfficeName}'!", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("Office updated.", Severity.Success);
+            }
+
             await LoadOffices(showSpinner: false);
         }
         catch (Exception ex)
