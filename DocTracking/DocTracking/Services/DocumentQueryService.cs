@@ -494,7 +494,7 @@ namespace DocTracking.Services
         }
 
         public async Task<(List<Document> Items, int TotalCount)> GetOfficeHistoryAsync(
-        int officeId, int page, int pageSize, string? search = null)
+            int officeId, int page, int pageSize, string? search = null, bool isOfficeHead = false)
         {
             try
             {
@@ -510,7 +510,8 @@ namespace DocTracking.Services
                              (l.UnitId == null && l.OfficeId == officeId)) &&
                             !(l.Action == "Created" && _context.DocumentLogs
                                 .Any(e => e.DocumentId == d.Id && e.Action == "Edited"
-                                    && e.Comment != null && e.Comment.Contains("Routing:")))));
+                                    && e.Comment != null && e.Comment.Contains("Routing:"))) &&
+                            (isOfficeHead || l.UnitId == null)));
 
                 if (!string.IsNullOrEmpty(search))
                     query = query.Where(d =>

@@ -271,9 +271,9 @@ namespace DocTracking.Client.Services
         }
 
         public async Task<PagedResult<Document>> GetOfficeHistoryAsync(
-            int officeId, int page = 1, int pageSize = 25, string? search = null)
+            int officeId, int page = 1, int pageSize = 25, string? search = null, bool isOfficeHead = false)
         {
-            var url = $"api/documents/history/office/{officeId}?page={page}&pageSize={pageSize}";
+            var url = $"api/documents/history/office/{officeId}?page={page}&pageSize={pageSize}&isOfficeHead={isOfficeHead}";
             if (!string.IsNullOrEmpty(search)) url += $"&search={Uri.EscapeDataString(search)}";
             return await GetJsonAsync<PagedResult<Document>>(url) ?? new();
         }

@@ -251,9 +251,10 @@ namespace DocTracking.Controllers
             int officeId,
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 25,
-            [FromQuery] string? search = null)
+            [FromQuery] string? search = null,
+            [FromQuery] bool isOfficeHead = false)
         {
-            var (items, total) = await _docService.GetOfficeHistoryAsync(officeId, page, pageSize, search);
+            var (items, total) = await _docService.GetOfficeHistoryAsync(officeId, page, pageSize, search, isOfficeHead);
             return Ok(new PagedResult<Document> { Items = items, TotalCount = total });
         }
 
