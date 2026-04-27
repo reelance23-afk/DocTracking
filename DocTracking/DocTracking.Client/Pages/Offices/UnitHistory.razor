@@ -254,11 +254,11 @@
             }
             else if (profile?.OfficeId != null)
             {
-                isOfficeHead = true;
+                isOfficeHead = profile.IsOfficeHead;
                 myOfficeId = profile.OfficeId;
                 myUnitName = profile.Office?.Name ?? "Office";
                 var statsTask = DocService.GetLocationDocStatsAsync(null, profile.OfficeId);
-                var historyTask = DocService.GetOfficeHistoryAsync(profile.OfficeId.Value, currentPage, PageSize, isOfficeHead: true);
+                var historyTask = DocService.GetOfficeHistoryAsync(profile.OfficeId.Value, currentPage, PageSize, isOfficeHead: isOfficeHead);
                 await Task.WhenAll(historyTask, statsTask);
                 historyResult = historyTask.Result;
                 _stats = statsTask.Result ?? new();
@@ -317,7 +317,7 @@
             }
             else if (myOfficeId.HasValue)
             {
-                historyResult = await DocService.GetOfficeHistoryAsync(myOfficeId.Value, currentPage, PageSize, searchString, isOfficeHead: true);
+                historyResult = await DocService.GetOfficeHistoryAsync(myOfficeId.Value, currentPage, PageSize, searchString, isOfficeHead: isOfficeHead);
                 _stats = await DocService.GetLocationDocStatsAsync(null, myOfficeId) ?? new();
             }
         }
@@ -340,7 +340,7 @@
             if (myUnitId.HasValue)
                 next = await DocService.GetUnitHistoryAsync(myUnitId.Value, currentPage, PageSize, searchString);
             else if (myOfficeId.HasValue)
-                next = await DocService.GetOfficeHistoryAsync(myOfficeId.Value, currentPage, PageSize, searchString);
+                next = await DocService.GetOfficeHistoryAsync(myOfficeId.Value, currentPage, PageSize, searchString, isOfficeHead: isOfficeHead);
             else return;
 
             historyResult.Items.AddRange(next.Items);
