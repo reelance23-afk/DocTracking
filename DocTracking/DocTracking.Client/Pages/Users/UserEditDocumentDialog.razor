@@ -147,6 +147,7 @@
     private bool CanDelete => Doc.CurrentOfficeId == null && Doc.NextOfficeId != null;
     private List<IBrowserFile> selectedFiles = new();
     private bool isSaving;
+    private int? _myOfficeId;
     private static readonly string[] AllowedExtensions = { ".pdf", ".doc", ".docx", ".jpg", ".png" };
 
     private List<Office> _offices = new();
@@ -240,6 +241,9 @@
 
     protected override async Task OnInitializedAsync()
     {
+        var profile = await DocService.GetProfileAsync();
+        _myOfficeId = profile?.Unit?.OfficeId ?? profile?.OfficeId;
+
         _offices = await DocService.GetOfficesSimpleAsync();
         if (Doc.NextOfficeId.HasValue)
         {
@@ -251,10 +255,10 @@
 
     private Task<IEnumerable<Office>> SearchOffices(string value, CancellationToken ct)
     {
-        var results = string.IsNullOrWhiteSpace(value)
-            ? _offices
-            : _offices.Where(o => o.Name!.Contains(value, StringComparison.OrdinalIgnoreCase));
-        return Task.FromResult<IEnumerable<Office>>(results);
+        var results = _offices.Where(o => o.Id != _myOfficeId);
+        if (!string.IsNullOrWhiteSpace(value))
+            results = results.Where(o => o.Name!.Contains(value, StringComparison.OrdinalIgnoreCase));
+        return Task.FromResult(results);
     }
 
     private Task<IEnumerable<Unit>> SearchUnits(string value, CancellationToken ct)
