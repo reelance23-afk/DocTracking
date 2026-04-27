@@ -129,6 +129,56 @@
             text-decoration: none;
         }
 
+    .flow-section {
+        margin-top: 48px;
+        margin-bottom: 0;
+    }
+
+    .flow-label {
+        color: rgba(255,255,255,0.4);
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        margin-bottom: 20px;
+    }
+
+    .flow-steps {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .flow-step {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        background: rgba(255,255,255,0.06);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 12px;
+        padding: 16px 20px;
+        min-width: 80px;
+    }
+
+    .flow-icon {
+        font-size: 1.8rem;
+    }
+
+    .flow-text {
+        color: rgba(255,255,255,0.8);
+        font-size: 0.78rem;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+    }
+
+    .flow-arrow {
+        color: rgba(255,255,255,0.3);
+        font-size: 1.2rem;
+        font-weight: 300;
+    }
+
     .features {
         display: flex;
         gap: 20px;
@@ -219,6 +269,36 @@
                     </svg>
                     Login with Microsoft
                 </a>
+
+                <div class="flow-section">
+                    <p class="flow-label">How it works</p>
+                    <div class="flow-steps">
+                        <div class="flow-step">
+                            <div class="flow-icon">📝</div>
+                            <div class="flow-text">Create</div>
+                        </div>
+                        <div class="flow-arrow">→</div>
+                        <div class="flow-step">
+                            <div class="flow-icon">📤</div>
+                            <div class="flow-text">Route</div>
+                        </div>
+                        <div class="flow-arrow">→</div>
+                        <div class="flow-step">
+                            <div class="flow-icon">📬</div>
+                            <div class="flow-text">Receive</div>
+                        </div>
+                        <div class="flow-arrow">→</div>
+                        <div class="flow-step">
+                            <div class="flow-icon">🔄</div>
+                            <div class="flow-text">Forward</div>
+                        </div>
+                        <div class="flow-arrow">→</div>
+                        <div class="flow-step">
+                            <div class="flow-icon">✅</div>
+                            <div class="flow-text">Complete</div>
+                        </div>
+                    </div>
+                </div>
 
                 <div class="features">
                     <div class="feature-card">
