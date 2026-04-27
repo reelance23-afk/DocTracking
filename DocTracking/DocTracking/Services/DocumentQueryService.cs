@@ -367,7 +367,7 @@ namespace DocTracking.Services
                     .Where(d => d.NextOfficeId == officeId && d.Status == "In Motion");
 
                 if (unitId.HasValue)
-                    query = query.Where(d => d.NextUnitId == unitId || d.NextUnitId == null);
+                    query = query.Where(d => d.NextUnitId == unitId);
                 else if (!isOfficeHead)
                     query = query.Where(d => d.NextUnitId == null);
 
@@ -400,10 +400,10 @@ namespace DocTracking.Services
 
                 if (!isOfficeHead)
                 {
-                if (unitId.HasValue)
-                    query = query.Where(d => d.CurrentUnitId == null || d.CurrentUnitId == unitId);
-                else
-                    query = query.Where(d => d.CurrentUnitId == null);
+                    if (unitId.HasValue)
+                        query = query.Where(d => d.CurrentUnitId == unitId);
+                    else
+                        query = query.Where(d => d.CurrentUnitId == null);
                 }
 
                 if (!string.IsNullOrEmpty(search))
