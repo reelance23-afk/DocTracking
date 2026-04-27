@@ -837,6 +837,10 @@ namespace DocTracking.Controllers
             if (existing.Priority != doc.Priority) changes.Add($"Priority: '{existing.Priority}' to '{doc.Priority}'");
             if (existing.Description != doc.Description) changes.Add("Description updated");
 
+            bool routeChanged = false;
+            int? oldNextOfficeId = null;
+            int? oldNextUnitId = null;
+
             if (!isAdmin)
             {
                 if (existing.NextOfficeId != doc.NextOfficeId)
@@ -851,6 +855,11 @@ namespace DocTracking.Controllers
                     var newUnit = doc.NextUnitId.HasValue ? await _context.Units.FindAsync(doc.NextUnitId) : null;
                     changes.Add($"Unit: '{oldUnit?.Name ?? "None"}' to '{newUnit?.Name ?? "None"}'");
                 }
+
+                oldNextOfficeId = existing.NextOfficeId;
+                oldNextUnitId = existing.NextUnitId;
+                routeChanged = existing.NextOfficeId != doc.NextOfficeId || existing.NextUnitId != doc.NextUnitId;
+
                 existing.NextOfficeId = doc.NextOfficeId;
                 existing.NextUnitId = doc.NextUnitId;
             }
@@ -874,8 +883,30 @@ namespace DocTracking.Controllers
                         Comment = string.Join("; ", changes)
                     });
                 }
+
                 await _context.SaveChangesAsync();
                 await tx.CommitAsync();
+
+                if (routeChanged)
+                {
+                    var queue = new List<AppNotification>();
+                    var editorName = appUser?.Name ?? "Someone";
+
+                    if (oldNextOfficeId.HasValue)
+                        await NotifyOfficeOrUnit(oldNextUnitId, oldNextOfficeId,
+                            $"{editorName} rerouted a document away from your unit.",
+                            $"{editorName} rerouted a document away from your office.",
+                            $"{editorName} rerouted a document away from your office.",
+                            existing.Name ?? "", queue);
+
+                    await NotifyOfficeOrUnit(existing.NextUnitId, existing.NextOfficeId,
+                        $"A document from {editorName} has been rerouted to your unit.",
+                        $"A document from {editorName} has been rerouted to your office.",
+                        $"A document from {editorName} has been rerouted to your office.",
+                        existing.Name ?? "", queue);
+
+                    await SaveNotifications(queue);
+                }
             }
             catch (Exception ex)
             {
@@ -885,6 +916,7 @@ namespace DocTracking.Controllers
             }
             return Ok(existing);
         }
+
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteDocument(int id)

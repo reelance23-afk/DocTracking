@@ -469,7 +469,10 @@ namespace DocTracking.Services
                     .Include(d => d.CurrentUnit)
                     .Include(d => d.Attachments)
                     .Where(d => _context.DocumentLogs
-                    .Any(l => l.UnitId == unitId && l.DocumentId == d.Id));
+                        .Any(l => l.UnitId == unitId && l.DocumentId == d.Id
+                            && !(l.Action == "Created" && _context.DocumentLogs
+                                .Any(e => e.DocumentId == d.Id && e.Action == "Edited"
+                                    && e.Comment != null && e.Comment.Contains("Routing:")))));
 
                 if (!string.IsNullOrEmpty(search))
                     query = query.Where(d =>
@@ -502,9 +505,12 @@ namespace DocTracking.Services
                     .Include(d => d.NextUnit)
                     .Include(d => d.CurrentUnit)
                     .Where(d => _context.DocumentLogs
-                    .Any(l => l.DocumentId == d.Id &&
-                        ((l.UnitId != null && l.Unit != null && l.Unit.OfficeId == officeId) ||
-                         (l.UnitId == null && l.OfficeId == officeId))));
+                        .Any(l => l.DocumentId == d.Id &&
+                            ((l.UnitId != null && l.Unit != null && l.Unit.OfficeId == officeId) ||
+                             (l.UnitId == null && l.OfficeId == officeId)) &&
+                            !(l.Action == "Created" && _context.DocumentLogs
+                                .Any(e => e.DocumentId == d.Id && e.Action == "Edited"
+                                    && e.Comment != null && e.Comment.Contains("Routing:")))));
 
                 if (!string.IsNullOrEmpty(search))
                     query = query.Where(d =>

@@ -120,7 +120,7 @@ namespace DocTracking.Controllers
             {
                 user.UnitId = request.ToUnitId;
                 user.OfficeId = targetUnit.OfficeId;
-                user.Role = "Office";
+                user.Role = user.Role == "Admin" ? "Admin" : "Office";
             }
 
             try
@@ -154,7 +154,7 @@ namespace DocTracking.Controllers
             {
                 user.UnitId = request.ToUnitId;
                 user.OfficeId = targetUnit.OfficeId;
-                user.Role = "Office";
+                user.Role = user.Role == "Admin" ? "Admin" : "Office";
             }
 
             try
