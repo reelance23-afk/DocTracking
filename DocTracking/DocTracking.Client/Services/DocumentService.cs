@@ -227,11 +227,11 @@ namespace DocTracking.Client.Services
         public async Task<UserHomeData> GetUserHomeDataAsync(string email) =>
             await GetJsonAsync<UserHomeData>($"api/documents/user/{Uri.EscapeDataString(email)}/home-data");
 
-        public async Task<LocationDocStats?> GetLocationDocStatsAsync(int? unitId, int? officeId)
+        public async Task<LocationDocStats?> GetLocationDocStatsAsync(int? unitId, int? officeId, bool isOfficeHead = false)
         {
             var url = unitId.HasValue
                 ? $"api/documents/stats/unit/{unitId}"
-                : $"api/documents/stats/office/{officeId}";
+                : $"api/documents/stats/office/{officeId}?isOfficeHead={isOfficeHead}";
             return await GetJsonAsync<LocationDocStats>(url);
         }
 

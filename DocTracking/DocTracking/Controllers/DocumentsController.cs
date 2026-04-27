@@ -274,11 +274,11 @@ namespace DocTracking.Controllers
         }
 
         [HttpGet("stats/office/{officeId}")]
-        public async Task<ActionResult<LocationDocStats>> GetOfficeDocStats(int officeId)
+        public async Task<ActionResult<LocationDocStats>> GetOfficeDocStats(int officeId, [FromQuery] bool isOfficeHead = false)
         {
             try
             {
-                var stats = await _docService.GetLocationDocStatAsync(null, officeId);
+                var stats = await _docService.GetLocationDocStatAsync(null, officeId, isOfficeHead);
                 return Ok(stats);
             }
             catch (Exception ex)

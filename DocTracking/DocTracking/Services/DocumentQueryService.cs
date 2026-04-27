@@ -532,7 +532,7 @@ namespace DocTracking.Services
             }
         }
 
-        public async Task<LocationDocStats> GetLocationDocStatAsync(int? unitId, int? officeId)
+        public async Task<LocationDocStats> GetLocationDocStatAsync(int? unitId, int? officeId, bool isOfficeHead = false)
         {
             try
             {
@@ -549,7 +549,7 @@ namespace DocTracking.Services
                     query = _context.Documents
                         .Where(d => _context.DocumentLogs
                         .Any(i => i.DocumentId == d.Id &&
-                        ((i.UnitId != null && i.Unit != null && i.Unit.OfficeId == officeId) ||
+                        ((i.UnitId != null && i.Unit != null && i.Unit.OfficeId == officeId && isOfficeHead) ||
                         (i.UnitId == null && i.OfficeId == officeId))));
                 }
                 else
