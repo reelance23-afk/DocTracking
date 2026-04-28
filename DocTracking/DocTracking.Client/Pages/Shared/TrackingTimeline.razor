@@ -169,7 +169,8 @@ else
     }
  
 <MudHidden Breakpoint="Breakpoint.SmAndDown">
-        <div class="stepper-scroll mb-6" style="justify-content: @(Logs.Count > 5 ? "flex-start" : "center");">
+        <div class="stepper-scroll mb-6" style="justify-content: @(Logs.Count > 5 ? "flex-start" : "center"); max-width: 100%; overflow-x: @(Logs.Count > 5 ? "auto" : "visible");">
+
             @for (int i = Logs.Count - 1; i >= 0; i--)
             {
                 var log = Logs[i];
