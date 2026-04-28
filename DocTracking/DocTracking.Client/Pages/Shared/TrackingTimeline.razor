@@ -400,6 +400,21 @@ else
         catch { }
     }
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && Logs.Any())
+        {
+            await Task.Delay(100);
+            try
+            {
+                await JS.InvokeVoidAsync("eval",
+                    "var el = document.querySelector('.stepper-scroll'); if(el) el.scrollLeft = el.scrollWidth;");
+            }
+            catch { }
+        }
+    }
+
+
     private string GetDotColor(string? action, bool isCurrent) => action switch
     {
         "Created" => "#2196f3",
