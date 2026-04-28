@@ -195,7 +195,7 @@ else
                 {
                     var nextLog = Logs[i - 1];
                     var connectorColor = GetDotColor(nextLog.Action, i - 1 == 0);
-                    <div style="display: flex; align-items: flex-start; flex: 1; min-width: 16px; margin-top: -16px;">
+                    <div style="display: flex; align-items: flex-start; flex-shrink: 0; width: 40px; margin-top: -16px;">
                         <div class="step-connector" style="background: linear-gradient(to right, @dotColor, @connectorColor); width: 100%;"></div>
                     </div>
                 }
