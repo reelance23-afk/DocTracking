@@ -137,6 +137,20 @@
     [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
     [Parameter] public Document Doc { get; set; } = new();
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && Logs.Any())
+        {
+            await Task.Delay(100);
+            try
+            {
+                await JS.InvokeVoidAsync("eval",
+                    "var el = document.querySelector('.stepper-scroll'); if(el) el.scrollLeft = el.scrollWidth;");
+            }
+            catch { }
+        }
+    }
+
     private async Task OpenFullTimeline()
     {
         var parameters = new DialogParameters { ["Doc"] = Doc };
