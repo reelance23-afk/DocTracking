@@ -169,10 +169,11 @@ else
     }
  
 <MudHidden Breakpoint="Breakpoint.SmAndDown">
-        <div class="stepper-scroll mb-6" style="justify-content: @(Logs.Count > 5 ? "flex-start" : "center"); max-width: 100%; overflow-x: @(Logs.Count > 5 ? "auto" : "visible");">
+<div class="stepper-scroll mb-6" style="justify-content: @(Logs.Count > 5 ? "flex-start" : "center");">
+    <div style="display: flex; align-items: center; min-width: @(Logs.Count * 90)px;">
 
-            @for (int i = Logs.Count - 1; i >= 0; i--)
-            {
+        @for (int i = Logs.Count - 1; i >= 0; i--)
+        {
                 var log = Logs[i];
                 var index = i;
                 var isActive = _selectedIndex == index;
@@ -200,6 +201,7 @@ else
                     </div>
                 }
             }
+        </div>
         </div>
     </MudHidden>
 
