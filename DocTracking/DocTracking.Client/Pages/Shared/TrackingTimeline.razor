@@ -29,6 +29,15 @@
         min-width: 16px;
     }
 
+    .stepper-scroll {
+        display: flex;
+        align-items: center;
+        overflow-x: auto;
+        padding: 8px;
+        scrollbar-width: thin;
+        -webkit-overflow-scrolling: touch;
+    }
+
     .timeline-step {
         transition: background 0.3s ease;
         border-radius: 8px;
@@ -159,8 +168,7 @@ else
     }
  
 <MudHidden Breakpoint="Breakpoint.SmAndDown">
-    <div class="d-flex align-center justify-center mb-6 px-2" style="overflow-x: auto; padding-top: 8px; padding-bottom: 8px;">
-
+        <div class="stepper-scroll mb-6" style="justify-content: @(Logs.Count > 5 ? "flex-start" : "center");">
             @for (int i = Logs.Count - 1; i >= 0; i--)
             {
                 var log = Logs[i];

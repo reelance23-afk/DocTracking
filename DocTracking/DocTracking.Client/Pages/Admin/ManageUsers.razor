@@ -169,8 +169,11 @@
                                            OnClick="@(async () => await OpenActivityDialog(context))" />
                         <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Warning"
                                            OnClick="@(() => OpenEditDialog(context))" />
+                            @if (context.Role != "Admin")
+                            {
                         <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error"
                                            OnClick="@(async () => await DeleteUser(context))" />
+                            }
                         </div>
                     </MudTd>
                 </RowTemplate>
