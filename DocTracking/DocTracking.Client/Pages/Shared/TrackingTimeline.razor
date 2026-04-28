@@ -400,11 +400,14 @@ else
         catch { }
     }
 
+    private bool _scrolled = false;
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender && Logs.Any())
+        if (!_scrolled && Logs.Any())
         {
-            await Task.Delay(100);
+            _scrolled = true;
+            await Task.Delay(200);
             try
             {
                 await JS.InvokeVoidAsync("eval",
@@ -413,6 +416,7 @@ else
             catch { }
         }
     }
+
 
 
     private string GetDotColor(string? action, bool isCurrent) => action switch
